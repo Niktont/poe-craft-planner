@@ -91,13 +91,6 @@ void StepItemDelegate::setEditorData(QWidget* editor, const QModelIndex& index) 
             return;
         }
         break;
-        // case StepItemColumn::CostCurrency:
-        //     if (StepItemType::Custom == item.type()) {
-        //         auto edit = static_cast<QLineEdit*>(editor);
-        //         edit->setText(index.data().toString());
-        //         return;
-        //     }
-        //     break;
     }
     QStyledItemDelegate::setEditorData(editor, index);
 }

@@ -71,13 +71,6 @@ void StepItemView::setupColumns()
     connect(stepModel(), &StepItemModel::dataChanged, this, &StepItemView::resizeColumns);
 }
 
-QSize StepItemView::totalSize() const
-{
-    return {horizontalHeader()->length() + verticalHeader()->width() + lineWidth() * 2,
-            static_cast<int>(horizontalHeader()->height() * 1.4) + verticalHeader()->length()
-                + lineWidth() * 2};
-}
-
 StepItemView::StepItemView(StepItemModel& model, QWidget* parent)
     : QTableView{parent}
 {
@@ -191,7 +184,7 @@ void StepItemView::contextMenuEvent(QContextMenuEvent* event)
 
 QSize StepItemView::sizeHint() const
 {
-    return {horizontalHeader()->length() + verticalHeader()->width() + lineWidth() * 2,
+    return {horizontalHeader()->length() + verticalHeader()->sizeHint().width() + lineWidth() * 2,
             static_cast<int>(horizontalHeader()->height() * 1.4) + verticalHeader()->length()
                 + lineWidth() * 2};
 }

@@ -7,6 +7,7 @@
 #include "StepItemView.h"
 #include "StepItemsWidget.h"
 #include <QAbstractTextDocumentLayout>
+#include <QHeaderView>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMenu>
@@ -125,6 +126,9 @@ void StepWidget::setStep(Plan* plan, size_t step_pos)
     if (!plan)
         return;
 
+    resources_widget->view->verticalHeader()->reset();
+    results_widget->view->verticalHeader()->reset();
+
     resources_widget->view->syncColumns();
 
     auto step = currentStep();
@@ -137,7 +141,6 @@ void StepWidget::setStep(Plan* plan, size_t step_pos)
 
     description->browser->show();
     description->browser->setMarkdown(step->description);
-    //description->browser->document()->setTextWidth(description->edit->maximumWidth());
 
     description->adjustBrowserSize();
 

@@ -46,8 +46,6 @@ private:
     int widthForItemText(QStyleOptionViewItem& option, const QString& text) const;
 
     void setupColumns();
-
-    QSize totalSize() const;
 };
 
 } // namespace planner
