@@ -274,8 +274,9 @@ QVariant PlanItem::data(int column, int role) const
         if (col == PlanItemColumn::Name) {
             switch (role) {
             case Qt::DisplayRole:
-            case Qt::EditRole:
                 return !plan_->is_changed ? plan_->name : plan_->name + u"*";
+            case Qt::EditRole:
+                return !plan_->is_changed ? plan_->name : plan_->name;
             }
         }
     }
