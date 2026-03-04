@@ -231,7 +231,7 @@ void PlanWidget::deleteStep(size_t step_pos)
     plan_->steps.erase(plan_->steps.begin() + step_pos);
     plan_->setChanged();
 
-    for (size_t i = 0; i < step_pos; ++i)
+    for (size_t i = step_pos; i < plan_->steps.size(); ++i)
         step_widgets[i]->updateStepNames(deleted_id, true);
 
     if (is_final_changed)
@@ -311,7 +311,7 @@ void PlanWidget::updateStepNames(size_t renamed_step)
         return;
 
     auto& step = plan_->steps[renamed_step];
-    for (size_t i = 0; i < renamed_step; ++i)
+    for (size_t i = renamed_step + 1; i < plan_->steps.size(); ++i)
         step_widgets[i]->updateStepNames(step.id, false);
 }
 
