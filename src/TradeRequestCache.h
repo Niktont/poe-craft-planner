@@ -56,6 +56,7 @@ public:
     };
 
     void saveRequest(const TradeRequestKey& request, TradeRequestData data);
+    void deleteRequest(TradeRequestKey request);
     void updateCost(const TradeRequestKey& request, TradeCostData::Data cost_data);
     void setDefaultTime(const TradeRequestKey& request, std::optional<ItemTime> time);
 

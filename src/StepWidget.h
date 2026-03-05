@@ -37,6 +37,7 @@ public:
     void updateTradeName(const planner::TradeRequestKey& request);
     void updateTradeTime(const planner::TradeRequestKey& request);
     void updateCurrencyTime(const planner::Currency& currency);
+    void clearTradeRequest(const planner::TradeRequestKey& request);
 
     void setStep(planner::Plan* plan, size_t step_pos);
     void setName(QString name);

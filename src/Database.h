@@ -70,6 +70,7 @@ public:
     static QSqlQuery insertTradeCache(Game game);
     static QSqlQuery insertTradeCostCache(Game game);
 
+    static bool deleteTradeCache(Game game, const TradeRequestKey& request);
     static bool deleteTradeCostCache(Game game, const QString& league);
 
     static bool clearTradeCache(Game game);

@@ -36,6 +36,7 @@ private slots:
 
     void selectRequest(const QModelIndex& proxy_i);
     void saveRequest();
+    void deleteRequest();
     void cleanup();
 
 private:
@@ -46,6 +47,7 @@ private:
 
     QPushButton* load_button;
     QPushButton* save_button;
+    QPushButton* delete_button;
 
     TradeRequestKey edit_request;
     QJsonDocument edit_query;
@@ -61,6 +63,7 @@ private:
     void setGame(planner::Game game);
     void findQuery(const QString& html);
     void queryLoadFailed();
+    void clear();
 };
 
 } // namespace planner

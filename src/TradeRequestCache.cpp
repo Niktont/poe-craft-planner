@@ -82,6 +82,20 @@ void TradeRequestCache::saveRequest(const TradeRequestKey& request, TradeRequest
     }
 }
 
+void TradeRequestCache::deleteRequest(TradeRequestKey request)
+{
+    auto it = requestData(request);
+    if (it == cache.end())
+        return;
+    auto pos = cache.index_of(it);
+
+    Database::deleteTradeCache(game, it->first);
+
+    beginRemoveRows({}, pos, pos);
+    cache.erase(it);
+    endRemoveRows();
+}
+
 void planner::TradeRequestCache::updateCost(const TradeRequestKey& request,
                                             TradeCostData::Data cost_data)
 {

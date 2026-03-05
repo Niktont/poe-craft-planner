@@ -47,7 +47,9 @@ private slots:
     void checkDeletingPlans(const QModelIndex& parent, int first, int last);
     void updatePlanName(planner::Plan* renamed_plan);
 
-    void updateTradeName(const planner::TradeRequestKey& request);
+    void updateTradeName(int row, planner::Game game);
+    void checkDeletingTradeRequest(int row, planner::Game game);
+
     void updateTradeTime(const planner::TradeRequestKey& request);
     void updateCurrencyTime(const planner::Currency& currency);
     void updateTradeDefaultTime();

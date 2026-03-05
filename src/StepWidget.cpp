@@ -97,6 +97,8 @@ StepWidget::StepWidget(PlanWidget* plan_widget, QWidget* parent)
 
     table_layout->addWidget(resources_widget);
     table_layout->addWidget(results_widget);
+
+    step_layout->addStretch(1);
 }
 
 Step* StepWidget::currentStep()
@@ -258,6 +260,12 @@ void StepWidget::updateTradeTime(const TradeRequestKey& request)
 void StepWidget::updateCurrencyTime(const Currency& currency)
 {
     resources_model->updateTime(currency);
+}
+
+void StepWidget::clearTradeRequest(const TradeRequestKey& request)
+{
+    resources_model->clearTradeRequest(request);
+    results_model->clearTradeRequest(request);
 }
 
 } // namespace planner

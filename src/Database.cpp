@@ -323,6 +323,15 @@ QSqlQuery planner::Database::insertTradeCostCache(Game game)
     return query;
 }
 
+bool Database::deleteTradeCache(Game game, const TradeRequestKey& request)
+{
+    QSqlQuery query;
+    query.prepare("DELETE FROM " % trade_cache.forGame(game) % " WHERE id = ? AND domain = ?;");
+    query.addBindValue(request.request_id);
+    query.addBindValue(static_cast<std::underlying_type_t<Domain>>((request.domain)));
+    return query.exec();
+}
+
 bool Database::deleteTradeCostCache(Game game, const QString& league)
 {
     QSqlQuery query;

@@ -84,6 +84,7 @@ public:
     size_t stepPos() const { return step_pos; }
     const StepItem* stepItem(const QModelIndex& idx) const;
 
+    void clearTradeRequest(const planner::TradeRequestKey& request);
     void updateTradeName(const planner::TradeRequestKey& request);
     void updateTime(const planner::TradeRequestKey& request);
     void updateTime(const planner::Currency& currency);

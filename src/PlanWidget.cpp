@@ -95,17 +95,22 @@ void PlanWidget::connectSignals()
             &PlanWidget::updateTradeTime);
 
     connect(mw()->trade_cache_poe1,
+            &TradeRequestCache::rowsAboutToBeRemoved,
+            this,
+            [this](const QModelIndex&, int row) { checkDeletingTradeRequest(row, Game::Poe1); });
+    connect(mw()->trade_cache_poe2,
+            &TradeRequestCache::rowsAboutToBeRemoved,
+            this,
+            [this](const QModelIndex&, int row) { checkDeletingTradeRequest(row, Game::Poe2); });
+
+    connect(mw()->trade_cache_poe1,
             &TradeRequestCache::dataChanged,
             this,
-            [this](const QModelIndex& idx) {
-                updateTradeName(mw()->trade_cache_poe1->cache.nth(idx.row())->first);
-            });
+            [this](const QModelIndex& idx) { updateTradeName(idx.row(), Game::Poe1); });
     connect(mw()->trade_cache_poe2,
             &TradeRequestCache::dataChanged,
             this,
-            [this](const QModelIndex& idx) {
-                updateTradeName(mw()->trade_cache_poe2->cache.nth(idx.row())->first);
-            });
+            [this](const QModelIndex& idx) { updateTradeName(idx.row(), Game::Poe2); });
 
     connect(mw()->exchange_cache_poe1,
             &ExchangeRequestCache::defaultTimeChanged,
@@ -321,13 +326,24 @@ void PlanWidget::updatePlanName(Plan* renamed_plan)
         name_label->setText(plan_->name);
 }
 
-void PlanWidget::updateTradeName(const TradeRequestKey& request)
+void PlanWidget::checkDeletingTradeRequest(int row, Game game)
 {
-    if (!plan_)
+    if (!plan_ || plan_->game != game)
         return;
 
+    auto it = mw()->tradeCache(game)->cache.nth(row);
     for (size_t i = 0; i < plan_->steps.size(); ++i)
-        step_widgets[i]->updateTradeName(request);
+        step_widgets[i]->clearTradeRequest(it->first);
+}
+
+void PlanWidget::updateTradeName(int row, planner::Game game)
+{
+    if (!plan_ || plan_->game != game)
+        return;
+
+    auto it = mw()->tradeCache(game)->cache.nth(row);
+    for (size_t i = 0; i < plan_->steps.size(); ++i)
+        step_widgets[i]->updateTradeName(it->first);
 }
 
 void PlanWidget::updateTradeTime(const TradeRequestKey& request)

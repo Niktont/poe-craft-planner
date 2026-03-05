@@ -1141,6 +1141,22 @@ void StepItemModel::setDefaultTime(const QModelIndex& idx)
         exchange_cache->setDefaultTime(exchange->currency, exchange->time);
 }
 
+void StepItemModel::clearTradeRequest(const TradeRequestKey& request)
+{
+    if (!plan)
+        return;
+
+    auto& items = stepItems();
+    for (size_t i = 0; i < items.size(); ++i) {
+        if (auto trade = items[i].trade(); trade && trade->request_key == request) {
+            trade->request_key = {};
+            auto idx = index(i, StepItemColumn::Name);
+            auto time_idx = sibling(idx, StepItemColumn::Time);
+            emit dataChanged(idx, time_idx);
+        }
+    }
+}
+
 void StepItemModel::updateTradeName(const TradeRequestKey& request)
 {
     if (!plan)
