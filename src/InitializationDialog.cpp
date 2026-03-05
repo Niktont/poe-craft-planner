@@ -400,7 +400,10 @@ void InitializationDialog::finishInitialization()
     }
 
     accept();
+
+    mw->restoreLastPlan();
     mw->show();
+
     deleteLater();
 }
 

@@ -25,6 +25,7 @@ public:
     static const QLatin1StringView windows_main_geometry;
     static const QLatin1StringView windows_main_state;
     static const QLatin1StringView windows_main_hide_descriptions;
+    static const QLatin1StringView windows_main_last_plan;
     static const QLatin1StringView windows_web_view_dialog_geometry;
 
     static const QLatin1StringView poe1_realm;

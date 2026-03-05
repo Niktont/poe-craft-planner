@@ -63,6 +63,7 @@ const QLatin1StringView Settings::windows_main_state{"windows/main_state"};
 const QLatin1StringView Settings::windows_web_view_dialog_geometry{
     "windows/web_view_dialog_geometry"};
 const QLatin1StringView Settings::windows_main_hide_descriptions{"windows/main_hide_descriptions"};
+const QLatin1StringView Settings::windows_main_last_plan{"windows/main_last_plan"};
 
 const QLatin1StringView Settings::poe1_realm{"poe1/realm"};
 const QLatin1StringView Settings::poe1_league{"poe1/league"};

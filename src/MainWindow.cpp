@@ -97,6 +97,23 @@ PlanWidget* MainWindow::planWidget()
     return static_cast<PlanWidget*>(centralWidget());
 }
 
+void MainWindow::restoreLastPlan()
+{
+    auto settings = Settings::get();
+    QUuid id{settings.value(Settings::windows_main_last_plan).toString()};
+    if (id.isNull())
+        return;
+
+    auto it = plan_model_poe1->plans.find(id);
+    if (it == plan_model_poe1->plans.end()) {
+        it = plan_model_poe2->plans.find(id);
+        if (it == plan_model_poe2->plans.end())
+            return;
+        plan_view_poe2->setCurrentIndex(it->second.item()->index());
+    } else
+        plan_view_poe1->setCurrentIndex(it->second.item()->index());
+}
+
 void MainWindow::closeEvent(QCloseEvent* event)
 {
     if (haveUnsavedPlans() && !execSaveMsg()) {
@@ -110,6 +127,9 @@ void MainWindow::closeEvent(QCloseEvent* event)
     settings.setValue(Settings::windows_web_view_dialog_geometry, web_view_dialog->saveGeometry());
     settings.setValue(Settings::windows_main_hide_descriptions,
                       hide_descriptions_action->isChecked());
+
+    if (planWidget()->plan())
+        settings.setValue(Settings::windows_main_last_plan, planWidget()->plan()->id().toString());
 
     event->accept();
 }

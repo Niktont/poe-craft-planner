@@ -68,6 +68,8 @@ public:
 
     PlanWidget* planWidget();
 
+    void restoreLastPlan();
+
     PlanModel* planModel(Game game) const
     {
         return game == Game::Poe1 ? plan_model_poe1 : plan_model_poe2;
