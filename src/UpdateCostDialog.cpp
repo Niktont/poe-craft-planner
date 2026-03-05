@@ -178,7 +178,7 @@ void UpdateCostDialog::parseTradeSearch(Game game,
         }
     } else {
         is_active_trade = true;
-        size_t items_to_fetch = std::min(1ull, items.second.size() / 10);
+        size_t items_to_fetch = std::clamp(items.second.size() / 10, 1ull, 10ull);
         auto fetch_reply = mw()->trade_manager->fetchItems(game,
                                                            request,
                                                            {items.second.begin(), items_to_fetch});
