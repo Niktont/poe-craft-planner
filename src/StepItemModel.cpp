@@ -206,8 +206,9 @@ QVariant StepItemModel::data(const QModelIndex& index, int role) const
     case StepItemColumn::Amount:
         switch (role) {
         case Qt::DisplayRole:
-        case Qt::EditRole:
             return QString::number(item.amount);
+        case Qt::EditRole:
+            return item.amount;
         case Qt::TextAlignmentRole:
             return QVariant{Qt::AlignRight | Qt::AlignVCenter};
         }
@@ -594,9 +595,10 @@ QVariant StepItemModel::exchangeItemData(double amount,
         return {};
     case StepItemColumn::Time:
         switch (role) {
-        case Qt::EditRole:
         case Qt::DisplayRole:
             return formatTime(exchange_cache->time(exchange));
+        case Qt::EditRole:
+            return exchange.time ? QString::number(exchange.time->count()) : QVariant{};
         }
         return {};
     default:
@@ -717,9 +719,10 @@ QVariant StepItemModel::tradeItemData(double amount,
         return {};
     case StepItemColumn::Time:
         switch (role) {
-        case Qt::EditRole:
         case Qt::DisplayRole:
             return formatTime(trade_cache->time(trade));
+        case Qt::EditRole:
+            return trade.time ? QString::number(trade.time->count()) : QVariant{};
         }
         return {};
     default:
@@ -819,8 +822,9 @@ QVariant StepItemModel::customItemData(double amount,
     case planner::StepItemColumn::Cost:
         switch (role) {
         case Qt::DisplayRole:
-        case Qt::EditRole:
             return formatCost(custom.cost.value);
+        case Qt::EditRole:
+            return custom.cost.value;
         case Qt::ToolTipRole:
             return custom.cost.value != 0.0 ? QString::number(amount * custom.cost.value)
                                             : QVariant{};
@@ -842,15 +846,17 @@ QVariant StepItemModel::customItemData(double amount,
     case planner::StepItemColumn::Gold:
         switch (role) {
         case Qt::DisplayRole:
-        case Qt::EditRole:
             return formatGold(custom.gold);
+        case Qt::EditRole:
+            return custom.gold;
         }
         return {};
     case planner::StepItemColumn::Time:
         switch (role) {
         case Qt::DisplayRole:
-        case Qt::EditRole:
             return formatTime(custom.time);
+        case Qt::EditRole:
+            return custom.time.count();
         }
         return {};
     default:

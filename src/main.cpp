@@ -8,6 +8,8 @@ int main(int argc, char* argv[])
     QCoreApplication::setApplicationName("PoE Craft Planner");
     QCoreApplication::setApplicationVersion(APP_VERSION);
 
+    QLocale::setDefault(QLocale::C);
+
     QApplication app{argc, argv};
 
     auto f = app.font();
