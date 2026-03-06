@@ -439,6 +439,7 @@ void PlanModel::importItem(const QJsonObject& export_o)
             plans.merge(std::move(import_plans));
             beginInsertRows({}, root->childCount(), root->childCount());
             root->appendChild(std::move(import_root));
+            changed_folders.insert(root.get());
             endInsertRows();
         }
     } catch (ImportException& e) {
