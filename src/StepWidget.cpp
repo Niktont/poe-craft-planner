@@ -32,9 +32,10 @@ StepWidget::StepWidget(PlanWidget* plan_widget, QWidget* parent)
     layout->addLayout(title_layout);
 
     name_edit = new QLineEdit{};
-    name_edit->setMaximumWidth(240);
     name_edit->setMaxLength(30);
     title_layout->addWidget(name_edit);
+    auto name_fm = name_edit->fontMetrics();
+    name_edit->setFixedWidth(name_fm.averageCharWidth() * (name_edit->maxLength() + 3));
     connect(name_edit, &QLineEdit::editingFinished, this, &StepWidget::setNameFromEdit);
 
     cost_widget = new CostWidget(*plan_widget->mw());
