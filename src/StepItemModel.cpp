@@ -212,7 +212,7 @@ QVariant StepItemModel::data(const QModelIndex& index, int role) const
         case Qt::TextAlignmentRole:
             return QVariant{Qt::AlignRight | Qt::AlignVCenter};
         }
-        return {};
+        break;
     case StepItemColumn::Link:
         if (item.type() == StepItemType::Step)
             return {};
@@ -300,8 +300,6 @@ bool StepItemModel::setData(const QModelIndex& index, const QVariant& value, int
             item.amount = val;
             plan->setChanged();
             emit dataChanged(index, index, {role});
-            auto cost_idx = sibling(index, StepItemColumn::Cost);
-            emit dataChanged(cost_idx, cost_idx, {Qt::ToolTipRole});
             return true;
         }
         return false;
@@ -620,10 +618,10 @@ bool StepItemModel::setExchangeItemData(ExchangeItemData& exchange,
             emit dataChanged(idx, idx, {Qt::DisplayRole, Qt::DecorationRole});
 
             auto link_index = sibling(idx, StepItemColumn::Link);
-            emit dataChanged(link_index, link_index, {Qt::ToolTipRole, Qt::ForegroundRole});
+            emit dataChanged(link_index, link_index, {Qt::ForegroundRole});
 
             auto cost_value_index = sibling(idx, StepItemColumn::Cost);
-            emit dataChanged(cost_value_index, cost_value_index, {Qt::DisplayRole, Qt::ToolTipRole});
+            emit dataChanged(cost_value_index, cost_value_index, {Qt::DisplayRole});
 
             auto cost_currency_index = sibling(idx, StepItemColumn::CostCurrency);
             emit dataChanged(cost_currency_index,
@@ -665,6 +663,12 @@ QVariant StepItemModel::tradeItemData(double amount,
                                       int role) const
 {
     switch (col) {
+    case StepItemColumn::Amount:
+        if (role == Qt::ToolTipRole) {
+            if (auto cost_data = trade_cache->costData(trade.request_key))
+                return tr("Available: %1").arg(cost_data->total_available);
+        }
+        return {};
     case StepItemColumn::Name:
         switch (role) {
         case Qt::DisplayRole:
@@ -749,13 +753,13 @@ bool StepItemModel::setTradeItemData(TradeItemData& trade,
         auto selected_index = value.toModelIndex();
         if (selected_index.isValid()) {
             trade.request_key = trade_cache->cache.nth(selected_index.row())->first;
-            emit dataChanged(idx, idx, {Qt::ToolTipRole, Qt::ForegroundRole});
+            emit dataChanged(idx, idx, {Qt::ForegroundRole});
 
             auto name_index = sibling(idx, StepItemColumn::Name);
             emit dataChanged(name_index, name_index, {Qt::DisplayRole});
 
             auto cost_value_index = sibling(idx, StepItemColumn::Cost);
-            emit dataChanged(cost_value_index, cost_value_index, {Qt::ToolTipRole, Qt::DisplayRole});
+            emit dataChanged(cost_value_index, cost_value_index, {Qt::DisplayRole});
 
             auto cost_currency_index = sibling(idx, StepItemColumn::CostCurrency);
             emit dataChanged(cost_currency_index,
@@ -881,7 +885,7 @@ bool StepItemModel::setCustomItemData(CustomItemData& custom,
     case StepItemColumn::Cost:
         if (auto val = value.toDouble(); val >= 0.0) {
             custom.cost.value = val;
-            emit dataChanged(idx, idx, {Qt::ToolTipRole, Qt::DisplayRole});
+            emit dataChanged(idx, idx, {Qt::DisplayRole});
             return true;
         }
         return false;
