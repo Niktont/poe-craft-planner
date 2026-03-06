@@ -34,6 +34,8 @@ RequestEditDialog::RequestEditDialog(MainWindow& mw)
 
     load_button = new QPushButton{tr("Load query")};
     connect(load_button, &QPushButton::clicked, this, &RequestEditDialog::loadQuery);
+    load_button->setToolTip(tr("If you are adding a lot of searches, load one every 5+ seconds to "
+                               "not exceed rate limits."));
     button_layout->addWidget(load_button);
     load_button->setAutoDefault(false);
 
