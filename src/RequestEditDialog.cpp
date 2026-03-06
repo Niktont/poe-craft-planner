@@ -80,6 +80,12 @@ RequestEditDialog::RequestEditDialog(MainWindow& mw)
     setFocusPolicy(Qt::ClickFocus);
 }
 
+void RequestEditDialog::checkDeletedRequest(const TradeRequestKey& request, Game game_)
+{
+    if (game == game_ && !edit_request.request_id.isEmpty() && edit_request == request)
+        clear();
+}
+
 void RequestEditDialog::openGame(Game game_)
 {
     if (game_ >= Game::Unknown)

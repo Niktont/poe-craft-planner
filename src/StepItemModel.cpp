@@ -1126,11 +1126,22 @@ void StepItemModel::openSearch(const QModelIndex& idx)
         return;
 
     TradeRequestKey request;
-    auto& items = stepItems();
-    if (auto trade = items[idx.row()].trade())
+    if (auto trade = stepItems()[idx.row()].trade())
         request = trade->request_key;
 
     mw()->request_edit_dialog->openRequest(request, plan->game);
+}
+
+void StepItemModel::deleteSearch(const QModelIndex& idx)
+{
+    if (!plan || !idx.isValid())
+        return;
+
+    if (auto trade = stepItems()[idx.row()].trade()) {
+        auto request = trade->request_key;
+        trade_cache->deleteRequest(request);
+        mw()->request_edit_dialog->checkDeletedRequest(request, plan->game);
+    }
 }
 
 void StepItemModel::setDefaultTime(const QModelIndex& idx)

@@ -97,6 +97,7 @@ public:
     void duplicateItem(const QModelIndex& idx);
 
     void openSearch(const QModelIndex& idx);
+    void deleteSearch(const QModelIndex& idx);
     void setDefaultTime(const QModelIndex& idx);
 
 private:

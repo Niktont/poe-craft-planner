@@ -21,6 +21,8 @@ class RequestEditDialog : public QDialog
 public:
     RequestEditDialog(MainWindow& mw);
 
+    void checkDeletedRequest(const TradeRequestKey& request, Game game);
+
 public slots:
     void openGame(planner::Game game);
     void openRequest(const planner::TradeRequestKey& request, planner::Game game);

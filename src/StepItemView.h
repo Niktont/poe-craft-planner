@@ -27,6 +27,7 @@ private slots:
                        const QModelIndex& bottom_right,
                        const QList<int>& roles);
     void indexClicked(const QModelIndex& idx);
+    void deleteSearch();
 
 private:
     StepItemModel* stepModel();
@@ -38,6 +39,7 @@ private:
     QAction* add_step_action;
     QAction* duplicate_action;
     QAction* manage_searches_action;
+    QAction* delete_search_action;
     QAction* default_time_action;
     QAction* delete_action;
 

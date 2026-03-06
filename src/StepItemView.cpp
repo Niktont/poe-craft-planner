@@ -6,7 +6,9 @@
 #include <QHeaderView>
 #include <QKeyEvent>
 #include <QMenu>
+#include <QMessageBox>
 #include <QStyledItemDelegate>
+
 using namespace Qt::StringLiterals;
 
 namespace planner {
@@ -128,6 +130,8 @@ StepItemView::StepItemView(StepItemModel& model, QWidget* parent)
         contextIndex.reset();
     });
 
+    delete_search_action = addAction(tr("Delete Search"), this, &StepItemView::deleteSearch);
+
     default_time_action = addAction(tr("Set As Default"), this, [this] {
         auto current = contextIndex ? *contextIndex : selectionModel()->currentIndex();
         stepModel()->setDefaultTime(current);
@@ -166,6 +170,7 @@ void StepItemView::contextMenuEvent(QContextMenuEvent* event)
             switch (item->type()) {
             case StepItemType::Trade:
                 menu->addAction(manage_searches_action);
+                menu->addAction(delete_search_action);
                 [[fallthrough]];
             case StepItemType::Exchange:
                 if (contextIndex->column() == static_cast<int>(StepItemColumn::Time))
@@ -230,6 +235,29 @@ void StepItemView::indexClicked(const QModelIndex& idx)
         if (url.isValid())
             QDesktopServices::openUrl(url);
     }
+}
+
+void StepItemView::deleteSearch()
+{
+    auto modifiers = QGuiApplication::keyboardModifiers();
+
+    bool delete_search = (modifiers & Qt::ShiftModifier);
+    if (!delete_search) {
+        QMessageBox msg;
+
+        msg.setWindowTitle(tr("Delete Search"));
+        msg.setText(tr("Delete this search?"));
+        msg.setInformativeText(tr("This will affect all Trade items that uses this search."));
+        msg.addButton(QMessageBox::Ok);
+        msg.addButton(QMessageBox::Cancel);
+        delete_search = msg.exec() == QMessageBox::Ok;
+    }
+    if (delete_search) {
+        auto current = contextIndex ? *contextIndex : selectionModel()->currentIndex();
+        stepModel()->deleteSearch(current);
+    }
+
+    contextIndex.reset();
 }
 
 void StepItemView::syncColumns()
