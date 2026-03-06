@@ -204,8 +204,12 @@ void PlanWidget::updateCost(Plan* plan)
 
 void PlanWidget::setDescriptions(Plan* plan)
 {
-    if (plan_ != plan)
+    if (!plan_)
         return;
+
+    if (plan && plan_ != plan)
+        return;
+
     for (size_t i = 0; i < plan_->steps.size(); ++i)
         step_widgets[i]->setDescription();
 }
@@ -403,8 +407,7 @@ void PlanWidget::setPlanOnClick(const QModelIndex& index)
     if (item->isFolder() || item->plan() == plan_)
         return;
 
-    if (plan_)
-        setDescriptions(plan_);
+    setDescriptions(plan_);
 
     setPlan(plan_model, item->plan());
 }
@@ -429,8 +432,7 @@ void PlanWidget::setPlanOnCurrentChange(const QModelIndex& new_current)
     if (item->isFolder() || item->plan() == plan_ || (current_model && current_model != plan_model))
         return;
 
-    if (plan_)
-        setDescriptions(plan_);
+    setDescriptions(plan_);
 
     setPlan(plan_model, item->plan());
 }

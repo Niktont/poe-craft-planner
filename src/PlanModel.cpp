@@ -465,6 +465,9 @@ void PlanModel::exportItem(const QModelIndex& index, bool to_clipboard) const
 
     auto trade_cache = mw()->tradeCache(game);
 
+    if (auto plan = mw()->planWidget()->plan(); plan && plan->game == game)
+        mw()->planWidget()->setDescriptions(nullptr);
+
     QJsonObject export_o;
     export_o["game"] = gameStr(game);
     if (item->isFolder())
