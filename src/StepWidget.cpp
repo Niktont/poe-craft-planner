@@ -109,9 +109,7 @@ Step* StepWidget::currentStep()
 
 void StepWidget::displayCost()
 {
-    if (!plan)
-        return;
-
+    assert(plan);
     cost_widget->setCost(plan->game, currentStep());
 }
 
@@ -139,6 +137,7 @@ void StepWidget::setStep(Plan* plan, size_t step_pos)
 
     auto step = currentStep();
     setName(step->name);
+    displayCost();
 
     description->edit->hide();
     is_text_reset = true;
@@ -243,7 +242,7 @@ void StepWidget::setNameFromEdit()
     if (name != step->name) {
         step->name = name;
         plan->setChanged();
-        planWidget()->updateStepNames(step_pos);
+        plan_widget->updateStepNames(step_pos);
     }
 }
 

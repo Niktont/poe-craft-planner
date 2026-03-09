@@ -50,6 +50,7 @@ PlanWidget::PlanWidget(MainWindow& mw)
     auto steps_layout = new QVBoxLayout{};
     steps_widget->setLayout(steps_layout);
     steps_layout->setContentsMargins(0, 0, 0, 0);
+    steps_layout->addStretch(1);
 
     steps_scroll->setWidget(steps_widget);
 
@@ -148,6 +149,8 @@ void PlanWidget::addStep()
 
     auto pos = plan_->steps.size();
     plan_->steps.emplace_back();
+    plan_->setChanged();
+
     if (pos >= step_widgets.size()) {
         addStepWidget(pos);
     } else {
@@ -157,14 +160,13 @@ void PlanWidget::addStep()
     }
     if (plan_->finalStepId().isNull())
         cost_widget->hide();
-    plan_->setChanged();
 }
 
 void PlanWidget::addStepWidget(size_t i)
 {
     auto step_widget = step_widgets.emplace_back(new StepWidget{this});
     step_widget->hideDescription(is_descriptions_hidden);
-    steps_widget->layout()->addWidget(step_widget);
+    static_cast<QVBoxLayout*>(steps_widget->layout())->insertWidget(i, step_widget);
     step_widget->setStep(plan_, i);
 }
 
@@ -229,7 +231,7 @@ void PlanWidget::deleteStep(size_t step_pos)
     steps_widget->layout()->removeWidget(widget);
     widget->hide();
     widget->setStep(nullptr, 0);
-    steps_widget->layout()->addWidget(widget);
+    static_cast<QVBoxLayout*>(steps_widget->layout())->insertWidget(step_widgets.size() - 1, widget);
 
     bool is_final_changed = &plan_->steps[step_pos] == plan_->costStep();
     if (is_final_changed)
@@ -257,21 +259,22 @@ void PlanWidget::duplicateStep(size_t step_pos)
 
     auto step_it = plan_->steps.emplace(plan_->steps.begin() + step_pos + 1, plan_->steps[step_pos]);
     step_it->name += tr(" - Copy");
+    plan_->setChanged();
 
     if (plan_->steps.size() < step_widgets.size()) {
         auto widget = step_widgets.back();
         step_widgets.pop_back();
         step_widgets.insert(step_widgets.begin() + step_pos + 1, widget);
         steps_widget->layout()->removeWidget(widget);
+        static_cast<QVBoxLayout*>(steps_widget->layout())->insertWidget(step_pos + 1, widget);
         widget->show();
         widget->setStep(plan_, step_pos + 1);
-        static_cast<QVBoxLayout*>(steps_widget->layout())->insertWidget(step_pos + 1, widget);
     } else {
         auto widget_it = *step_widgets.emplace(step_widgets.begin() + step_pos + 1,
                                                new StepWidget{this});
         widget_it->hideDescription(is_descriptions_hidden);
-        widget_it->setStep(plan_, step_pos + 1);
         static_cast<QVBoxLayout*>(steps_widget->layout())->insertWidget(step_pos + 1, widget_it);
+        widget_it->setStep(plan_, step_pos + 1);
     }
 }
 
@@ -513,9 +516,6 @@ void PlanWidget::setPlan(const PlanModel* model, Plan* plan)
         addStep();
 
     displayCost();
-
-    for (size_t i = 0; i < plan_->steps.size(); ++i)
-        step_widgets[i]->displayCost();
 }
 
 } // namespace planner

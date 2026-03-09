@@ -24,11 +24,6 @@ class StepWidget : public QFrame
 public:
     StepWidget(PlanWidget* plan_widget, QWidget* parent = nullptr);
 
-    Step* currentStep();
-
-    PlanWidget* planWidget() { return plan_widget; }
-    void displayCost();
-
     size_t stepPos() const { return step_pos; }
     void updatePos(size_t new_pos);
 
@@ -40,26 +35,27 @@ public:
     void clearTradeRequest(const planner::TradeRequestKey& request);
 
     void setStep(planner::Plan* plan, size_t step_pos);
-    void setName(QString name);
 
     void setDescription();
     void hideDescription(bool hide);
     void hideEmptyResources(bool hide);
     void hideEmptyResults(bool hide);
 
-public slots:
-    void deleteStep();
-    void setNameFromEdit();
-
 protected:
     void contextMenuEvent(QContextMenuEvent* event) override;
+
+private slots:
+    void deleteStep();
+    void setNameFromEdit();
 
 private:
     QLineEdit* name_edit;
     CostWidget* cost_widget;
 
     QWidget* edit_widget;
+
     DescriptionEdit* description;
+    bool is_text_reset{false};
 
     Plan* plan{};
     size_t step_pos{};
@@ -76,7 +72,11 @@ private:
     QAction* move_up_action;
     QAction* move_down_action;
     QAction* delete_action;
-    bool is_text_reset{false};
+
+    void setName(QString name);
+    void displayCost();
+
+    Step* currentStep();
 };
 } // namespace planner
 #endif // STEPWIDGET_H

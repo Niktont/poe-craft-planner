@@ -98,9 +98,10 @@ void DescriptionEdit::adjustBrowserSize()
 {
     auto size = browser->document()->size().toSize();
     size.rheight() += 2 * browser->frameWidth();
-    size.rwidth() += 2 * browser->frameWidth();
-    browser->setMinimumWidth(std::min(size.width(), browser->maximumWidth()));
-    browser->setMinimumHeight(std::min(size.height(), browser->maximumHeight()));
+    size.rwidth() += browser->verticalScrollBar()->sizeHint().width() + 2 * browser->frameWidth();
+
+    browser->setFixedWidth(std::min(size.width(), edit->maximumWidth()));
+    browser->setFixedHeight(std::min(size.height(), edit->maximumHeight()));
 }
 
 } // namespace planner
