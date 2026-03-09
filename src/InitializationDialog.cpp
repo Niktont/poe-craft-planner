@@ -200,7 +200,11 @@ void InitializationDialog::parseLeagues(Game game, QNetworkReply* reply)
     request_finished_poe2 = false;
 
     is_leagues_changed = league_combo_poe1->isEnabled() || league_combo_poe2->isEnabled();
-    bool is_data_needed = isDataNeeded(Game::Poe1) || isDataNeeded(Game::Poe2);
+
+    is_data_needed_poe1 = isDataNeeded(Game::Poe1);
+    is_data_needed_poe2 = isDataNeeded(Game::Poe2);
+    bool is_data_needed = is_data_needed_poe1 || is_data_needed_poe2;
+
     if (!is_leagues_changed && !is_data_needed) {
         finishInitialization();
         return;
@@ -297,8 +301,6 @@ void InitializationDialog::updateCacheData()
         league_combo_poe2->setEnabled(false);
     }
 
-    bool is_data_needed_poe1 = isDataNeeded(Game::Poe1);
-    bool is_data_needed_poe2 = isDataNeeded(Game::Poe2);
     if (!is_data_needed_poe1 && !is_data_needed_poe2) {
         finishInitialization();
         return;
@@ -387,16 +389,19 @@ void InitializationDialog::parseOverviewData(Game game, QString type, QNetworkRe
 void InitializationDialog::finishInitialization()
 {
     auto settings = Settings::get();
-    settings.setValue(Settings::poe1_init_needed, false);
-    settings.setValue(Settings::poe2_init_needed, false);
-
-    for (auto& [id, data] : mw->exchange_cache_poe1->cache) {
-        if (data.icon.isNull())
-            data.icon = QIcon{ExchangeRequestCache::iconFileName(Game::Poe1, id)};
+    if (is_data_needed_poe1) {
+        settings.setValue(Settings::poe1_init_needed, false);
+        for (auto& [id, data] : mw->exchange_cache_poe1->cache) {
+            if (data.icon.isNull())
+                data.icon = QIcon{ExchangeRequestCache::iconFileName(Game::Poe1, id)};
+        }
     }
-    for (auto& [id, data] : mw->exchange_cache_poe2->cache) {
-        if (data.icon.isNull())
-            data.icon = QIcon{ExchangeRequestCache::iconFileName(Game::Poe2, id)};
+    if (is_data_needed_poe2) {
+        settings.setValue(Settings::poe2_init_needed, false);
+        for (auto& [id, data] : mw->exchange_cache_poe2->cache) {
+            if (data.icon.isNull())
+                data.icon = QIcon{ExchangeRequestCache::iconFileName(Game::Poe2, id)};
+        }
     }
 
     accept();

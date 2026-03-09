@@ -59,6 +59,9 @@ private:
     std::queue<QString> currency_types_poe1;
     std::queue<QString> currency_types_poe2;
 
+    bool is_data_needed_poe1{false};
+    bool is_data_needed_poe2{false};
+
     void requestFailed(QString type);
     void parseFailed(QString type);
     bool isDataNeeded(Game game);
