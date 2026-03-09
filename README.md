@@ -6,3 +6,13 @@ This product isn't affiliated with or endorsed by Grinding Gear Games in any way
 ## Wiki
 
 You can check wiki for UI description at [https://github.com/Niktont/poe-craft-planner/wiki](https://github.com/Niktont/poe-craft-planner/wiki).
+
+## Building
+
+Requirements for building from sources are:
+
+- MSVC v143 for Windows
+- CMake >= 3.22
+- Ninja
+- Qt 6.10 with Qt WebEngine module
+- Boost >= 1.82.0
