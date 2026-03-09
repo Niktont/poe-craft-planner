@@ -300,11 +300,14 @@ QJsonArray TradeRequestCache::exportRequests()
 
 void TradeRequestCache::mergeImportRequests(Cache&& import_requests)
 {
-    for (auto& p : import_requests) {
-        auto name = p.second.name();
-        if (!name.startsWith("(I) "))
-            p.second.setName(name.prepend("(I) "));
+    if (Settings::addImportPrefixRequests()) {
+        for (auto& p : import_requests) {
+            auto name = p.second.name();
+            if (!name.startsWith("(I) "))
+                p.second.setName(name.prepend("(I) "));
+        }
     }
+
     beginResetModel();
     cache.merge(import_requests);
     endResetModel();

@@ -408,8 +408,17 @@ void PlanModel::importItem(const QJsonObject& export_o)
                         auto import_item = import_it->second.item();
 
                         auto import_parent = import_item->parent();
-                        auto new_item = parent->replacePlan(old_item->row(),
-                                                            std::move(import_it->second));
+
+                        PlanItem* new_item;
+                        if (Settings::overwriteNames()) {
+                            new_item = parent->replacePlan(old_item->row(),
+                                                           std::move(import_it->second));
+                            saveName(*new_item);
+                        } else {
+                            import_item->setName(old_item->name());
+                            new_item = parent->replacePlan(old_item->row(),
+                                                           std::move(import_it->second));
+                        }
 
                         emit planUpdated(new_item->plan(), old_plan);
 
@@ -430,10 +439,12 @@ void PlanModel::importItem(const QJsonObject& export_o)
             trade_cache->mergeImportRequests(std::move(import_requests));
 
         if (!import_plans.empty()) {
-            auto root_name = import_root->name();
-            if (!root_name.startsWith("(I) "))
-                root_name.prepend("(I) ");
-            import_root->setName(root_name);
+            if (Settings::addImportPrefix()) {
+                auto root_name = import_root->name();
+                if (!root_name.startsWith("(I) "))
+                    root_name.prepend("(I) ");
+                import_root->setName(root_name);
+            }
 
             import_root->setItemChanged(true);
             plans.merge(std::move(import_plans));

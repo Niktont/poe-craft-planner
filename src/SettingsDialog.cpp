@@ -20,9 +20,10 @@
 using namespace std::chrono;
 
 namespace planner {
-enum Tabs {
+enum Tab {
     Requests,
     League,
+    Import,
 };
 
 static long long msFromMinutes(int val)
@@ -49,6 +50,7 @@ SettingsDialog::SettingsDialog(MainWindow& mw)
     QStringList tabs;
     tabs.append(tr("Requests"));
     tabs.append(tr("League"));
+    tabs.append(tr("Import"));
     tab_model->setStringList(tabs);
 
     tab_view = new QListView{};
@@ -68,10 +70,12 @@ SettingsDialog::SettingsDialog(MainWindow& mw)
 
     setupRequestsTab();
     setupLeagueTab();
+    setupImportTab();
 
     tabs_widget = new QStackedWidget{};
     tabs_widget->addWidget(requests_tab);
     tabs_widget->addWidget(league_tab);
+    tabs_widget->addWidget(import_tab);
     edit_layout->addWidget(tabs_widget, 0, Qt::AlignTop | Qt::AlignLeft);
 
     auto buttons = new QDialogButtonBox{};
@@ -110,6 +114,8 @@ void SettingsDialog::save()
         saveRequests(settings);
     if (is_changed[League])
         saveLeague(settings);
+    if (is_changed[Import])
+        saveImport(settings);
 
     is_changed.fill(false);
 }
@@ -122,6 +128,11 @@ void SettingsDialog::setRequestsChanged()
 void SettingsDialog::setLeagueChanged()
 {
     is_changed[League] = true;
+}
+
+void SettingsDialog::setImportChanged()
+{
+    is_changed[Import] = true;
 }
 
 void SettingsDialog::setupRequestsTab()
@@ -188,12 +199,15 @@ void SettingsDialog::setupRequestsTab()
 void SettingsDialog::resetTab(int index)
 {
     if (needs_reset[index]) {
-        switch (index) {
+        switch (static_cast<Tab>(index)) {
         case Requests:
             resetRequests();
             break;
         case League:
             resetLeague();
+            break;
+        case Import:
+            resetImport();
             break;
         }
         needs_reset[index] = false;
@@ -209,8 +223,10 @@ void SettingsDialog::resetRequests()
     exchange_delay->setValue(Settings::exchangeRequestDelay().count());
     exchange_default_time->setValue(Settings::defaultExchangeTime().count());
 
-    reload_data_poe1->setCheckState(Settings::initNeeded(Game::Poe1) ? Qt::Checked : Qt::Unchecked);
-    reload_data_poe2->setCheckState(Settings::initNeeded(Game::Poe2) ? Qt::Checked : Qt::Unchecked);
+    reload_data_poe1->setChecked(Settings::initNeeded(Game::Poe1));
+    reload_data_poe2->setChecked(Settings::initNeeded(Game::Poe2));
+
+    is_changed[Requests] = false;
 }
 
 void SettingsDialog::saveRequests(QSettings& settings)
@@ -236,8 +252,8 @@ void SettingsDialog::saveRequests(QSettings& settings)
         emit exchangeTimeChanged();
     }
 
-    settings.setValue(Settings::poe1_init_needed, reload_data_poe1->checkState() == Qt::Checked);
-    settings.setValue(Settings::poe2_init_needed, reload_data_poe2->checkState() == Qt::Checked);
+    settings.setValue(Settings::poe1_init_needed, reload_data_poe1->isChecked());
+    settings.setValue(Settings::poe2_init_needed, reload_data_poe2->isChecked());
 }
 
 void SettingsDialog::setupLeagueTab()
@@ -280,6 +296,46 @@ void SettingsDialog::saveLeague(QSettings& settings)
 {
     settings.setValue(Settings::poe1_league, league_poe1->currentText());
     settings.setValue(Settings::poe2_league, league_poe2->currentText());
+}
+
+void SettingsDialog::setupImportTab()
+{
+    import_tab = new QWidget{};
+    auto import_layout = new QVBoxLayout{};
+    import_tab->setLayout(import_layout);
+
+    overwrite_names = new QCheckBox{tr("Take names from imported plans on overwriting")};
+    connect(overwrite_names, &QCheckBox::checkStateChanged, this, &SettingsDialog::setImportChanged);
+    import_layout->addWidget(overwrite_names);
+
+    add_prefix = new QCheckBox{tr("Add prefix to imported plans or folders")};
+    connect(add_prefix, &QCheckBox::checkStateChanged, this, &SettingsDialog::setImportChanged);
+    import_layout->addWidget(add_prefix);
+
+    add_prefix_requests = new QCheckBox{tr("Add prefix to imported searches")};
+    connect(add_prefix_requests,
+            &QCheckBox::checkStateChanged,
+            this,
+            &SettingsDialog::setImportChanged);
+    import_layout->addWidget(add_prefix_requests);
+
+    import_layout->addStretch(1);
+}
+
+void SettingsDialog::resetImport()
+{
+    overwrite_names->setChecked(Settings::overwriteNames());
+    add_prefix->setChecked(Settings::addImportPrefix());
+    add_prefix_requests->setChecked(Settings::addImportPrefixRequests());
+
+    is_changed[Import] = false;
+}
+
+void SettingsDialog::saveImport(QSettings& settings)
+{
+    settings.setValue(Settings::import_overwrite_names, overwrite_names->isChecked());
+    settings.setValue(Settings::import_add_prefix, add_prefix->isChecked());
+    settings.setValue(Settings::import_add_prefix_requests, add_prefix_requests->isChecked());
 }
 
 MainWindow* SettingsDialog::mw() const

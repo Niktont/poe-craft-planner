@@ -58,6 +58,24 @@ milliseconds Settings::exchangeRequestDelay()
     return std::max(time, min_time);
 }
 
+bool Settings::overwriteNames()
+{
+    auto settings = get();
+    return settings.value(import_overwrite_names, true).toBool();
+}
+
+bool Settings::addImportPrefix()
+{
+    auto settings = get();
+    return settings.value(import_add_prefix, true).toBool();
+}
+
+bool Settings::addImportPrefixRequests()
+{
+    auto settings = get();
+    return settings.value(import_add_prefix_requests, true).toBool();
+}
+
 const QLatin1StringView Settings::windows_main_geometry{"windows/main_geometry"};
 const QLatin1StringView Settings::windows_main_state{"windows/main_state"};
 const QLatin1StringView Settings::windows_web_view_dialog_geometry{
@@ -80,5 +98,9 @@ const QLatin1StringView Settings::exchange_request_delay{"exchange/request_delay
 const QLatin1StringView Settings::step_items_default_exchange_time{
     "step_items/default_exchange_time"};
 const QLatin1StringView Settings::step_items_default_trade_time{"step_items/default_trade_time"};
+
+const QLatin1StringView Settings::import_overwrite_names{"import/overwrite_names"};
+const QLatin1StringView Settings::import_add_prefix{"import/add_prefix"};
+const QLatin1StringView Settings::import_add_prefix_requests{"import/add_prefix_requests"};
 
 } // namespace planner

@@ -22,6 +22,10 @@ public:
     static std::chrono::milliseconds exchangeCostExpirationTime();
     static std::chrono::milliseconds exchangeRequestDelay();
 
+    static bool overwriteNames();
+    static bool addImportPrefix();
+    static bool addImportPrefixRequests();
+
     static const QLatin1StringView windows_main_geometry;
     static const QLatin1StringView windows_main_state;
     static const QLatin1StringView windows_main_hide_descriptions;
@@ -42,6 +46,10 @@ public:
 
     static const QLatin1StringView step_items_default_trade_time;
     static const QLatin1StringView step_items_default_exchange_time;
+
+    static const QLatin1StringView import_overwrite_names;
+    static const QLatin1StringView import_add_prefix;
+    static const QLatin1StringView import_add_prefix_requests;
 };
 
 } // namespace planner

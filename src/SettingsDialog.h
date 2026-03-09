@@ -32,6 +32,7 @@ private slots:
     void save();
     void setRequestsChanged();
     void setLeagueChanged();
+    void setImportChanged();
 
 private:
     QListView* tab_view;
@@ -51,6 +52,11 @@ private:
     QComboBox* league_poe1;
     QComboBox* league_poe2;
 
+    QWidget* import_tab;
+    QCheckBox* overwrite_names;
+    QCheckBox* add_prefix;
+    QCheckBox* add_prefix_requests;
+
     void resetTab(int index);
 
     void setupRequestsTab();
@@ -61,8 +67,12 @@ private:
     void resetLeague();
     void saveLeague(QSettings& settings);
 
-    std::array<bool, 2> is_changed{};
-    std::array<bool, 2> needs_reset;
+    void setupImportTab();
+    void resetImport();
+    void saveImport(QSettings& settings);
+
+    std::array<bool, 3> is_changed{};
+    std::array<bool, 3> needs_reset;
 
     MainWindow* mw() const;
 };
