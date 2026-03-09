@@ -44,6 +44,8 @@ public:
 
     void setDescription();
     void hideDescription(bool hide);
+    void hideEmptyResources(bool hide);
+    void hideEmptyResults(bool hide);
 
 public slots:
     void deleteStep();

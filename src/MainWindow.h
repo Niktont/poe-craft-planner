@@ -89,6 +89,8 @@ public:
     QAction* open_web_page_action;
     QAction* always_on_top_action;
     QAction* hide_descriptions_action;
+    QAction* hide_empty_resources_action;
+    QAction* hide_empty_results_action;
 
     QAction* add_step_action;
 

@@ -78,6 +78,10 @@ MainWindow::MainWindow(QWidget* parent)
 
     hide_descriptions_action->setChecked(
         settings.value(Settings::windows_main_hide_descriptions, false).toBool());
+    hide_empty_resources_action->setChecked(
+        settings.value(Settings::windows_main_hide_empty_resources, false).toBool());
+    hide_empty_results_action->setChecked(
+        settings.value(Settings::windows_main_hide_empty_results, false).toBool());
 
     auto state = settings.value(Settings::windows_main_state, {});
     if (!state.isValid()) {
@@ -127,6 +131,10 @@ void MainWindow::closeEvent(QCloseEvent* event)
     settings.setValue(Settings::windows_web_view_dialog_geometry, web_view_dialog->saveGeometry());
     settings.setValue(Settings::windows_main_hide_descriptions,
                       hide_descriptions_action->isChecked());
+    settings.setValue(Settings::windows_main_hide_empty_resources,
+                      hide_empty_resources_action->isChecked());
+    settings.setValue(Settings::windows_main_hide_empty_results,
+                      hide_empty_results_action->isChecked());
 
     if (planWidget()->plan())
         settings.setValue(Settings::windows_main_last_plan, planWidget()->plan()->id().toString());
@@ -357,6 +365,20 @@ void MainWindow::setupActions()
             planWidget(),
             &PlanWidget::hideDescriptions);
 
+    hide_empty_resources_action = new QAction{tr("Hide Empty Resources"), this};
+    hide_empty_resources_action->setCheckable(true);
+    connect(hide_empty_resources_action,
+            &QAction::toggled,
+            planWidget(),
+            &PlanWidget::hideEmptyResources);
+
+    hide_empty_results_action = new QAction{tr("Hide Empty Results"), this};
+    hide_empty_results_action->setCheckable(true);
+    connect(hide_empty_results_action,
+            &QAction::toggled,
+            planWidget(),
+            &PlanWidget::hideEmptyResults);
+
     add_step_action = new QAction{tr("Add Step"), this};
     connect(add_step_action, &QAction::triggered, planWidget(), &PlanWidget::addStep);
 
@@ -400,6 +422,8 @@ void MainWindow::setupActions()
     view_menu->addAction(open_web_page_action);
     view_menu->addAction(always_on_top_action);
     view_menu->addAction(hide_descriptions_action);
+    view_menu->addAction(hide_empty_resources_action);
+    view_menu->addAction(hide_empty_results_action);
 
     settings_action = menuBar()->addAction(tr("Settings"));
     connect(settings_action, &QAction::triggered, settings_dialog, &SettingsDialog::openSettings);

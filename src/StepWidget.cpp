@@ -129,6 +129,9 @@ void StepWidget::setStep(Plan* plan, size_t step_pos)
     if (!plan)
         return;
 
+    hideEmptyResources(plan_widget->isEmptyResourcesHidden());
+    hideEmptyResults(plan_widget->isEmptyResultsHidden());
+
     resources_widget->view->verticalHeader()->reset();
     results_widget->view->verticalHeader()->reset();
 
@@ -189,6 +192,30 @@ void StepWidget::setDescription()
 void StepWidget::hideDescription(bool hide)
 {
     description->setHidden(hide);
+}
+
+void StepWidget::hideEmptyResources(bool hide)
+{
+    auto step = currentStep();
+    if (!step)
+        return;
+
+    if (step->resources.empty())
+        resources_widget->setHidden(hide);
+    else
+        resources_widget->setHidden(false);
+}
+
+void StepWidget::hideEmptyResults(bool hide)
+{
+    auto step = currentStep();
+    if (!step)
+        return;
+
+    if (step->results.empty())
+        results_widget->setHidden(hide);
+    else
+        results_widget->setHidden(false);
 }
 
 void StepWidget::deleteStep()

@@ -393,6 +393,26 @@ void PlanWidget::hideDescriptions(bool hide)
         step->hideDescription(hide);
 }
 
+void PlanWidget::hideEmptyResources(bool hide)
+{
+    is_empty_resources_hidden = hide;
+    if (!plan_)
+        return;
+
+    for (size_t i = 0; i < plan_->steps.size(); ++i)
+        step_widgets[i]->hideEmptyResources(hide);
+}
+
+void PlanWidget::hideEmptyResults(bool hide)
+{
+    is_empty_results_hidden = hide;
+    if (!plan_)
+        return;
+
+    for (size_t i = 0; i < plan_->steps.size(); ++i)
+        step_widgets[i]->hideEmptyResults(hide);
+}
+
 void PlanWidget::setPlanChanged()
 {
     if (plan_)
