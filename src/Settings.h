@@ -26,6 +26,8 @@ public:
     static bool addImportPrefix();
     static bool addImportPrefixRequests();
 
+    static QString exchangeLanguage();
+
     static const QLatin1StringView windows_main_geometry;
     static const QLatin1StringView windows_main_state;
     static const QLatin1StringView windows_main_hide_descriptions;
@@ -52,6 +54,8 @@ public:
     static const QLatin1StringView import_overwrite_names;
     static const QLatin1StringView import_add_prefix;
     static const QLatin1StringView import_add_prefix_requests;
+
+    static const QLatin1StringView language_exchange_items;
 };
 
 } // namespace planner

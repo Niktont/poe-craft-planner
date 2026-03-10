@@ -545,7 +545,7 @@ QVariant StepItemModel::exchangeItemData(double amount,
         case Qt::DisplayRole:
         case Qt::EditRole:
             if (auto it = exchange_cache->currencyData(exchange.currency); it != cache.end())
-                return it->second.name;
+                return exchange_cache->name(it);
             return {};
         }
         return {};
@@ -579,7 +579,7 @@ QVariant StepItemModel::exchangeItemData(double amount,
             return {};
         case Qt::DisplayRole:
             if (auto [val, it] = exchange_cache->costData(exchange.currency); it != cache.end())
-                return it->second.name;
+                return exchange_cache->name(it);
             return {};
         }
         return {};
@@ -707,7 +707,7 @@ QVariant StepItemModel::tradeItemData(double amount,
         switch (role) {
         case Qt::DisplayRole:
             if (auto currency_data = trade_cache->costCurrency(trade.request_key))
-                return currency_data->name;
+                return exchange_cache->name(*currency_data);
             return {};
         case Qt::DecorationRole:
             if (auto currency_data = trade_cache->costCurrency(trade.request_key))
@@ -843,7 +843,7 @@ QVariant StepItemModel::customItemData(double amount,
         case Qt::EditRole:
         case Qt::DisplayRole:
             if (auto it = exchange_cache->currencyData(custom.cost.currency); it != cache.end())
-                return it->second.name;
+                return exchange_cache->name(it);
             return {};
         }
         return {};
@@ -963,7 +963,7 @@ QVariant StepItemModel::stepItemData(double amount,
         case Qt::DisplayRole: {
             auto cost = step_it->costCurrency();
             if (auto it = exchange_cache->currencyData(cost.currency); it != cache.end())
-                return it->second.name;
+                return exchange_cache->name(it);
             return {};
         }
         }

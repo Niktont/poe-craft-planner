@@ -45,7 +45,7 @@ QVariant ExchangeRequestCache::data(const QModelIndex& index, int role) const
     case ExchangeRequestColumn::Name:
         switch (role) {
         case Qt::DisplayRole:
-            return cache.nth(row)->second.name;
+            return name(cache.nth(row));
         case Qt::DecorationRole: {
             return icon(cache.nth(row));
         }
@@ -167,6 +167,11 @@ bool ExchangeRequestCache::isOutdated(const Currency& currency, QDateTime now) c
         return true;
 
     return (cost_it->second.updated + Settings::exchangeCostExpirationTime()) <= now;
+}
+
+QString ExchangeRequestCache::name(const ExchangeData& data)
+{
+    return !data.translated_name.isEmpty() ? data.translated_name : data.name;
 }
 
 bool ExchangeRequestCache::shareCurrencyId(QString& id) const
@@ -304,15 +309,18 @@ bool ExchangeRequestCache::readDatabase()
 
 bool ExchangeRequestCache::readAdditionalData()
 {
-    auto select = Database::selectAdditionalData(game);
+    auto select = Database::selectAdditionalData(game, Settings::exchangeLanguage());
     bool result = select.exec();
     if (!result)
         return result;
     while (select.next()) {
         auto id = select.value(0).toString();
         auto fee = select.value(1).toDouble();
-        if (auto it = cache.find(id); it != cache.end())
+        auto translated_name = select.value(2).toString();
+        if (auto it = cache.find(id); it != cache.end()) {
             it->second.gold_fee = fee;
+            it->second.translated_name = translated_name;
+        }
     }
     return true;
 }

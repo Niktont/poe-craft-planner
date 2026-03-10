@@ -17,6 +17,7 @@ public:
     QString type;
 
     double gold_fee{};
+    QString translated_name;
 
     const std::optional<ItemTime> defaultTime() const { return default_time; }
     void setDefaultTime(const std::optional<ItemTime>& time)

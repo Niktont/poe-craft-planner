@@ -53,10 +53,10 @@ QSqlQuery Database::selectCurrencyType(Game game)
     return query;
 }
 
-QSqlQuery Database::selectAdditionalData(Game game)
+QSqlQuery Database::selectAdditionalData(Game game, QString lang)
 {
     QSqlQuery query{QSqlDatabase::database(additional_db)};
-    query.prepare("SELECT id, fee FROM " % currency_data.forGame(game) % ";");
+    query.prepare("SELECT id, fee, " % lang % " FROM " % currency_data.forGame(game) % ";");
     return query;
 }
 

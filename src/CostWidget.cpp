@@ -67,7 +67,7 @@ void CostWidget::setCost(Game game, const Step* step)
     auto exchange_cache = mw->exchangeCache(game);
     if (auto it = exchange_cache->currencyData(primary); it != exchange_cache->cache.end()) {
         currency_icon_label->setPixmap(exchange_cache->icon(it).pixmap(16));
-        currency_label->setText(it->second.name);
+        currency_label->setText(exchange_cache->name(it));
 
         currency_icon_label->show();
         currency_label->show();

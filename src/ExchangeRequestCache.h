@@ -62,6 +62,8 @@ public:
 
     bool isOutdated(const Currency& currency, QDateTime now) const;
 
+    static QString name(const ExchangeData& data);
+    static QString name(Cache::const_iterator it) { return name(it->second); }
     bool haveLink(const Currency& currency) const { return currencyData(currency) != cache.end(); }
     QString link(const Currency& currency) const;
     double cost(const Currency& currency) const;

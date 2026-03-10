@@ -10,6 +10,7 @@
 #include <QGroupBox>
 #include <QItemSelectionModel>
 #include <QListView>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QScrollBar>
 #include <QSpinBox>
@@ -18,12 +19,14 @@
 #include <QVBoxLayout>
 
 using namespace std::chrono;
+using namespace Qt::StringLiterals;
 
 namespace planner {
 enum Tab {
     Requests,
     League,
     Import,
+    Language,
 };
 
 static long long msFromMinutes(int val)
@@ -34,6 +37,17 @@ static int minutesFromMs(milliseconds val)
 {
     return duration_cast<minutes>(val).count();
 }
+
+static const std::array<QString, 8> exchange_languages{
+    u"en"_s,
+    u"br"_s,
+    u"ru"_s,
+    u"th"_s,
+    u"de"_s,
+    u"fr"_s,
+    u"es"_s,
+    u"jp"_s,
+};
 
 SettingsDialog::SettingsDialog(MainWindow& mw)
     : QDialog{&mw}
@@ -51,6 +65,7 @@ SettingsDialog::SettingsDialog(MainWindow& mw)
     tabs.append(tr("Requests"));
     tabs.append(tr("League"));
     tabs.append(tr("Import"));
+    tabs.append(tr("Language"));
     tab_model->setStringList(tabs);
 
     tab_view = new QListView{};
@@ -71,11 +86,13 @@ SettingsDialog::SettingsDialog(MainWindow& mw)
     setupRequestsTab();
     setupLeagueTab();
     setupImportTab();
+    setupLanguageTab();
 
     tabs_widget = new QStackedWidget{};
     tabs_widget->addWidget(requests_tab);
     tabs_widget->addWidget(league_tab);
     tabs_widget->addWidget(import_tab);
+    tabs_widget->addWidget(language_tab);
     edit_layout->addWidget(tabs_widget, 0, Qt::AlignTop | Qt::AlignLeft);
 
     auto buttons = new QDialogButtonBox{};
@@ -116,6 +133,8 @@ void SettingsDialog::save()
         saveLeague(settings);
     if (is_changed[Import])
         saveImport(settings);
+    if (is_changed[Language])
+        saveLanguage(settings);
 
     is_changed.fill(false);
 }
@@ -133,6 +152,11 @@ void SettingsDialog::setLeagueChanged()
 void SettingsDialog::setImportChanged()
 {
     is_changed[Import] = true;
+}
+
+void SettingsDialog::setLanguageChanged()
+{
+    is_changed[Language] = true;
 }
 
 void SettingsDialog::setupRequestsTab()
@@ -208,6 +232,9 @@ void SettingsDialog::resetTab(int index)
             break;
         case Import:
             resetImport();
+            break;
+        case Language:
+            resetLanguage();
             break;
         }
         needs_reset[index] = false;
@@ -336,6 +363,50 @@ void SettingsDialog::saveImport(QSettings& settings)
     settings.setValue(Settings::import_overwrite_names, overwrite_names->isChecked());
     settings.setValue(Settings::import_add_prefix, add_prefix->isChecked());
     settings.setValue(Settings::import_add_prefix_requests, add_prefix_requests->isChecked());
+}
+
+void SettingsDialog::setupLanguageTab()
+{
+    language_tab = new QWidget{};
+    auto language_layout = new QFormLayout{};
+    language_tab->setLayout(language_layout);
+
+    exchange_language = new QComboBox{};
+    exchange_language->addItem("English");
+    exchange_language->addItem("Português (Brasil)");
+    exchange_language->addItem("Русский");
+    exchange_language->addItem("ไทย");
+    exchange_language->addItem("Deutsch");
+    exchange_language->addItem("Français");
+    exchange_language->addItem("Español");
+    exchange_language->addItem("日本語");
+
+    connect(exchange_language,
+            &QComboBox::currentIndexChanged,
+            this,
+            &SettingsDialog::setLanguageChanged);
+    language_layout->addRow(tr("Language for names of Exchange items:"), exchange_language);
+}
+
+void SettingsDialog::resetLanguage()
+{
+    auto it = std::ranges::find(exchange_languages, Settings::exchangeLanguage());
+    auto pos = it != exchange_languages.end() ? std::distance(exchange_languages.begin(), it) : 0;
+    exchange_language->setCurrentIndex(pos);
+
+    is_changed[Language] = false;
+}
+
+void SettingsDialog::saveLanguage(QSettings& settings)
+{
+    auto prev_lang = Settings::exchangeLanguage();
+    auto lang = exchange_languages.at(exchange_language->currentIndex());
+    if (prev_lang != lang) {
+        settings.setValue(Settings::language_exchange_items, lang);
+        QMessageBox::information(this,
+                                 tr("Language changed"),
+                                 tr("The language change will take effect after restart."));
+    }
 }
 
 MainWindow* SettingsDialog::mw() const

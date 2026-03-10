@@ -33,6 +33,7 @@ private slots:
     void setRequestsChanged();
     void setLeagueChanged();
     void setImportChanged();
+    void setLanguageChanged();
 
 private:
     QListView* tab_view;
@@ -57,6 +58,9 @@ private:
     QCheckBox* add_prefix;
     QCheckBox* add_prefix_requests;
 
+    QWidget* language_tab;
+    QComboBox* exchange_language;
+
     void resetTab(int index);
 
     void setupRequestsTab();
@@ -71,8 +75,12 @@ private:
     void resetImport();
     void saveImport(QSettings& settings);
 
-    std::array<bool, 3> is_changed{};
-    std::array<bool, 3> needs_reset;
+    void setupLanguageTab();
+    void resetLanguage();
+    void saveLanguage(QSettings& settings);
+
+    std::array<bool, 4> is_changed{};
+    std::array<bool, 4> needs_reset;
 
     MainWindow* mw() const;
 };

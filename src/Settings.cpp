@@ -2,6 +2,7 @@
 #include <QApplication>
 
 using namespace std::chrono;
+using namespace Qt::StringLiterals;
 
 namespace planner {
 
@@ -76,6 +77,12 @@ bool Settings::addImportPrefixRequests()
     return settings.value(import_add_prefix_requests, true).toBool();
 }
 
+QString Settings::exchangeLanguage()
+{
+    auto settings = get();
+    return settings.value(language_exchange_items, u"en"_s).toString();
+}
+
 const QLatin1StringView Settings::windows_main_geometry{"windows/main_geometry"};
 const QLatin1StringView Settings::windows_main_state{"windows/main_state"};
 const QLatin1StringView Settings::windows_web_view_dialog_geometry{
@@ -106,5 +113,7 @@ const QLatin1StringView Settings::step_items_default_trade_time{"step_items/defa
 const QLatin1StringView Settings::import_overwrite_names{"import/overwrite_names"};
 const QLatin1StringView Settings::import_add_prefix{"import/add_prefix"};
 const QLatin1StringView Settings::import_add_prefix_requests{"import/add_prefix_requests"};
+
+const QLatin1StringView Settings::language_exchange_items{"language/exchange_items"};
 
 } // namespace planner

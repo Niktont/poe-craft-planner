@@ -21,7 +21,7 @@ public:
     static bool initAddConnection();
 
     static QSqlQuery selectCurrencyType(Game game);
-    static QSqlQuery selectAdditionalData(Game game);
+    static QSqlQuery selectAdditionalData(Game game, QString lang);
 
     static bool createInfoTable();
     static QVariant selectInfo(const QString& key);
