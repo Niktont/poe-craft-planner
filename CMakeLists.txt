@@ -11,6 +11,8 @@ find_package(Boost REQUIRED)
 
 qt_standard_project_setup()
 
+add_subdirectory(DataUpdater EXCLUDE_FROM_ALL)
+
 qt_add_executable(${PROJECT_NAME}
     src/main.cpp
     src/MainWindow.h
@@ -81,11 +83,12 @@ if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
 endif()
 
 if(WIN32)
-     set_property(
-         TARGET ${PROJECT_NAME}
-         APPEND PROPERTY
-             SOURCES $<TARGET_PROPERTY:${PROJECT_NAME},OUTPUT_NAME>.exe.manifest)
- endif()
+    set_property(
+        TARGET ${PROJECT_NAME}
+        APPEND PROPERTY
+            SOURCES $<TARGET_PROPERTY:${PROJECT_NAME},OUTPUT_NAME>.exe.manifest
+    )
+endif()
 
 install(TARGETS ${PROJECT_NAME}
     BUNDLE  DESTINATION "."
