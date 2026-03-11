@@ -66,10 +66,11 @@ public:
     static QString name(Cache::const_iterator it) { return name(it->second); }
     bool haveLink(const Currency& currency) const { return currencyData(currency) != cache.end(); }
     QString link(const Currency& currency) const;
-    double cost(const Currency& currency) const;
+    CurrencyCost cost(const Currency& currency) const;
     std::pair<double, Cache::const_iterator> costData(const Currency& currency) const;
     QIcon icon(Cache::const_iterator it) const;
 
+    bool isCore(const Currency& currency) const;
     CurrencyCost convertToPrimary(const Currency& currency) const;
     ItemTime time(const ExchangeItemData& exchange_item) const;
 

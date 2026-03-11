@@ -7,6 +7,7 @@
 #include "RequestEditDialog.h"
 #include "Settings.h"
 #include "SettingsDialog.h"
+#include "ShoppingDialog.h"
 #include "TradeRequestCache.h"
 #include "TradeRequestManager.h"
 #include "UpdateCostDialog.h"
@@ -17,7 +18,6 @@
 #include <QDialog>
 #include <QDockWidget>
 #include <QFileDialog>
-#include <QIcon>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMenuBar>
@@ -27,7 +27,6 @@
 #include <QPushButton>
 #include <QRestAccessManager>
 #include <QToolBar>
-#include <QTreeView>
 #include <QVBoxLayout>
 #include <QWebEngineCookieStore>
 #include <QWebEngineProfile>
@@ -68,6 +67,8 @@ MainWindow::MainWindow(QWidget* parent)
             &UpdateCostDialog::costUpdated,
             plan_widget,
             &PlanWidget::updateCost);
+    shopping_dialog = new ShoppingDialog{*this};
+
     setupAboutDialog();
 
     plan_widget->connectSignals();
@@ -129,6 +130,7 @@ void MainWindow::closeEvent(QCloseEvent* event)
     settings.setValue(Settings::windows_main_geometry, saveGeometry());
     settings.setValue(Settings::windows_main_state, saveState());
     settings.setValue(Settings::windows_web_view_dialog_geometry, web_view_dialog->saveGeometry());
+    settings.setValue(Settings::windows_shopping_dialog_geometry, shopping_dialog->saveGeometry());
     settings.setValue(Settings::windows_main_hide_descriptions,
                       hide_descriptions_action->isChecked());
     settings.setValue(Settings::windows_main_hide_empty_resources,
@@ -193,6 +195,25 @@ void MainWindow::importItem(bool from_clipboard)
     }
 
     planModel(game)->importItem(export_o);
+}
+
+void MainWindow::openShoppingDialog()
+{
+    auto plan = planWidget()->plan();
+    if (!plan || plan->steps.empty())
+        return;
+
+    bool have_resources = false;
+    for (auto& step : plan->steps) {
+        if (!step.resources.empty()) {
+            have_resources = true;
+            break;
+        }
+    }
+    if (!have_resources)
+        return;
+
+    shopping_dialog->openPlan(plan);
 }
 
 void MainWindow::setupDockWidgets()
@@ -400,6 +421,9 @@ void MainWindow::setupActions()
         update_cost_dialog->updatePlan(planWidget()->plan());
     });
 
+    shopping_mode_action = new QAction{tr("Shopping Mode"), this};
+    connect(shopping_mode_action, &QAction::triggered, this, &MainWindow::openShoppingDialog);
+
     import_text_action = new QAction{tr("Import (Clipboard)"), this};
     connect(import_text_action, &QAction::triggered, this, [this] { importItem(true); });
     import_file_action = new QAction{tr("Import (File)"), this};
@@ -440,6 +464,9 @@ void MainWindow::setupActions()
     toolbar->addAction(add_step_action);
     toolbar->addAction(manage_searches_action);
     toolbar->addAction(update_cost_action);
+    toolbar->addSeparator();
+
+    toolbar->addAction(shopping_mode_action);
 }
 
 bool MainWindow::haveUnsavedPlans()

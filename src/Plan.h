@@ -45,7 +45,9 @@ public:
     const Step* findStep(const QUuid& step_id) const;
 
     const QUuid& finalStepId() const { return final_step; }
+    Steps::const_iterator costStepIt() const;
     const Step* costStep() const;
+
     void setFinalStep(const QUuid& step_id)
     {
         if (step_id == final_step)

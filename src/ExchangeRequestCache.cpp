@@ -74,6 +74,16 @@ QIcon ExchangeRequestCache::icon(Cache::const_iterator it) const
         return it->second.icon;
 }
 
+bool ExchangeRequestCache::isCore(const Currency& currency) const
+{
+    auto league_it = currentLeagueData();
+    if (league_it == cost_cache.end())
+        return false;
+
+    auto core_it = league_it->second.findCore(currency.id);
+    return core_it != league_it->second.core_currencies.end();
+}
+
 CurrencyCost ExchangeRequestCache::convertToPrimary(const Currency& currency) const
 {
     CurrencyCost result;
@@ -231,14 +241,14 @@ QString ExchangeRequestCache::link(const Currency& currency) const
                                                           it->second.details_id);
 }
 
-double ExchangeRequestCache::cost(const Currency& currency) const
+CurrencyCost ExchangeRequestCache::cost(const Currency& currency) const
 {
     auto it = currentLeagueData();
     if (it == cost_cache.end())
-        return 0.0;
+        return {};
 
     auto cost_it = it->second.costData(currency.id);
-    return cost_it != it->second.costs.end() ? cost_it->second.popular.value : 0.0;
+    return cost_it != it->second.costs.end() ? cost_it->second.popular : CurrencyCost{};
 }
 
 std::pair<double, ExchangeRequestCache::Cache::const_iterator> ExchangeRequestCache::costData(

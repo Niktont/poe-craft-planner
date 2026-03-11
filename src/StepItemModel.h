@@ -6,7 +6,10 @@
 #include <QAbstractTableModel>
 
 namespace planner {
-
+class PlanWidget;
+class ExchangeRequestCache;
+class TradeRequestCache;
+class MainWindow;
 class ExchangeItemData;
 class TradeItemData;
 class CustomItemData;
@@ -27,11 +30,6 @@ enum class StepItemColumn {
 
     last = Success,
 };
-
-class PlanWidget;
-class ExchangeRequestCache;
-class TradeRequestCache;
-class MainWindow;
 
 class StepItemModel : public QAbstractTableModel
 {

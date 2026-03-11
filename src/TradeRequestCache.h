@@ -1,11 +1,11 @@
 #ifndef TRADEREQUESTCACHE_H
 #define TRADEREQUESTCACHE_H
 
+#include "Game.h"
+#include "ItemTime.h"
 #include "TradeCostData.h"
 #include "TradeRequestData.h"
 #include "TradeRequestKey.h"
-#include "Game.h"
-#include "ItemTime.h"
 #include <boost/container/flat_map.hpp>
 #include <boost/unordered/unordered_flat_set.hpp>
 #include <QAbstractTableModel>
@@ -66,7 +66,6 @@ public:
     bool isOutdated(const TradeRequestKey& request, QDateTime now) const;
 
     QString name(const TradeItemData& trade_item) const;
-    CurrencyCost cost(const TradeRequestKey& request) const;
     double costValue(const TradeRequestKey& request) const;
     const TradeCostData::Data* costData(const TradeRequestKey& request) const;
     const ExchangeData* costCurrency(const TradeRequestKey& request) const;

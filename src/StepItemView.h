@@ -15,12 +15,13 @@ public:
 
     void setOtherView(StepItemView* other_view) { this->other_view = other_view; }
 
+    QSize sizeHint() const override;
+
 public slots:
     void syncColumns();
 
 protected:
     void contextMenuEvent(QContextMenuEvent* event) override;
-    QSize sizeHint() const override;
 
 private slots:
     void resizeColumns(const QModelIndex& top_left,

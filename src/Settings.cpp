@@ -87,6 +87,8 @@ const QLatin1StringView Settings::windows_main_geometry{"windows/main_geometry"}
 const QLatin1StringView Settings::windows_main_state{"windows/main_state"};
 const QLatin1StringView Settings::windows_web_view_dialog_geometry{
     "windows/web_view_dialog_geometry"};
+const QLatin1StringView Settings::windows_shopping_dialog_geometry{
+    "windows/shopping_dialog_geometry"};
 const QLatin1StringView Settings::windows_main_hide_descriptions{"windows/main_hide_descriptions"};
 const QLatin1StringView Settings::windows_main_hide_empty_resources{
     "windows/main_hide_empty_resources"};

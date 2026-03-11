@@ -5,10 +5,15 @@
 
 namespace planner {
 
+ExchangeCostData::CoreCurrencies::const_iterator ExchangeCostData::findCore(QString id) const
+{
+    return std::ranges::find_if(core_currencies,
+                                [&id](const auto& core) { return core.currency.id == id; });
+}
+
 std::optional<double> ExchangeCostData::primaryValue(QString id) const
 {
-    auto it = std::ranges::find_if(core_currencies,
-                                   [&id](const auto& core) { return core.currency.id == id; });
+    auto it = findCore(id);
     if (it == core_currencies.end())
         return {};
 

@@ -29,6 +29,7 @@ class RequestEditDialog;
 class PlanTreeView;
 class UpdateCostDialog;
 class SettingsDialog;
+class ShoppingDialog;
 
 class MainWindow : public QMainWindow
 {
@@ -61,6 +62,8 @@ public:
     SettingsDialog* settings_dialog;
     RequestEditDialog* request_edit_dialog;
     UpdateCostDialog* update_cost_dialog;
+    ShoppingDialog* shopping_dialog;
+
     QDialog* about_dialog;
 
     PlanModel* plan_model_poe1;
@@ -98,6 +101,7 @@ public:
     QAction* manage_searches_poe1_action;
     QAction* manage_searches_poe2_action;
     QAction* update_cost_action;
+    QAction* shopping_mode_action;
 
     QAction* import_text_action;
     QAction* import_file_action;
@@ -117,6 +121,7 @@ private slots:
     void cleanup();
     void openRequestEdit();
     void importItem(bool from_clipboard);
+    void openShoppingDialog();
 
 private:
     void setupDockWidgets();

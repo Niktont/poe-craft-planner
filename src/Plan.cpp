@@ -104,15 +104,17 @@ const Step* Plan::findStep(const QUuid& step_id) const
     return it != steps.end() ? &(*it) : nullptr;
 }
 
+Plan::Steps::const_iterator Plan::costStepIt() const
+{
+    if (final_step.isNull())
+        return steps.empty() ? steps.end() : (steps.begin() + steps.size() - 1);
+    return findStepIt(final_step);
+}
+
 const Step* Plan::costStep() const
 {
-    if (steps.empty())
-        return nullptr;
-
-    if (final_step.isNull())
-        return &steps.back();
-
-    return findStep(final_step);
+    auto it = costStepIt();
+    return it != steps.end() ? &(*it) : nullptr;
 }
 
 QStringList Plan::stepsName(size_t last) const

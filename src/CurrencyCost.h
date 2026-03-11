@@ -81,6 +81,15 @@ public:
     }
 };
 
+struct CurrencyIdLess
+{
+    bool operator()(const CurrencyCost& l, const CurrencyCost& r) const noexcept
+    {
+        return l.currency.id < r.currency.id;
+    }
+    bool operator()(const Currency& l, const Currency& r) const noexcept { return l.id < r.id; }
+};
+
 } // namespace planner
 
 #endif // CURRENCYCOST_H

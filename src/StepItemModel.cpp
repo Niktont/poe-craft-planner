@@ -564,10 +564,10 @@ QVariant StepItemModel::exchangeItemData(double amount,
     case StepItemColumn::Cost:
         switch (role) {
         case Qt::DisplayRole:
-            return formatCostWithRatio(exchange_cache->cost(exchange.currency));
+            return formatCostWithRatio(exchange_cache->cost(exchange.currency).value);
         case Qt::ToolTipRole:
-            if (auto cost = exchange_cache->cost(exchange.currency); cost > 0.0)
-                return QString::number(amount * cost);
+            if (auto cost = exchange_cache->cost(exchange.currency); cost.value > 0.0)
+                return QString::number(amount * cost.value);
             return {};
         }
         return {};

@@ -61,6 +61,10 @@ qt_add_executable(${PROJECT_NAME}
     src/ImportOverwriteDialog.h src/ImportOverwriteDialog.cpp
     src/SettingsDialog.h src/SettingsDialog.cpp
     src/DescriptionEdit.h src/DescriptionEdit.cpp
+    src/ShoppingDialog.h src/ShoppingDialog.cpp
+    src/ShoppingModel.h src/ShoppingModel.cpp
+    src/ShoppingItem.h
+    src/ShoppingView.h src/ShoppingView.cpp
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE Qt6::Widgets Qt6::WebEngineWidgets Qt6::Sql Boost::headers)

@@ -25,12 +25,14 @@ public:
     Costs::iterator costData(QString id) { return costs.find(id); }
     Costs::const_iterator costData(QString id) const { return costs.find(id); }
 
-    boost::container::small_vector<CoreCurrency, 5> core_currencies;
+    using CoreCurrencies = boost::container::small_vector<CoreCurrency, 5>;
+    CoreCurrencies core_currencies;
 
     Currency primaryCurrency() const
     {
         return !core_currencies.empty() ? core_currencies.back().currency : Currency{};
     }
+    CoreCurrencies::const_iterator findCore(QString id) const;
     std::optional<double> primaryValue(QString id) const;
 
     mutable bool is_changed{true};
