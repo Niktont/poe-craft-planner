@@ -1,6 +1,8 @@
 #ifndef SHOPPINGDIALOG_H
 #define SHOPPINGDIALOG_H
 
+#include <keyboard-auto-type.h>
+#include <qhotkey.h>
 #include <QDialog>
 
 namespace planner {
@@ -20,11 +22,32 @@ public:
 protected:
     void closeEvent(QCloseEvent* event) override;
 
+private slots:
+    void nextItem();
+    void pasteWant();
+    void pasteWantAmount();
+    void pasteHave();
+    void pasteHaveAmount();
+    void openLink();
+
 private:
     ShoppingView* view;
     ShoppingModel* model;
     MainWindow* mw;
     bool web_view_dialog_was_visible{false};
+
+    keyboard_auto_type::AutoType auto_type;
+    QHotkey* next_item_hk;
+    QHotkey* want_hk;
+    QHotkey* want_amount_hk;
+    QHotkey* have_hk;
+    QHotkey* have_amount_hk;
+    QHotkey* open_link_hk;
+
+    void registerHotkeys();
+    void removeHotkeys();
+
+    void pasteText(QString text);
 };
 
 } // namespace planner

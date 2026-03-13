@@ -112,11 +112,7 @@ protected:
     void closeEvent(QCloseEvent* event) override;
 
 private slots:
-    void setAlwaysOnTop(bool checked)
-    {
-        setWindowFlag(Qt::WindowStaysOnTopHint, checked);
-        show();
-    }
+    void setAlwaysOnTop(bool checked);
 
     void cleanup();
     void openRequestEdit();

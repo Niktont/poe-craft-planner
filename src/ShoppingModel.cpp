@@ -73,7 +73,7 @@ QVariant ShoppingModel::data(const QModelIndex& index, int role) const
             case Qt::DisplayRole:
                 return tr("Link");
             case Qt::ToolTipRole:
-                if (auto url = trade->request.toUrl(plan->game); !url.isEmpty())
+                if (auto url = trade->request.toUrl(plan_->game); !url.isEmpty())
                     return url;
                 return {};
             case Qt::ForegroundRole:
@@ -90,15 +90,15 @@ QVariant ShoppingModel::data(const QModelIndex& index, int role) const
     return {};
 }
 
-bool ShoppingModel::setPlan(Plan* plan_)
+bool ShoppingModel::setPlan(Plan* plan)
 {
     beginResetModel();
     items.clear();
-    plan = plan_;
+    plan_ = plan;
 
     bool result{false};
-    if (plan) {
-        if (plan->game == Game::Poe1) {
+    if (plan_) {
+        if (plan_->game == Game::Poe1) {
             exchange_cache = mw->exchange_cache_poe1;
             trade_cache = mw->trade_cache_poe1;
         } else {
@@ -114,8 +114,8 @@ bool ShoppingModel::setPlan(Plan* plan_)
 
 bool ShoppingModel::gatherPlanItems()
 {
-    auto step_it = plan->costStepIt();
-    if (step_it == plan->steps.end() || step_it->resources.empty())
+    auto step_it = plan_->costStepIt();
+    if (step_it == plan_->steps.end() || step_it->resources.empty())
         return false;
 
     ExchangeItems exchange_items;
@@ -151,7 +151,7 @@ void ShoppingModel::gatherStepItems(double amount,
     if (step_it->resources.empty())
         return;
 
-    auto pos = std::distance(plan->steps.cbegin(), step_it);
+    auto pos = std::distance(plan_->steps.cbegin(), step_it);
     switch (step_it->resource_calc) {
     case ResourceCalcMethod::Sum:
         for (auto& item : step_it->resources)
@@ -160,7 +160,7 @@ void ShoppingModel::gatherStepItems(double amount,
     case ResourceCalcMethod::Min: {
         std::vector<ItemCost> resources_cost;
         for (auto& item : step_it->resources)
-            resources_cost.push_back(item.calculateCost(*plan, *exchange_cache, *trade_cache));
+            resources_cost.push_back(item.calculateCost(*plan_, *exchange_cache, *trade_cache));
 
         auto min_it = std::min_element(resources_cost.begin(), resources_cost.end());
         auto min_pos = std::distance(resources_cost.begin(), min_it);
@@ -180,8 +180,8 @@ void ShoppingModel::gatherItem(double amount,
         return;
 
     if (auto step_item = item.step()) {
-        if (auto dep_it = plan->findStepIt(step_item->step_id); dep_it != plan->steps.end()) {
-            auto dep_pos = std::distance(plan->steps.cbegin(), dep_it);
+        if (auto dep_it = plan_->findStepIt(step_item->step_id); dep_it != plan_->steps.end()) {
+            auto dep_pos = std::distance(plan_->steps.cbegin(), dep_it);
             if (dep_pos < pos)
                 gatherStepItems(amount * item.amount, dep_it, exchange_items, trade_items);
         }

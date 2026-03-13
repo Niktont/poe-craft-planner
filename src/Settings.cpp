@@ -118,4 +118,11 @@ const QLatin1StringView Settings::import_add_prefix_requests{"import/add_prefix_
 
 const QLatin1StringView Settings::language_exchange_items{"language/exchange_items"};
 
+const QLatin1StringView Settings::hotkeys_next_item{"hotkeys/next_item"};
+const QLatin1StringView Settings::hotkeys_paste_want{"hotkeys/paste_want"};
+const QLatin1StringView Settings::hotkeys_paste_want_amount{"hotkeys/paste_want_amount"};
+const QLatin1StringView Settings::hotkeys_paste_have{"hotkeys/paste_have"};
+const QLatin1StringView Settings::hotkeys_paste_have_amount{"hotkeys/paste_have_amount"};
+const QLatin1StringView Settings::hotkeys_open_link{"hotkeys/open_link"};
+
 } // namespace planner

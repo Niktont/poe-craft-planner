@@ -14,6 +14,7 @@ class QComboBox;
 
 namespace planner {
 class MainWindow;
+class HotkeyEdit;
 
 class SettingsDialog : public QDialog
 {
@@ -34,6 +35,7 @@ private slots:
     void setLeagueChanged();
     void setImportChanged();
     void setLanguageChanged();
+    void setHotkeysChanged();
 
 private:
     QListView* tab_view;
@@ -61,6 +63,14 @@ private:
     QWidget* language_tab;
     QComboBox* exchange_language;
 
+    QWidget* hotkeys_tab;
+    HotkeyEdit* next_item;
+    HotkeyEdit* paste_want;
+    HotkeyEdit* paste_want_amount;
+    HotkeyEdit* paste_have;
+    HotkeyEdit* paste_have_amount;
+    HotkeyEdit* open_link;
+
     void resetTab(int index);
 
     void setupRequestsTab();
@@ -79,8 +89,12 @@ private:
     void resetLanguage();
     void saveLanguage(QSettings& settings);
 
-    std::array<bool, 4> is_changed{};
-    std::array<bool, 4> needs_reset;
+    void setupHotkeysTab();
+    void resetHotkeys();
+    void saveHotkeys(QSettings& settings);
+
+    std::array<bool, 5> is_changed{};
+    std::array<bool, 5> needs_reset;
 
     MainWindow* mw() const;
 };

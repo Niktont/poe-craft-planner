@@ -22,6 +22,15 @@ ShoppingView::ShoppingView(ShoppingModel& model, QWidget* parent)
     setModel(&model);
     connect(this, &QTableView::clicked, this, &ShoppingView::indexClicked);
 
+    QPalette p = palette();
+    p.setColor(QPalette::Inactive,
+               QPalette::Highlight,
+               p.color(QPalette::Active, QPalette::Highlight));
+    p.setColor(QPalette::Inactive,
+               QPalette::HighlightedText,
+               p.color(QPalette::Active, QPalette::HighlightedText));
+    setPalette(p);
+
     QStyleOptionViewItem option;
     initViewItemOption(&option);
     option.features = QStyleOptionViewItem::HasDisplay;

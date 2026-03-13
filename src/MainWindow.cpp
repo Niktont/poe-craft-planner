@@ -144,9 +144,18 @@ void MainWindow::closeEvent(QCloseEvent* event)
     event->accept();
 }
 
+void MainWindow::setAlwaysOnTop(bool checked)
+{
+    setWindowFlag(Qt::WindowStaysOnTopHint, checked);
+    show();
+
+    shopping_dialog->setWindowFlag(Qt::WindowStaysOnTopHint, checked);
+}
+
 void MainWindow::cleanup()
 {
     web_view->page()->deleteLater();
+    shopping_dialog->deleteLater();
 }
 
 void MainWindow::openRequestEdit()
@@ -309,26 +318,6 @@ void MainWindow::setupWebViewDialog()
     dialog_layout->addWidget(web_view);
 
     button->setAutoDefault(false);
-
-    connect(web_profile->cookieStore(),
-            &QWebEngineCookieStore::cookieAdded,
-            network_manager,
-            [this](const QNetworkCookie& cookie) {
-                if (cookie.name() != "POESESSID")
-                    return;
-
-                network_manager->cookieJar()->insertCookie(cookie);
-            });
-    connect(web_profile->cookieStore(),
-            &QWebEngineCookieStore::cookieRemoved,
-            network_manager,
-            [this](const QNetworkCookie& cookie) {
-                if (cookie.name() != "POESESSID")
-                    return;
-                network_manager->cookieJar()->deleteCookie(cookie);
-            });
-
-    web_profile->cookieStore()->loadAllCookies();
 
     web_view->load({""});
 }

@@ -1,5 +1,5 @@
 #include "SettingsDialog.h"
-#include "ExchangeRequestCache.h"
+#include "HotkeyEdit.h"
 #include "MainWindow.h"
 #include "Settings.h"
 #include <QCheckBox>
@@ -27,6 +27,7 @@ enum Tab {
     League,
     Import,
     Language,
+    Hotkeys,
 };
 
 static long long msFromMinutes(int val)
@@ -66,6 +67,7 @@ SettingsDialog::SettingsDialog(MainWindow& mw)
     tabs.append(tr("League"));
     tabs.append(tr("Import"));
     tabs.append(tr("Language"));
+    tabs.append(tr("Hotkeys"));
     tab_model->setStringList(tabs);
 
     tab_view = new QListView{};
@@ -87,12 +89,14 @@ SettingsDialog::SettingsDialog(MainWindow& mw)
     setupLeagueTab();
     setupImportTab();
     setupLanguageTab();
+    setupHotkeysTab();
 
     tabs_widget = new QStackedWidget{};
     tabs_widget->addWidget(requests_tab);
     tabs_widget->addWidget(league_tab);
     tabs_widget->addWidget(import_tab);
     tabs_widget->addWidget(language_tab);
+    tabs_widget->addWidget(hotkeys_tab);
     edit_layout->addWidget(tabs_widget, 0, Qt::AlignTop | Qt::AlignLeft);
 
     auto buttons = new QDialogButtonBox{};
@@ -135,6 +139,8 @@ void SettingsDialog::save()
         saveImport(settings);
     if (is_changed[Language])
         saveLanguage(settings);
+    if (is_changed[Hotkeys])
+        saveHotkeys(settings);
 
     is_changed.fill(false);
 }
@@ -157,6 +163,35 @@ void SettingsDialog::setImportChanged()
 void SettingsDialog::setLanguageChanged()
 {
     is_changed[Language] = true;
+}
+
+void SettingsDialog::setHotkeysChanged()
+{
+    is_changed[Hotkeys] = true;
+}
+
+void SettingsDialog::resetTab(int index)
+{
+    if (needs_reset[index]) {
+        switch (static_cast<Tab>(index)) {
+        case Requests:
+            resetRequests();
+            break;
+        case League:
+            resetLeague();
+            break;
+        case Import:
+            resetImport();
+            break;
+        case Language:
+            resetLanguage();
+            break;
+        case Hotkeys:
+            resetHotkeys();
+            break;
+        }
+        needs_reset[index] = false;
+    }
 }
 
 void SettingsDialog::setupRequestsTab()
@@ -220,27 +255,6 @@ void SettingsDialog::setupRequestsTab()
         connect(cb, &QCheckBox::checkStateChanged, this, &SettingsDialog::setRequestsChanged);
 }
 
-void SettingsDialog::resetTab(int index)
-{
-    if (needs_reset[index]) {
-        switch (static_cast<Tab>(index)) {
-        case Requests:
-            resetRequests();
-            break;
-        case League:
-            resetLeague();
-            break;
-        case Import:
-            resetImport();
-            break;
-        case Language:
-            resetLanguage();
-            break;
-        }
-        needs_reset[index] = false;
-    }
-}
-
 void SettingsDialog::resetRequests()
 {
     trade_min_update_time->setValue(minutesFromMs(Settings::tradeCostExpirationTime()));
@@ -286,16 +300,16 @@ void SettingsDialog::saveRequests(QSettings& settings)
 void SettingsDialog::setupLeagueTab()
 {
     league_tab = new QWidget{};
-    auto league_layout = new QFormLayout{};
-    league_tab->setLayout(league_layout);
+    auto layout = new QFormLayout{};
+    league_tab->setLayout(layout);
 
     league_poe1 = new QComboBox{};
     connect(league_poe1, &QComboBox::currentIndexChanged, this, &SettingsDialog::setLeagueChanged);
-    league_layout->addRow(tr("PoE 1 league:"), league_poe1);
+    layout->addRow(tr("PoE 1 league:"), league_poe1);
 
     league_poe2 = new QComboBox{};
     connect(league_poe2, &QComboBox::currentIndexChanged, this, &SettingsDialog::setLeagueChanged);
-    league_layout->addRow(tr("PoE 2 league:"), league_poe2);
+    layout->addRow(tr("PoE 2 league:"), league_poe2);
 }
 
 void SettingsDialog::resetLeague()
@@ -328,25 +342,25 @@ void SettingsDialog::saveLeague(QSettings& settings)
 void SettingsDialog::setupImportTab()
 {
     import_tab = new QWidget{};
-    auto import_layout = new QVBoxLayout{};
-    import_tab->setLayout(import_layout);
+    auto layout = new QVBoxLayout{};
+    import_tab->setLayout(layout);
 
     overwrite_names = new QCheckBox{tr("Take names from imported plans on overwriting")};
     connect(overwrite_names, &QCheckBox::checkStateChanged, this, &SettingsDialog::setImportChanged);
-    import_layout->addWidget(overwrite_names);
+    layout->addWidget(overwrite_names);
 
     add_prefix = new QCheckBox{tr("Add prefix to imported plans or folders")};
     connect(add_prefix, &QCheckBox::checkStateChanged, this, &SettingsDialog::setImportChanged);
-    import_layout->addWidget(add_prefix);
+    layout->addWidget(add_prefix);
 
     add_prefix_requests = new QCheckBox{tr("Add prefix to imported searches")};
     connect(add_prefix_requests,
             &QCheckBox::checkStateChanged,
             this,
             &SettingsDialog::setImportChanged);
-    import_layout->addWidget(add_prefix_requests);
+    layout->addWidget(add_prefix_requests);
 
-    import_layout->addStretch(1);
+    layout->addStretch(1);
 }
 
 void SettingsDialog::resetImport()
@@ -368,8 +382,8 @@ void SettingsDialog::saveImport(QSettings& settings)
 void SettingsDialog::setupLanguageTab()
 {
     language_tab = new QWidget{};
-    auto language_layout = new QFormLayout{};
-    language_tab->setLayout(language_layout);
+    auto layout = new QFormLayout{};
+    language_tab->setLayout(layout);
 
     exchange_language = new QComboBox{};
     exchange_language->addItem("English");
@@ -385,7 +399,7 @@ void SettingsDialog::setupLanguageTab()
             &QComboBox::currentIndexChanged,
             this,
             &SettingsDialog::setLanguageChanged);
-    language_layout->addRow(tr("Language for names of Exchange items:"), exchange_language);
+    layout->addRow(tr("Language for names of Exchange items:"), exchange_language);
 }
 
 void SettingsDialog::resetLanguage()
@@ -407,6 +421,68 @@ void SettingsDialog::saveLanguage(QSettings& settings)
                                  tr("Language changed"),
                                  tr("The language change will take effect after restart."));
     }
+}
+
+void SettingsDialog::setupHotkeysTab()
+{
+    hotkeys_tab = new QWidget{};
+    auto layout = new QFormLayout{};
+    hotkeys_tab->setLayout(layout);
+
+    next_item = new HotkeyEdit{false};
+    layout->addRow(tr("Next item:"), next_item);
+
+    paste_want = new HotkeyEdit{true};
+    layout->addRow(tr("Paste I Want currency:"), paste_want);
+
+    paste_want_amount = new HotkeyEdit{true};
+    layout->addRow(tr("Paste I Want amount:"), paste_want_amount);
+
+    paste_have = new HotkeyEdit{true};
+    layout->addRow(tr("Paste I Have currency:"), paste_have);
+
+    paste_have_amount = new HotkeyEdit{true};
+    layout->addRow(tr("Paste I Have amount:"), paste_have_amount);
+
+    open_link = new HotkeyEdit{false};
+    layout->addRow(tr("Open link:"), open_link);
+
+    auto finish_keys = next_item->finishingKeyCombinations();
+    finish_keys << Qt::Key_Escape;
+
+    auto edits = hotkeys_tab->findChildren<QKeySequenceEdit*>();
+    for (auto edit : std::as_const(edits)) {
+        edit->setFinishingKeyCombinations(finish_keys);
+        connect(edit,
+                &QKeySequenceEdit::keySequenceChanged,
+                this,
+                &SettingsDialog::setHotkeysChanged);
+    }
+}
+
+void SettingsDialog::resetHotkeys()
+{
+    auto settings = Settings::get();
+    next_item->setKeySequence(settings.value(Settings::hotkeys_next_item).value<QKeySequence>());
+    paste_want->setKeySequence(settings.value(Settings::hotkeys_paste_want).value<QKeySequence>());
+    paste_want_amount->setKeySequence(
+        settings.value(Settings::hotkeys_paste_want_amount).value<QKeySequence>());
+    paste_have->setKeySequence(settings.value(Settings::hotkeys_paste_have).value<QKeySequence>());
+    paste_have_amount->setKeySequence(
+        settings.value(Settings::hotkeys_paste_have_amount).value<QKeySequence>());
+    open_link->setKeySequence(settings.value(Settings::hotkeys_open_link).value<QKeySequence>());
+
+    is_changed[Hotkeys] = false;
+}
+
+void SettingsDialog::saveHotkeys(QSettings& settings)
+{
+    settings.setValue(Settings::hotkeys_next_item, next_item->keySequence());
+    settings.setValue(Settings::hotkeys_paste_want, paste_want->keySequence());
+    settings.setValue(Settings::hotkeys_paste_want_amount, paste_want_amount->keySequence());
+    settings.setValue(Settings::hotkeys_paste_have, paste_have->keySequence());
+    settings.setValue(Settings::hotkeys_paste_have_amount, paste_have_amount->keySequence());
+    settings.setValue(Settings::hotkeys_open_link, open_link->keySequence());
 }
 
 MainWindow* SettingsDialog::mw() const

@@ -57,6 +57,13 @@ public:
     static const QLatin1StringView import_add_prefix_requests;
 
     static const QLatin1StringView language_exchange_items;
+
+    static const QLatin1StringView hotkeys_next_item;
+    static const QLatin1StringView hotkeys_paste_want;
+    static const QLatin1StringView hotkeys_paste_want_amount;
+    static const QLatin1StringView hotkeys_paste_have;
+    static const QLatin1StringView hotkeys_paste_have_amount;
+    static const QLatin1StringView hotkeys_open_link;
 };
 
 } // namespace planner

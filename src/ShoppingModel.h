@@ -40,11 +40,16 @@ public:
     }
 
     QVariant data(const QModelIndex& index, int role) const override;
+    const ShoppingItem& item(size_t row) const { return items[row]; }
 
     bool setPlan(Plan* plan);
+    Plan* plan() const { return plan_; }
+
+    ExchangeRequestCache* exchangeCache() const { return exchange_cache; }
+    TradeRequestCache* tradeCache() const { return trade_cache; }
 
 private:
-    Plan* plan{};
+    Plan* plan_{};
     ExchangeRequestCache* exchange_cache{};
     TradeRequestCache* trade_cache{};
 
