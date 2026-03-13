@@ -1,0 +1,8 @@
+[submodule "libs/keyboard-auto-type"]
+	path = libs/keyboard-auto-type
+	url = https://github.com/antelle/keyboard-auto-type.git
+	branch = master
+[submodule "libs/QHotkey"]
+	path = libs/QHotkey
+	url = https://github.com/Skycoder42/QHotkey.git
+	branch = master

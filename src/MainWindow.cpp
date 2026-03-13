@@ -347,9 +347,9 @@ void MainWindow::setupAboutDialog()
         R"(
 <p>PoE Craft Planner is an open source, free software used to create plans for crafting or farming in PoE 1 and 2, it uses price data from trade website and poe.ninja. This product isn't affiliated with or endorsed by Grinding Gear Games in any way.</p>
 <p>It is licensed under the GNU General Public License Version 3 or later. You can modify or redistribute it under the conditions of this license. See <a href="https://www.gnu.org/licenses/gpl.html"><span style=" text-decoration: underline; color:#0000EE;">https://www.gnu.org/licenses/gpl.html</span></a> for details.</p>
-<p>You can find source code at <a href="https://github.com/Niktont/poe-craft-planner"><span style=" text-decoration: underline; color:#0000EE;">https://github.com/Niktont/poe-craft-planner</span></a></p>
+<p>You can find source code at <a href="https://github.com/Niktont/poe-craft-planner"><span style=" text-decoration: underline; color:#0000EE;">https://github.com/Niktont/poe-craft-planner</span></a>.</p>
 <p>This software uses the GPL/LGPL Qt Toolkit from <a href="https://qt-project.org"><span style=" text-decoration: underline; color:#0000EE;">https://qt-project.org</span></a>. See <a href="https://doc.qt.io/qt-6/licensing.html"><span style=" text-decoration: underline; color:#0000EE;">https://doc.qt.io/qt-6/licensing.html</span></a> for licensing terms and information.</p>
-<p>It also uses the Boost libraries from <a href="https://www.boost.org"><span style=" text-decoration: underline; color:#0000EE;">https://www.boost.org</span></a>.</p>)");
+<p>It also uses the Boost libraries from <a href="https://www.boost.org"><span style=" text-decoration: underline; color:#0000EE;">https://www.boost.org</span></a>, keyboard-auto-type from <a href="https://github.com/antelle/keyboard-auto-type"><span style=" text-decoration: underline; color:#0000EE;">https://github.com/antelle/keyboard-auto-type</span></a> and QHotkey from <a href="https://github.com/Skycoder42/QHotkey"><span style=" text-decoration: underline; color:#0000EE;">https://github.com/Skycoder42/QHotkey</span></a>.</p>)");
 
     about_dialog->layout()->addWidget(label);
 }

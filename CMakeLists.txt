@@ -13,6 +13,12 @@ qt_standard_project_setup()
 
 add_subdirectory(DataUpdater EXCLUDE_FROM_ALL)
 
+set(KEYBOARD_AUTO_TYPE_NO_EXCEPTIONS TRUE)
+add_subdirectory(libs/keyboard-auto-type)
+
+set(QHOTKEY_INSTALL FALSE)
+add_subdirectory(libs/QHotkey)
+
 qt_add_executable(${PROJECT_NAME}
     src/main.cpp
     src/MainWindow.h
@@ -67,7 +73,9 @@ qt_add_executable(${PROJECT_NAME}
     src/ShoppingView.h src/ShoppingView.cpp
 )
 
-target_link_libraries(${PROJECT_NAME} PRIVATE Qt6::Widgets Qt6::WebEngineWidgets Qt6::Sql Boost::headers)
+target_link_libraries(${PROJECT_NAME}
+    PRIVATE Qt6::Widgets Qt6::WebEngineWidgets Qt6::Sql Boost::headers keyboard-auto-type qhotkey
+)
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE APP_VERSION="${PROJECT_VERSION}")
 
@@ -98,8 +106,17 @@ install(TARGETS ${PROJECT_NAME}
     BUNDLE  DESTINATION "."
     RUNTIME DESTINATION "."
 )
+
 install(FILES additional.sqlite3 LICENSE
     DESTINATION "."
+)
+install(FILES libs/keyboard-auto-type/LICENSE.md
+    DESTINATION "."
+    RENAME LICENSE-keyboard-auto-type
+)
+install(FILES libs/QHotkey/LICENSE
+    DESTINATION "."
+    RENAME LICENSE-qhotkey
 )
 
 qt_generate_deploy_app_script(
