@@ -433,7 +433,7 @@ void SettingsDialog::setupHotkeysTab()
     layout->addRow(tr("Next item:"), next_item);
 
     paste_want = new HotkeyEdit{true};
-    layout->addRow(tr("Paste I Want currency:"), paste_want);
+    layout->addRow(tr("Paste Regex/I Want currency:"), paste_want);
 
     paste_want_amount = new HotkeyEdit{true};
     layout->addRow(tr("Paste I Want amount:"), paste_want_amount);

@@ -7,6 +7,8 @@
 #include "Step.h"
 #include "TradeRequestCache.h"
 #include <boost/container/flat_set.hpp>
+#include <QApplication>
+#include <QClipboard>
 #include <QFont>
 #include <QIODevice>
 #include <QMimeData>
@@ -1118,6 +1120,28 @@ void StepItemModel::duplicateItem(const QModelIndex& idx)
     beginInsertRows({}, pos, pos);
     items.emplace(items.begin() + pos, items[idx.row()]);
     endInsertRows();
+}
+
+bool StepItemModel::haveRegex(const StepItem& item) const
+{
+    if (auto trade = item.trade()) {
+        auto it = trade_cache->requestData(trade->request_key);
+        if (it != trade_cache->cache.end() && !it->second.regex().isEmpty())
+            return true;
+    }
+    return false;
+}
+
+void StepItemModel::copyRegex(const QModelIndex& idx)
+{
+    if (!plan || !idx.isValid())
+        return;
+
+    if (auto trade = stepItems()[idx.row()].trade()) {
+        if (auto it = trade_cache->requestData(trade->request_key);
+            it != trade_cache->cache.end() && !it->second.regex().isEmpty())
+            qApp->clipboard()->setText(it->second.regex());
+    }
 }
 
 void StepItemModel::openSearch(const QModelIndex& idx)

@@ -74,6 +74,13 @@ RequestEditDialog::RequestEditDialog(MainWindow& mw)
     connect(query_edit, &QLineEdit::editingFinished, this, &RequestEditDialog::checkQuery);
     layout()->addWidget(query_edit);
 
+    label = new QLabel{tr("Regex:")};
+    layout()->addWidget(label);
+
+    regex_edit = new QLineEdit{};
+    connect(regex_edit, &QLineEdit::editingFinished, this, &RequestEditDialog::checkChange);
+    layout()->addWidget(regex_edit);
+
     main_layot->addStretch();
 
     connect(this, &QDialog::finished, this, &RequestEditDialog::cleanup);
@@ -118,6 +125,7 @@ void RequestEditDialog::openRequest(const TradeRequestKey& request, Game game)
 
             edit_query = it->second.query();
             query_edit->setText(edit_query.toJson(QJsonDocument::Compact));
+            regex_edit->setText(it->second.regex());
             is_query_valid = !it->second.query().isEmpty();
         }
     }
@@ -195,6 +203,7 @@ void RequestEditDialog::checkLink()
     if (auto it = cache->requestData(edit_request); it != cache->cache.end()) {
         edit_query = it->second.query();
         query_edit->setText(edit_query.toJson(QJsonDocument::Compact));
+        regex_edit->setText(it->second.regex());
         is_query_valid = !edit_query.isEmpty();
         delete_button->setEnabled(true);
     }
@@ -255,6 +264,12 @@ void RequestEditDialog::checkQuery()
         save_button->setEnabled(true);
 }
 
+void RequestEditDialog::checkChange()
+{
+    if (is_name_valid && is_link_valid && is_query_valid)
+        save_button->setEnabled(true);
+}
+
 void RequestEditDialog::selectRequest(const QModelIndex& proxy_i)
 {
     auto proxy_m = static_cast<QAbstractProxyModel*>(name_edit->completer()->completionModel());
@@ -266,6 +281,7 @@ void RequestEditDialog::selectRequest(const QModelIndex& proxy_i)
 
     edit_query = it->second.query();
     query_edit->setText(edit_query.toJson(QJsonDocument::Compact));
+    regex_edit->setText(it->second.regex());
 
     is_name_valid = true;
     is_link_valid = true;
@@ -334,7 +350,8 @@ void RequestEditDialog::saveRequest()
     if (!is_name_valid || !is_link_valid || !is_query_valid)
         return;
 
-    cache->saveRequest(edit_request, {name_edit->text().trimmed(), edit_query});
+    cache->saveRequest(edit_request,
+                       {name_edit->text().trimmed(), edit_query, regex_edit->text().trimmed()});
     save_button->setEnabled(false);
     delete_button->setEnabled(true);
 }
@@ -378,6 +395,7 @@ void RequestEditDialog::clear()
     name_edit->clear();
     link_edit->clear();
     query_edit->clear();
+    regex_edit->clear();
     edit_request = {};
     edit_query = {};
 }

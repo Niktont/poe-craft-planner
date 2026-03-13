@@ -124,6 +124,13 @@ StepItemView::StepItemView(StepItemModel& model, QWidget* parent)
     });
     duplicate_action->setShortcutContext(Qt::WidgetShortcut);
 
+    copy_regex_action = addAction(tr("Copy Regex"), {Qt::ALT | Qt::Key_C}, this, [this] {
+        auto current = contextIndex ? *contextIndex : selectionModel()->currentIndex();
+        stepModel()->copyRegex(current);
+        contextIndex.reset();
+    });
+    copy_regex_action->setShortcutContext(Qt::WidgetShortcut);
+
     manage_searches_action = addAction(tr("Manage Searches"), this, [this] {
         auto current = contextIndex ? *contextIndex : selectionModel()->currentIndex();
         stepModel()->openSearch(current);
@@ -163,24 +170,30 @@ void StepItemView::contextMenuEvent(QContextMenuEvent* event)
         menu->addAction(add_step_action);
 
     if (contextIndex->isValid()) {
-        menu->addSeparator();
         menu->addAction(duplicate_action);
+        menu->addSeparator();
         auto item = stepModel()->stepItem(*contextIndex);
         if (item) {
             switch (item->type()) {
             case StepItemType::Trade:
+                if (stepModel()->haveRegex(*item))
+                    menu->addAction(copy_regex_action);
                 menu->addAction(manage_searches_action);
                 menu->addAction(delete_search_action);
-                [[fallthrough]];
-            case StepItemType::Exchange:
                 if (contextIndex->column() == static_cast<int>(StepItemColumn::Time))
                     menu->addAction(default_time_action);
+                menu->addSeparator();
+                break;
+            case StepItemType::Exchange:
+                if (contextIndex->column() == static_cast<int>(StepItemColumn::Time)) {
+                    menu->addAction(default_time_action);
+                    menu->addSeparator();
+                }
                 break;
             default:
                 break;
             }
         }
-        menu->addSeparator();
         menu->addAction(delete_action);
     }
 

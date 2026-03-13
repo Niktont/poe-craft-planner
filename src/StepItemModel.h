@@ -94,6 +94,9 @@ public:
     void insertItem(const QModelIndex& idx, planner::StepItemType type);
     void duplicateItem(const QModelIndex& idx);
 
+    bool haveRegex(const StepItem& item) const;
+    void copyRegex(const QModelIndex& idx);
+
     void openSearch(const QModelIndex& idx);
     void deleteSearch(const QModelIndex& idx);
     void setDefaultTime(const QModelIndex& idx);

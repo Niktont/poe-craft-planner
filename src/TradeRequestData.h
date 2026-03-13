@@ -12,9 +12,10 @@ class TradeRequestData
 {
 public:
     TradeRequestData() = default;
-    TradeRequestData(QString name, QJsonDocument query)
+    TradeRequestData(QString name, QJsonDocument query, QString regex)
         : name_{name}
         , query_{query}
+        , regex_{regex}
     {}
     TradeRequestData(const QJsonObject& request_o)
         : name_{request_o["name"].toString()}

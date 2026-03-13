@@ -106,8 +106,15 @@ void ShoppingDialog::pasteWant()
     if (!idx.isValid())
         return;
 
-    auto name_idx = model->index(idx.row(), static_cast<int>(ShoppingColumn::Name));
-    pasteText(model->data(name_idx, Qt::DisplayRole).toString());
+    auto& item = model->item(idx.row());
+    if (auto exchange = item.exchange()) {
+        auto it = model->exchangeCache()->currencyData(*exchange);
+        pasteText(model->exchangeCache()->name(it));
+    } else if (auto trade = item.trade()) {
+        auto it = model->tradeCache()->requestData(trade->request);
+        if (!it->second.regex().isEmpty())
+            pasteText(it->second.regex());
+    }
 }
 
 void ShoppingDialog::pasteWantAmount()

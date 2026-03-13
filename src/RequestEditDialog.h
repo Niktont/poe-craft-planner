@@ -35,6 +35,7 @@ private slots:
     void checkLink();
     void loadQuery();
     void checkQuery();
+    void checkChange();
 
     void selectRequest(const QModelIndex& proxy_i);
     void saveRequest();
@@ -46,6 +47,7 @@ private:
     QLineEdit* name_edit;
     QLineEdit* link_edit;
     QLineEdit* query_edit;
+    QLineEdit* regex_edit;
 
     QPushButton* load_button;
     QPushButton* save_button;

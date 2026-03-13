@@ -73,6 +73,8 @@ void TradeRequestCache::saveRequest(const TradeRequestKey& request, TradeRequest
         }
         if (it->second.query() != data.query())
             it->second.setQuery(data.query());
+        if (it->second.regex() != data.regex())
+            it->second.setRegex(data.regex());
     }
 
     if (it->second.is_changed) {
