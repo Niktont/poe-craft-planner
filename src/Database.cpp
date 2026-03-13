@@ -364,7 +364,7 @@ std::pair<TradeRequestKey, TradeRequestData> Database::tradeCacheFromQuery(const
     result.second.name_ = query.value(++i).toString();
     result.second.query_ = QJsonDocument::fromJson(query.value(++i).toByteArray());
     result.second.regex_ = query.value(++i).toString();
-    result.second.description_ = query.value(++i).toString();
+    result.second.description_ = {QJsonDocument::fromJson(query.value(++i).toByteArray()).object()};
     auto default_time = query.value(++i);
     if (!default_time.isNull())
         result.second.default_time = ItemTime(default_time.toDouble());
@@ -396,7 +396,7 @@ bool Database::insertTradeCache(QSqlQuery& query,
     query.addBindValue(data.name_);
     query.addBindValue(data.query_.toJson(QJsonDocument::Compact));
     query.addBindValue(data.regex_);
-    query.addBindValue(data.description_);
+    query.addBindValue(QJsonDocument{data.description_.toJson()}.toJson(QJsonDocument::Compact));
     if (data.default_time)
         query.addBindValue(data.default_time->count());
     else

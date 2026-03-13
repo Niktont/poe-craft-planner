@@ -48,6 +48,7 @@ private:
     QLineEdit* link_edit;
     QLineEdit* query_edit;
     QLineEdit* regex_edit;
+    QLineEdit* description_edit;
 
     QPushButton* load_button;
     QPushButton* save_button;

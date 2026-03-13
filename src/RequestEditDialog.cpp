@@ -81,6 +81,13 @@ RequestEditDialog::RequestEditDialog(MainWindow& mw)
     connect(regex_edit, &QLineEdit::editingFinished, this, &RequestEditDialog::checkChange);
     layout()->addWidget(regex_edit);
 
+    label = new QLabel{tr("Description:")};
+    layout()->addWidget(label);
+
+    description_edit = new QLineEdit{};
+    connect(description_edit, &QLineEdit::editingFinished, this, &RequestEditDialog::checkChange);
+    layout()->addWidget(description_edit);
+
     main_layot->addStretch();
 
     connect(this, &QDialog::finished, this, &RequestEditDialog::cleanup);
@@ -126,6 +133,7 @@ void RequestEditDialog::openRequest(const TradeRequestKey& request, Game game)
             edit_query = it->second.query();
             query_edit->setText(edit_query.toJson(QJsonDocument::Compact));
             regex_edit->setText(it->second.regex());
+            description_edit->setText(it->second.description().text);
             is_query_valid = !it->second.query().isEmpty();
         }
     }
@@ -204,6 +212,7 @@ void RequestEditDialog::checkLink()
         edit_query = it->second.query();
         query_edit->setText(edit_query.toJson(QJsonDocument::Compact));
         regex_edit->setText(it->second.regex());
+        description_edit->setText(it->second.description().text);
         is_query_valid = !edit_query.isEmpty();
         delete_button->setEnabled(true);
     }
@@ -282,6 +291,7 @@ void RequestEditDialog::selectRequest(const QModelIndex& proxy_i)
     edit_query = it->second.query();
     query_edit->setText(edit_query.toJson(QJsonDocument::Compact));
     regex_edit->setText(it->second.regex());
+    description_edit->setText(it->second.description().text);
 
     is_name_valid = true;
     is_link_valid = true;
@@ -351,7 +361,10 @@ void RequestEditDialog::saveRequest()
         return;
 
     cache->saveRequest(edit_request,
-                       {name_edit->text().trimmed(), edit_query, regex_edit->text().trimmed()});
+                       {name_edit->text().trimmed(),
+                        edit_query,
+                        regex_edit->text().trimmed(),
+                        description_edit->text().trimmed()});
     save_button->setEnabled(false);
     delete_button->setEnabled(true);
 }
@@ -396,6 +409,7 @@ void RequestEditDialog::clear()
     link_edit->clear();
     query_edit->clear();
     regex_edit->clear();
+    description_edit->clear();
     edit_request = {};
     edit_query = {};
 }

@@ -676,6 +676,11 @@ QVariant StepItemModel::tradeItemData(double amount,
         case Qt::DisplayRole:
         case Qt::EditRole:
             return trade_cache->name(trade);
+        case Qt::ToolTipRole:
+            if (auto it = trade_cache->requestData(trade.request_key);
+                it != trade_cache->cache.end() && !it->second.description().text.isEmpty())
+                return it->second.description().text;
+            return {};
         }
         return {};
     case StepItemColumn::Link:
