@@ -31,7 +31,7 @@ private slots:
     void deleteSearch();
 
 private:
-    StepItemModel* stepModel();
+    StepItemModel* stepModel() const;
     StepItemView* other_view{};
 
     QAction* add_trade_action;

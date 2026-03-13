@@ -101,6 +101,8 @@ public:
     void deleteSearch(const QModelIndex& idx);
     void setDefaultTime(const QModelIndex& idx);
 
+    void openLink(const QModelIndex& idx);
+
 private:
     friend class StepItemDelegate;
 

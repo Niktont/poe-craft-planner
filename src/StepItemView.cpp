@@ -243,11 +243,8 @@ void StepItemView::indexClicked(const QModelIndex& idx)
         return;
 
     auto modifiers = QGuiApplication::keyboardModifiers();
-    if (modifiers & Qt::ControlModifier) {
-        auto url = QUrl::fromUserInput(model()->data(idx, Qt::ToolTipRole).toString());
-        if (url.isValid())
-            QDesktopServices::openUrl(url);
-    }
+    if (modifiers & Qt::ControlModifier)
+        stepModel()->openLink(idx);
 }
 
 void StepItemView::deleteSearch()
@@ -292,7 +289,7 @@ void StepItemView::syncColumn(int col)
         other_view->setColumnWidth(col, width);
 }
 
-StepItemModel* StepItemView::stepModel()
+StepItemModel* StepItemView::stepModel() const
 {
     return static_cast<StepItemModel*>(model());
 }

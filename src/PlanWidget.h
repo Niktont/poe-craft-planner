@@ -6,7 +6,7 @@
 #include <QWidget>
 
 class QLabel;
-class QNetworkReply;
+class QScrollArea;
 
 namespace planner {
 class PlanModel;
@@ -34,6 +34,7 @@ public:
     void moveStep(size_t step_pos, bool up);
     void deleteStep(size_t step_pos);
     void duplicateStep(size_t step_pos);
+    void scrollToStep(QUuid step_id);
 
     bool isEmptyResourcesHidden() const { return is_empty_resources_hidden; }
     bool isEmptyResultsHidden() const { return is_empty_results_hidden; }
@@ -67,6 +68,7 @@ private:
     QLabel* league_label;
     CostWidget* cost_widget;
 
+    QScrollArea* steps_scroll;
     QWidget* steps_widget;
 
     const PlanModel* current_model{};

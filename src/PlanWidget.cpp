@@ -37,7 +37,7 @@ PlanWidget::PlanWidget(MainWindow& mw)
 
     title_layout->addStretch();
 
-    auto steps_scroll = new QScrollArea{};
+    steps_scroll = new QScrollArea{};
     steps_scroll->setWidgetResizable(true);
     steps_scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     steps_scroll->setFrameShape(QFrame::Box);
@@ -273,6 +273,19 @@ void PlanWidget::duplicateStep(size_t step_pos)
         static_cast<QVBoxLayout*>(steps_widget->layout())->insertWidget(step_pos + 1, widget_it);
         widget_it->setStep(plan_, step_pos + 1);
     }
+}
+
+void PlanWidget::scrollToStep(QUuid step_id)
+{
+    if (!plan_)
+        return;
+
+    auto it = plan_->findStepIt(step_id);
+    if (it == plan_->steps.end())
+        return;
+
+    auto pos = std::distance(plan_->steps.cbegin(), it);
+    steps_scroll->ensureWidgetVisible(step_widgets[pos]);
 }
 
 void PlanWidget::updateDisplayedCost()

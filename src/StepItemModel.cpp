@@ -9,6 +9,7 @@
 #include <boost/container/flat_set.hpp>
 #include <QApplication>
 #include <QClipboard>
+#include <QDesktopServices>
 #include <QFont>
 #include <QIODevice>
 #include <QMimeData>
@@ -216,8 +217,6 @@ QVariant StepItemModel::data(const QModelIndex& index, int role) const
         }
         break;
     case StepItemColumn::Link:
-        if (item.type() == StepItemType::Step)
-            return {};
         switch (role) {
         case Qt::DisplayRole:
             return tr("Link");
@@ -944,6 +943,12 @@ QVariant StepItemModel::stepItemData(double amount,
             return std::distance(plan->steps.cbegin(), step_it);
         }
         return {};
+    case StepItemColumn::Link:
+        switch (role) {
+        case Qt::ForegroundRole:
+            return QColor{0x0000EE};
+        }
+        return {};
     case StepItemColumn::Cost:
         switch (role) {
         case Qt::DisplayRole: {
@@ -1183,6 +1188,21 @@ void StepItemModel::setDefaultTime(const QModelIndex& idx)
         trade_cache->setDefaultTime(trade->request_key, trade->time);
     else if (auto exchange = items[idx.row()].exchange())
         exchange_cache->setDefaultTime(exchange->currency, exchange->time);
+}
+
+void StepItemModel::openLink(const QModelIndex& idx)
+{
+    if (!idx.isValid())
+        return;
+
+    auto& item = stepItems()[idx.row()];
+    if (auto step = item.step())
+        mw()->planWidget()->scrollToStep(step->step_id);
+    else {
+        auto url = QUrl::fromUserInput(data(idx, Qt::ToolTipRole).toString());
+        if (url.isValid())
+            QDesktopServices::openUrl(url);
+    }
 }
 
 void StepItemModel::clearTradeRequest(const TradeRequestKey& request)
