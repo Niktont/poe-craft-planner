@@ -38,6 +38,8 @@ public:
     bool isEmptyResourcesHidden() const { return is_empty_resources_hidden; }
     bool isEmptyResultsHidden() const { return is_empty_results_hidden; }
 
+    void updateDisplayedCost();
+
 public slots:
     void addStep();
     void updateCost(planner::Plan* plan);

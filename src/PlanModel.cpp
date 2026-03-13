@@ -87,6 +87,8 @@ QVariant PlanModel::headerData(int section, Qt::Orientation /*orientation*/, int
     switch (static_cast<PlanItemColumn>(section)) {
     case PlanItemColumn::Name:
         return tr("Name");
+    case PlanItemColumn::Cost:
+        return tr("Cost");
     }
     return {};
 }
@@ -252,6 +254,7 @@ bool PlanModel::canDropMimeData(const QMimeData* data,
 
     return true;
 }
+
 bool PlanModel::dropMimeData(
     const QMimeData* data, Qt::DropAction action, int row, int column, const QModelIndex& parent)
 {
@@ -287,6 +290,7 @@ bool PlanModel::dropMimeData(
     }
     return true;
 }
+
 QVariant PlanModel::data(const QModelIndex& index, int role) const
 {
     if (!index.isValid())
@@ -301,9 +305,13 @@ Qt::ItemFlags PlanModel::flags(const QModelIndex& index) const
     if (!index.isValid())
         return {Qt::ItemIsDropEnabled};
 
-    auto default_flags = QAbstractItemModel::flags(index) | Qt::ItemIsDragEnabled
-                         | Qt::ItemIsEditable;
+    auto default_flags = QAbstractItemModel::flags(index) | Qt::ItemIsDragEnabled;
     auto item = constInternalPtr(index);
+
+    auto col = static_cast<PlanItemColumn>(index.column());
+    if (col == PlanItemColumn::Name)
+        default_flags |= Qt::ItemIsEditable;
+
     if (item->isFolder())
         return default_flags | Qt::ItemIsDropEnabled;
 
@@ -573,7 +581,8 @@ void PlanModel::restorePlan(const QModelIndex& index)
     if (auto new_item = parent_item->restoreChild(index.row())) {
         changed_plans.erase(item);
 
-        emit dataChanged(index, index, {Qt::DisplayRole});
+        auto cost_idx = index.siblingAtColumn(static_cast<int>(PlanItemColumn::Cost));
+        emit dataChanged(index, cost_idx, {Qt::DisplayRole, Qt::DecorationRole});
 
         emit planUpdated(new_item->plan_, old_plan);
     }
@@ -599,6 +608,15 @@ bool PlanModel::isNewPlan(const QModelIndex& index) const
 
     auto it = changed_plans.find(item);
     return it != changed_plans.end() && it->second;
+}
+
+void PlanModel::updateCost(const QModelIndex& index)
+{
+    if (!index.isValid())
+        return;
+
+    auto cost_idx = index.siblingAtColumn(static_cast<int>(PlanItemColumn::Cost));
+    emit dataChanged(cost_idx, cost_idx, {Qt::DisplayRole, Qt::DecorationRole});
 }
 
 void PlanModel::setPlanChanged(PlanItem* item)

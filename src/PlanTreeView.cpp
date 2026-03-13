@@ -1,6 +1,7 @@
 #include "PlanTreeView.h"
 #include "PlanModel.h"
 #include <QContextMenuEvent>
+#include <QHeaderView>
 #include <QMenu>
 #include <QMessageBox>
 
@@ -18,6 +19,8 @@ PlanTreeView::PlanTreeView(PlanModel& model, QWidget* parent)
     setHeaderHidden(true);
     setSelectionBehavior(QAbstractItemView::SelectRows);
     setSelectionMode(QAbstractItemView::SingleSelection);
+
+    header()->setSectionResizeMode(QHeaderView::ResizeToContents);
 
     add_plan_action = addAction(tr("New Plan"), this, [this] {
         auto current = contextIndex ? *contextIndex : selectionModel()->currentIndex();

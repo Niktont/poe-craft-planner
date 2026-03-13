@@ -82,6 +82,9 @@ private:
     void setPlanChanged();
     void deleteFromDb(QSqlQuery& delete_query);
 
+    ExchangeRequestCache* exchangeCache() const;
+    static QString formatCost(double value);
+
     friend class PlanModel;
     friend class Plan;
 };

@@ -14,7 +14,7 @@
 
 namespace planner {
 
-enum Column {
+enum DatabaseColumn {
     Id,
     Name,
     IsFolder,
@@ -254,14 +254,15 @@ PlanItem* PlanItem::child(int row)
 
 int PlanItem::columnCount() const
 {
-    return 1;
+    return static_cast<int>(PlanItemColumn::last) + 1;
 }
 
 QVariant PlanItem::data(int column, int role) const
 {
     auto col = static_cast<PlanItemColumn>(column);
     if (isFolder()) {
-        if (col == PlanItemColumn::Name) {
+        switch (col) {
+        case PlanItemColumn::Name:
             switch (role) {
             case Qt::DisplayRole:
             case Qt::EditRole:
@@ -269,15 +270,50 @@ QVariant PlanItem::data(int column, int role) const
             case Qt::DecorationRole:
                 return model->mw()->style()->standardIcon(QStyle::SP_DirIcon);
             }
+        default:
+            return {};
         }
     } else {
-        if (col == PlanItemColumn::Name) {
+        switch (col) {
+        case PlanItemColumn::Name:
             switch (role) {
             case Qt::DisplayRole:
                 return !plan_->is_changed ? plan_->name : plan_->name + u"*";
             case Qt::EditRole:
                 return !plan_->is_changed ? plan_->name : plan_->name;
             }
+            return {};
+        case PlanItemColumn::Cost:
+            switch (role) {
+            case Qt::DecorationRole: {
+                if (auto step = plan_->costStep()) {
+                    auto cache = exchangeCache();
+                    if (step->results_cost.isValid()) {
+                        auto it = cache->currencyData(step->results_cost.cost_in_primary.currency);
+                        if (it != cache->cache.end())
+                            return cache->icon(it);
+                    } else if (auto cost = step->cost(); cost.isValid()) {
+                        auto it = cache->currencyData(cost.cost_in_primary.currency);
+                        if (it != cache->cache.end())
+                            return cache->icon(it);
+                    }
+                }
+                return {};
+            }
+            case Qt::DisplayRole:
+                if (auto step = plan_->costStep()) {
+                    auto cost = step->cost();
+                    if (cost.isValid() && step->results_cost.isValid())
+                        return QString{formatCost(cost.cost_in_primary.value) % "/"
+                                       % formatCost(step->results_cost.cost_in_primary.value)};
+                    else if (cost.isValid())
+                        return formatCost(cost.cost_in_primary.value);
+                    else if (step->results_cost.isValid())
+                        return formatCost(step->results_cost.cost_in_primary.value);
+                }
+                return {};
+            }
+            return {};
         }
     }
     return {};
@@ -417,4 +453,18 @@ void PlanItem::deleteFromDb(QSqlQuery& delete_query)
     for (auto& child : childs)
         child->deleteFromDb(delete_query);
 }
+
+ExchangeRequestCache* PlanItem::exchangeCache() const
+{
+    if (plan_)
+        return model->mw()->exchangeCache(plan_->game);
+    return nullptr;
+}
+
+QString PlanItem::formatCost(double value)
+{
+    value = std::ceil(value * 10.0) / 10.0;
+    return QString::number(value);
+}
+
 } // namespace planner

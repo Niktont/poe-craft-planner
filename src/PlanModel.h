@@ -12,12 +12,15 @@
 #include <QUuid>
 
 namespace planner {
+class MainWindow;
+class ImportOverwriteModel;
 
 enum class PlanItemColumn {
     Name,
+    Cost,
+
+    last = Cost,
 };
-class MainWindow;
-class ImportOverwriteModel;
 
 class PlanModel : public QAbstractItemModel
 {
@@ -85,6 +88,8 @@ public:
     void duplicateItem(const QModelIndex& index);
     bool isNewPlan(const QModelIndex& index) const;
     bool haveUnsavedPlans() const { return !changed_plans.empty(); }
+
+    void updateCost(const QModelIndex& index);
 
     MainWindow* mw() const;
 

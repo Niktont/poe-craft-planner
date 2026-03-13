@@ -172,9 +172,6 @@ void PlanWidget::addStepWidget(size_t i)
 
 void PlanWidget::displayCost()
 {
-    if (!plan_)
-        return;
-
     cost_widget->setCost(plan_->game, plan_->costStep());
 }
 
@@ -198,7 +195,7 @@ void PlanWidget::updateCost(Plan* plan)
 
     league_label->setText(plan->league);
 
-    displayCost();
+    updateDisplayedCost();
 
     for (size_t i = 0; i < plan->steps.size(); ++i)
         step_widgets[i]->updateCost(plan);
@@ -246,7 +243,7 @@ void PlanWidget::deleteStep(size_t step_pos)
         step_widgets[i]->updateStepNames(deleted_id, true);
 
     if (is_final_changed)
-        displayCost();
+        updateDisplayedCost();
 }
 
 void PlanWidget::duplicateStep(size_t step_pos)
@@ -276,6 +273,17 @@ void PlanWidget::duplicateStep(size_t step_pos)
         static_cast<QVBoxLayout*>(steps_widget->layout())->insertWidget(step_pos + 1, widget_it);
         widget_it->setStep(plan_, step_pos + 1);
     }
+}
+
+void PlanWidget::updateDisplayedCost()
+{
+    if (!plan_)
+        return;
+
+    displayCost();
+
+    auto idx = plan_->item()->index();
+    mw()->planModel(plan_->game)->updateCost(idx);
 }
 
 void PlanWidget::moveStep(size_t step_pos, bool up)
@@ -314,7 +322,7 @@ void PlanWidget::moveStep(size_t step_pos, bool up)
     static_cast<QVBoxLayout*>(steps_widget->layout())->insertWidget(step_pos, bottom_widget);
     bool is_final_changed = plan_->finalStepId().isNull() && (bottom_it + 1) == plan_->steps.end();
     if (is_final_changed)
-        displayCost();
+        updateDisplayedCost();
 }
 
 void PlanWidget::updateStepNames(size_t renamed_step)
