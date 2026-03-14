@@ -31,6 +31,7 @@ private:
 
     MainWindow* mw;
     static QString formatCost(const CurrencyCost& cost);
+    static QString formatCeil1(double value);
 };
 
 } // namespace planner

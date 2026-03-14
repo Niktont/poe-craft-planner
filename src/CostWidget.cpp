@@ -77,18 +77,23 @@ void CostWidget::setCost(Game game, const Step* step)
     }
 
     if (cost.gold > 0.0) {
-        gold_label->setText(tr("Gold: %1").arg(QString::number(cost.gold)));
+        if (cost.gold >= 1e6)
+            gold_label->setText(tr("Gold: %1 M").arg(formatCeil1(cost.gold / 1e6)));
+        else if (cost.gold >= 1e3)
+            gold_label->setText(tr("Gold: %1 k").arg(formatCeil1(cost.gold / 1e3)));
+        else
+            gold_label->setText(tr("Gold: %1").arg(QString::number(cost.gold)));
+
         gold_label->show();
     } else
         gold_label->hide();
 
     if (cost.time.count() > 0.0) {
-        if (cost.time.count() > 180.0)
-            time_label->setText(
-                tr("Time: %1 min")
-                    .arg(QString::number(duration<double, std::ratio<60>>(cost.time).count())));
-        else
-            time_label->setText(tr("Time: %1 sec").arg(QString::number(cost.time.count())));
+        if (cost.time.count() > 180.0) {
+            auto minutes = duration<double, std::ratio<60>>(cost.time).count();
+            time_label->setText(tr("Time: %1 min").arg(formatCeil1(minutes)));
+        } else
+            time_label->setText(tr("Time: %1 sec").arg(formatCeil1(cost.time.count())));
         time_label->show();
     } else
         time_label->hide();
@@ -100,6 +105,11 @@ QString CostWidget::formatCost(const CurrencyCost& cost)
 {
     auto value = std::ceil(100.0 * cost.value) / 100.0;
     return QString::number(value);
+}
+
+QString CostWidget::formatCeil1(double value)
+{
+    return QString::number(std::ceil(10.0 * value) / 10.0);
 }
 
 } // namespace planner

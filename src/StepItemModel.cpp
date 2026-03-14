@@ -1039,7 +1039,11 @@ QVariant StepItemModel::formatGold(double gold)
 {
     if (gold <= 0.0)
         return {};
-    gold = std::ceil(gold);
+    if (gold >= 1e6)
+        gold = std::ceil(gold / 1e5) * 1e5;
+    else
+        gold = std::ceil(gold);
+
     return QString::number(gold);
 }
 
@@ -1048,6 +1052,7 @@ QVariant StepItemModel::formatTime(ItemTime time)
     auto seconds = time.count();
     if (seconds <= 0.0)
         return {};
+    seconds = std::ceil(10.0 * seconds) / 10.0;
     return QString::number(seconds, 'g', 5);
 }
 

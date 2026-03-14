@@ -283,12 +283,8 @@ QVariant PlanItem::data(int column, int role) const
             switch (role) {
             case Qt::DecorationRole: {
                 if (auto step = plan_->costStep()) {
-                    auto cache = exchangeCache();
-                    if (step->results_cost.isValid()) {
-                        auto it = cache->currencyData(step->results_cost.cost_in_primary.currency);
-                        if (it != cache->cache.end())
-                            return cache->icon(it);
-                    } else if (auto cost = step->cost(); cost.isValid()) {
+                    if (auto cost = step->cost(); cost.isValid()) {
+                        auto cache = exchangeCache();
                         auto it = cache->currencyData(cost.cost_in_primary.currency);
                         if (it != cache->cache.end())
                             return cache->icon(it);
@@ -304,8 +300,6 @@ QVariant PlanItem::data(int column, int role) const
                                        % formatCost(step->results_cost.cost_in_primary.value)};
                     else if (cost.isValid())
                         return formatCost(cost.cost_in_primary.value);
-                    else if (step->results_cost.isValid())
-                        return formatCost(step->results_cost.cost_in_primary.value);
                 }
                 return {};
             }
