@@ -175,12 +175,8 @@ QJsonObject PlanItem::saveJson() const
     if (isFolder()) {
         QJsonObject folder_o;
         QJsonArray childs_a;
-        for (auto& child : childs) {
-            if (auto it = model->changed_plans.find(child.get());
-                it != model->changed_plans.end() && it->second)
-                continue;
+        for (auto& child : childs)
             childs_a.push_back(child->id.toString());
-        }
         folder_o["childs"] = childs_a;
         return folder_o;
     }
