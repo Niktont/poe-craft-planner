@@ -8,6 +8,7 @@
 #include "Settings.h"
 #include "SettingsDialog.h"
 #include "ShoppingDialog.h"
+#include "ShoppingSetupDialog.h"
 #include "TradeRequestCache.h"
 #include "TradeRequestManager.h"
 #include "UpdateCostDialog.h"
@@ -73,6 +74,7 @@ MainWindow::MainWindow(QWidget* parent)
             plan_widget,
             &PlanWidget::updateCost);
     shopping_dialog = new ShoppingDialog{*this};
+    shopping_setup = new ShoppingSetupDialog{*this};
 
     setupAboutDialog();
 
@@ -256,7 +258,10 @@ void MainWindow::openShoppingDialog()
     if (!have_resources)
         return;
 
-    shopping_dialog->openPlan(plan);
+    if (qApp->keyboardModifiers().testFlag(Qt::ControlModifier))
+        shopping_setup->openPlan(*plan);
+    else
+        shopping_dialog->openPlan(*plan);
 }
 
 void MainWindow::setupDockWidgets()

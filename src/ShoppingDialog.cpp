@@ -55,9 +55,18 @@ ShoppingDialog::ShoppingDialog(MainWindow& mw)
     connect(open_link_hk, &QHotkey::activated, this, &ShoppingDialog::openLink);
 }
 
-void ShoppingDialog::openPlan(Plan* plan)
+void ShoppingDialog::openPlan(Plan& plan)
 {
-    auto res = model->setPlan(plan);
+    auto it = plan.costStepIt();
+    if (it == plan.steps.cend())
+        return;
+
+    openPlan(plan, std::distance(plan.steps.cbegin(), it), 1.0, true);
+}
+
+void ShoppingDialog::openPlan(Plan& plan, size_t step_pos, double amount, bool include_dependencies)
+{
+    auto res = model->setPlan(plan, step_pos, amount, include_dependencies);
     if (res) {
         web_view_dialog_was_visible = mw->web_view_dialog->isVisible();
         if (web_view_dialog_was_visible)
@@ -70,7 +79,7 @@ void ShoppingDialog::openPlan(Plan* plan)
 
         auto width = layout()->contentsRect().width();
         resize(width, height());
-        setWindowTitle(tr("%1 - Shopping list").arg(plan->name));
+        setWindowTitle(tr("%1 - Shopping list").arg(plan.name));
 
         open();
         registerHotkeys();

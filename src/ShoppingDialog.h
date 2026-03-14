@@ -17,7 +17,8 @@ class ShoppingDialog : public QDialog
 public:
     ShoppingDialog(MainWindow& mw);
 
-    void openPlan(Plan* plan);
+    void openPlan(Plan& plan);
+    void openPlan(Plan& plan, size_t step_pos, double amount, bool include_dependencies);
 
 protected:
     void closeEvent(QCloseEvent* event) override;

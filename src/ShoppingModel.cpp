@@ -90,37 +90,36 @@ QVariant ShoppingModel::data(const QModelIndex& index, int role) const
     return {};
 }
 
-bool ShoppingModel::setPlan(Plan* plan)
+bool ShoppingModel::setPlan(Plan& plan, size_t step_pos, double amount, bool include_dependencies_)
 {
     beginResetModel();
     items.clear();
-    plan_ = plan;
+    plan_ = &plan;
+    include_dependencies = include_dependencies_;
 
     bool result{false};
-    if (plan_) {
-        if (plan_->game == Game::Poe1) {
-            exchange_cache = mw->exchange_cache_poe1;
-            trade_cache = mw->trade_cache_poe1;
-        } else {
-            exchange_cache = mw->exchange_cache_poe2;
-            trade_cache = mw->trade_cache_poe2;
-        }
-        result = gatherPlanItems();
+    if (plan_->game == Game::Poe1) {
+        exchange_cache = mw->exchange_cache_poe1;
+        trade_cache = mw->trade_cache_poe1;
+    } else {
+        exchange_cache = mw->exchange_cache_poe2;
+        trade_cache = mw->trade_cache_poe2;
     }
+    result = gatherPlanItems(step_pos, amount);
 
     endResetModel();
     return result;
 }
 
-bool ShoppingModel::gatherPlanItems()
+bool ShoppingModel::gatherPlanItems(size_t step_pos, double amount)
 {
-    auto step_it = plan_->costStepIt();
-    if (step_it == plan_->steps.end() || step_it->resources.empty())
+    auto step_it = plan_->steps.begin() + step_pos;
+    if (step_it >= plan_->steps.end() || step_it->resources.empty())
         return false;
 
     ExchangeItems exchange_items;
     TradeItems trade_items;
-    gatherStepItems(1.0, step_it, exchange_items, trade_items);
+    gatherStepItems(amount, step_it, exchange_items, trade_items);
     if (exchange_items.empty() && trade_items.empty())
         return false;
 
@@ -180,6 +179,9 @@ void ShoppingModel::gatherItem(double amount,
         return;
 
     if (auto step_item = item.step()) {
+        if (!include_dependencies)
+            return;
+
         if (auto dep_it = plan_->findStepIt(step_item->step_id); dep_it != plan_->steps.end()) {
             auto dep_pos = std::distance(plan_->steps.cbegin(), dep_it);
             if (dep_pos < pos)

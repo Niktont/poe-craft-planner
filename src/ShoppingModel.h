@@ -42,7 +42,7 @@ public:
     QVariant data(const QModelIndex& index, int role) const override;
     const ShoppingItem& item(size_t row) const { return items[row]; }
 
-    bool setPlan(Plan* plan);
+    bool setPlan(Plan& plan, size_t step_pos, double amount, bool include_dependencies);
     Plan* plan() const { return plan_; }
 
     ExchangeRequestCache* exchangeCache() const { return exchange_cache; }
@@ -53,9 +53,10 @@ private:
     ExchangeRequestCache* exchange_cache{};
     TradeRequestCache* trade_cache{};
 
+    bool include_dependencies{true};
     std::vector<ShoppingItem> items;
 
-    bool gatherPlanItems();
+    bool gatherPlanItems(size_t step_pos, double amount);
 
     using ExchangeItems = std::map<Currency, double, CurrencyIdLess>;
     using TradeItems = std::map<TradeRequestKey, std::pair<double, QString>>;

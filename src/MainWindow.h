@@ -30,6 +30,7 @@ class PlanTreeView;
 class UpdateCostDialog;
 class SettingsDialog;
 class ShoppingDialog;
+class ShoppingSetupDialog;
 
 class MainWindow : public QMainWindow
 {
@@ -63,6 +64,7 @@ public:
     RequestEditDialog* request_edit_dialog;
     UpdateCostDialog* update_cost_dialog;
     ShoppingDialog* shopping_dialog;
+    ShoppingSetupDialog* shopping_setup;
 
     QDialog* about_dialog;
 
