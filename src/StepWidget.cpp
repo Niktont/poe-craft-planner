@@ -7,6 +7,7 @@
 #include "StepItemView.h"
 #include "StepItemsWidget.h"
 #include <QAbstractTextDocumentLayout>
+#include <QCheckBox>
 #include <QHeaderView>
 #include <QLabel>
 #include <QLineEdit>
@@ -46,6 +47,13 @@ StepWidget::StepWidget(PlanWidget* plan_widget, QWidget* parent)
 
     duplicate_action = addAction(tr("Duplicate"), this, [this]() {
         this->plan_widget->duplicateStep(step_pos);
+    });
+
+    final_step_cb = new QCheckBox{};
+    final_step_cb->setToolTip(tr("Final"));
+    toolbar->addWidget(final_step_cb);
+    connect(final_step_cb, &QCheckBox::clicked, this, [this](bool checked) {
+        this->plan_widget->setFinalStep(step_pos, checked);
     });
 
     move_up_action = toolbar->addAction(style()->standardIcon(QStyle::SP_ArrowUp),
@@ -151,6 +159,11 @@ void StepWidget::setStep(Plan* plan, size_t step_pos)
 
     move_up_action->setEnabled(step_pos != 0);
     move_down_action->setEnabled(static_cast<long long>(step_pos) < std::ssize(plan->steps) - 1);
+}
+
+void StepWidget::setFinal(bool checked)
+{
+    final_step_cb->setChecked(checked);
 }
 
 void StepWidget::setName(QString name)

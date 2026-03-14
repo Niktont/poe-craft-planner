@@ -8,6 +8,7 @@ class QLineEdit;
 class QTextEdit;
 class QTableView;
 class QAction;
+class QCheckBox;
 
 namespace planner {
 
@@ -35,6 +36,7 @@ public:
     void clearTradeRequest(const planner::TradeRequestKey& request);
 
     void setStep(planner::Plan* plan, size_t step_pos);
+    void setFinal(bool checked);
 
     void setDescription();
     void hideDescription(bool hide);
@@ -72,6 +74,7 @@ private:
     QAction* move_up_action;
     QAction* move_down_action;
     QAction* delete_action;
+    QCheckBox* final_step_cb;
 
     void setName(QString name);
     void displayCost();

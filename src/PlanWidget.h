@@ -34,12 +34,11 @@ public:
     void moveStep(size_t step_pos, bool up);
     void deleteStep(size_t step_pos);
     void duplicateStep(size_t step_pos);
+    void setFinalStep(size_t step_pos, bool checked);
     void scrollToStep(QUuid step_id);
 
     bool isEmptyResourcesHidden() const { return is_empty_resources_hidden; }
     bool isEmptyResultsHidden() const { return is_empty_results_hidden; }
-
-    void updateDisplayedCost();
 
 public slots:
     void addStep();
@@ -82,7 +81,10 @@ private:
     bool is_empty_results_hidden{false};
 
     std::vector<StepWidget*> step_widgets;
-    void addStepWidget(size_t i);
+    void emplaceStepWidget(size_t i);
+
+    void displayFinalStep();
+    void updateDisplayedCost();
     void displayCost();
 };
 } // namespace planner

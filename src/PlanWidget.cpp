@@ -152,19 +152,19 @@ void PlanWidget::addStep()
     plan_->setChanged();
 
     if (pos >= step_widgets.size()) {
-        addStepWidget(pos);
+        emplaceStepWidget(pos);
     } else {
         auto step_widget = step_widgets[pos];
         step_widget->show();
         step_widget->setStep(plan_, pos);
     }
     if (plan_->finalStepId().isNull())
-        cost_widget->hide();
+        updateDisplayedCost();
 }
 
-void PlanWidget::addStepWidget(size_t i)
+void PlanWidget::emplaceStepWidget(size_t i)
 {
-    auto step_widget = step_widgets.emplace_back(new StepWidget{this});
+    auto step_widget = *step_widgets.emplace(step_widgets.begin() + i, new StepWidget{this});
     step_widget->hideDescription(is_descriptions_hidden);
     static_cast<QVBoxLayout*>(steps_widget->layout())->insertWidget(i, step_widget);
     step_widget->setStep(plan_, i);
@@ -178,8 +178,8 @@ void PlanWidget::displayCost()
 void PlanWidget::clear()
 {
     setEnabled(false);
-    name_label->setText({});
-    league_label->setText({});
+    name_label->clear();
+    league_label->clear();
     cost_widget->hide();
 
     for (size_t i = 0; i < step_widgets.size(); ++i) {
@@ -242,8 +242,10 @@ void PlanWidget::deleteStep(size_t step_pos)
     for (size_t i = step_pos; i < plan_->steps.size(); ++i)
         step_widgets[i]->updateStepNames(deleted_id, true);
 
-    if (is_final_changed)
+    if (is_final_changed) {
         updateDisplayedCost();
+        displayFinalStep();
+    }
 }
 
 void PlanWidget::duplicateStep(size_t step_pos)
@@ -266,13 +268,25 @@ void PlanWidget::duplicateStep(size_t step_pos)
         static_cast<QVBoxLayout*>(steps_widget->layout())->insertWidget(step_pos + 1, widget);
         widget->show();
         widget->setStep(plan_, step_pos + 1);
-    } else {
-        auto widget_it = *step_widgets.emplace(step_widgets.begin() + step_pos + 1,
-                                               new StepWidget{this});
-        widget_it->hideDescription(is_descriptions_hidden);
-        static_cast<QVBoxLayout*>(steps_widget->layout())->insertWidget(step_pos + 1, widget_it);
-        widget_it->setStep(plan_, step_pos + 1);
-    }
+    } else
+        emplaceStepWidget(step_pos + 1);
+}
+
+void PlanWidget::setFinalStep(size_t step_pos, bool checked)
+{
+    if (!plan_ || step_pos >= plan_->steps.size())
+        return;
+
+    auto old_final = plan_->costStepIt();
+    if (checked)
+        plan_->setFinalStep(plan_->steps[step_pos].id);
+    else
+        plan_->setFinalStep({});
+
+    if (auto new_final = plan_->costStepIt(); new_final != old_final)
+        updateDisplayedCost();
+
+    displayFinalStep();
 }
 
 void PlanWidget::scrollToStep(QUuid step_id)
@@ -286,6 +300,20 @@ void PlanWidget::scrollToStep(QUuid step_id)
 
     auto pos = std::distance(plan_->steps.cbegin(), it);
     steps_scroll->ensureWidgetVisible(step_widgets[pos]);
+}
+
+void PlanWidget::displayFinalStep()
+{
+    for (auto step_widget : step_widgets)
+        step_widget->setFinal(false);
+
+    if (plan_->finalStepId().isNull())
+        return;
+
+    if (auto it = plan_->costStepIt(); it != plan_->steps.cend()) {
+        auto pos = std::distance(plan_->steps.cbegin(), it);
+        step_widgets[pos]->setFinal(true);
+    }
 }
 
 void PlanWidget::updateDisplayedCost()
@@ -531,12 +559,13 @@ void PlanWidget::setPlan(const PlanModel* model, Plan* plan)
             step_widgets[i]->hide();
     }
     for (; i < steps_size; ++i)
-        addStepWidget(i);
+        emplaceStepWidget(i);
 
     if (plan->steps.empty())
         addStep();
 
     displayCost();
+    displayFinalStep();
 }
 
 } // namespace planner
