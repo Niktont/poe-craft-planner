@@ -71,9 +71,12 @@ private:
     PlanWidget* plan_widget;
 
     QAction* duplicate_action;
+    QAction* copy_action;
+    QAction* paste_action;
     QAction* move_up_action;
     QAction* move_down_action;
     QAction* delete_action;
+
     QCheckBox* final_step_cb;
 
     void setName(QString name);

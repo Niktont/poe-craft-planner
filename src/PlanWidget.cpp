@@ -9,8 +9,10 @@
 #include "StepItem.h"
 #include "StepWidget.h"
 #include "TradeRequestCache.h"
+#include <QContextMenuEvent>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QMenu>
 #include <QScrollArea>
 #include <QTextEdit>
 #include <QTreeView>
@@ -53,6 +55,11 @@ PlanWidget::PlanWidget(MainWindow& mw)
     steps_layout->addStretch(1);
 
     steps_scroll->setWidget(steps_widget);
+
+    paste_step_action = addAction(tr("Paste Step"), this, [this]() {
+        if (plan_)
+            pasteStep(plan_->steps.size());
+    });
 
     setEnabled(false);
 }
@@ -242,6 +249,9 @@ void PlanWidget::deleteStep(size_t step_pos)
     for (size_t i = step_pos; i < plan_->steps.size(); ++i)
         step_widgets[i]->updateStepNames(deleted_id, true);
 
+    if (step_copy_state.second == deleted_id)
+        step_copy_state = {};
+
     if (is_final_changed) {
         updateDisplayedCost();
         displayFinalStep();
@@ -300,6 +310,88 @@ void PlanWidget::scrollToStep(QUuid step_id)
 
     auto pos = std::distance(plan_->steps.cbegin(), it);
     steps_scroll->ensureWidgetVisible(step_widgets[pos]);
+}
+
+void PlanWidget::copyStep(size_t step_pos)
+{
+    if (!plan_ || step_pos >= plan_->steps.size())
+        return;
+
+    step_copy_state = {plan_->id(), plan_->steps[step_pos].id};
+}
+
+void PlanWidget::pasteStep(size_t step_pos)
+{
+    if (!plan_)
+        return;
+
+    auto source_plan_it = current_model->plans.find(step_copy_state.first);
+    if (source_plan_it == current_model->plans.end())
+        return;
+    auto& source_plan = source_plan_it->second;
+
+    auto source_step_it = source_plan.findStepIt(step_copy_state.second);
+    if (source_step_it == source_plan.steps.cend())
+        return;
+
+    std::set<std::vector<Step>::const_iterator> steps_to_copy;
+    auto add_step_item = [&](const auto& add_step, const StepItem& item) {
+        if (auto step_item = item.step()) {
+            auto it = source_plan.findStepIt(step_item->step_id);
+            if (it == source_plan.steps.cend())
+                return;
+            add_step(add_step, it);
+        }
+    };
+    auto add_step = [&](const auto& self, std::vector<Step>::const_iterator step_it) {
+        if (!steps_to_copy.emplace(step_it).second)
+            return;
+
+        for (auto& item : step_it->resources)
+            add_step_item(self, item);
+        for (auto& item : step_it->results)
+            add_step_item(self, item);
+    };
+    add_step(add_step, source_step_it);
+
+    step_pos = std::min(step_pos, plan_->steps.size());
+    auto copy_size = steps_to_copy.size();
+    for (size_t i = step_pos; i < plan_->steps.size(); ++i)
+        step_widgets[i]->updatePos(step_widgets[i]->stepPos() + copy_size);
+
+    std::vector<Step> copied_steps;
+    copied_steps.reserve(copy_size);
+    boost::container::flat_map<QUuid, QUuid> changed_ids;
+    for (auto& it : steps_to_copy) {
+        auto id_it = changed_ids.try_emplace(it->id).first;
+        id_it->second = copied_steps.emplace_back(*it).id;
+    }
+    for (auto& step : copied_steps)
+        step.updateIds(changed_ids);
+
+    bool is_final_changed = plan_->finalStepId().isNull() && step_pos == plan_->steps.size();
+    auto move_begin = std::move_iterator(copied_steps.begin());
+    auto move_end = std::move_iterator(copied_steps.end());
+    plan_->steps.insert(plan_->steps.begin() + step_pos, move_begin, move_end);
+    plan_->setChanged();
+
+    if (plan_->steps.size() < step_widgets.size()) {
+        for (size_t i = step_pos; i < step_pos + copy_size; ++i) {
+            auto widget = step_widgets.back();
+            step_widgets.pop_back();
+            step_widgets.insert(step_widgets.begin() + i, widget);
+            steps_widget->layout()->removeWidget(widget);
+            static_cast<QVBoxLayout*>(steps_widget->layout())->insertWidget(i, widget);
+            widget->show();
+            widget->setStep(plan_, i);
+        }
+    } else {
+        for (size_t i = step_pos; i < step_pos + copy_size; ++i)
+            emplaceStepWidget(i);
+    }
+
+    if (is_final_changed)
+        updateDisplayedCost();
 }
 
 void PlanWidget::displayFinalStep()
@@ -465,6 +557,17 @@ void PlanWidget::hideEmptyResults(bool hide)
         step_widgets[i]->hideEmptyResults(hide);
 }
 
+void PlanWidget::contextMenuEvent(QContextMenuEvent* event)
+{
+    auto menu = new QMenu{this};
+    menu->setAttribute(Qt::WA_DeleteOnClose);
+    menu->addAction(mw()->add_step_action);
+    if (haveCopyStep())
+        menu->addAction(paste_step_action);
+
+    menu->popup(event->globalPos());
+}
+
 void PlanWidget::setPlanChanged()
 {
     if (plan_)
@@ -560,9 +663,6 @@ void PlanWidget::setPlan(const PlanModel* model, Plan* plan)
     }
     for (; i < steps_size; ++i)
         emplaceStepWidget(i);
-
-    if (plan->steps.empty())
-        addStep();
 
     displayCost();
     displayFinalStep();

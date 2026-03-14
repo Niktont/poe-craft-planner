@@ -1,10 +1,10 @@
 #include "PlanItem.h"
 
 #include "Database.h"
+#include "ImportException.h"
 #include "MainWindow.h"
 #include "Plan.h"
 #include "PlanModel.h"
-#include "ImportException.h"
 #include <algorithm>
 #include <QIcon>
 #include <QJsonArray>
@@ -163,7 +163,7 @@ PlanItem& PlanItem::operator=(PlanItem&& item)
 
 PlanItem::~PlanItem()
 {
-    if (plan_ && model) {
+    if (plan_) {
         if (auto it = model->plans.find(plan_->id());
             it != model->plans.end() && (&it->second) == plan_)
             model->plans.erase(it);

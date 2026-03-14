@@ -7,6 +7,7 @@
 
 class QLabel;
 class QScrollArea;
+class QAction;
 
 namespace planner {
 class PlanModel;
@@ -36,6 +37,10 @@ public:
     void duplicateStep(size_t step_pos);
     void setFinalStep(size_t step_pos, bool checked);
     void scrollToStep(QUuid step_id);
+    void copyStep(size_t step_pos);
+    void pasteStep(size_t step_pos);
+
+    bool haveCopyStep() const { return !step_copy_state.first.isNull(); }
 
     bool isEmptyResourcesHidden() const { return is_empty_resources_hidden; }
     bool isEmptyResultsHidden() const { return is_empty_results_hidden; }
@@ -46,6 +51,9 @@ public slots:
     void hideDescriptions(bool hide);
     void hideEmptyResources(bool hide);
     void hideEmptyResults(bool hide);
+
+protected:
+    void contextMenuEvent(QContextMenuEvent* event) override;
 
 private slots:
     void setPlanOnClick(const QModelIndex& index);
@@ -70,6 +78,8 @@ private:
     QScrollArea* steps_scroll;
     QWidget* steps_widget;
 
+    QAction* paste_step_action;
+
     const PlanModel* current_model{};
     Plan* plan_{};
 
@@ -86,6 +96,8 @@ private:
     void displayFinalStep();
     void updateDisplayedCost();
     void displayCost();
+
+    std::pair<QUuid, QUuid> step_copy_state;
 };
 } // namespace planner
 #endif // PLANWIDGET_H

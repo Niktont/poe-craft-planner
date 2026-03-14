@@ -48,6 +48,12 @@ StepWidget::StepWidget(PlanWidget* plan_widget, QWidget* parent)
     duplicate_action = addAction(tr("Duplicate"), this, [this]() {
         this->plan_widget->duplicateStep(step_pos);
     });
+    copy_action = addAction(tr("Copy Reference"), this, [this]() {
+        this->plan_widget->copyStep(step_pos);
+    });
+    paste_action = addAction(tr("Paste"), this, [this]() {
+        this->plan_widget->pasteStep(step_pos);
+    });
 
     final_step_cb = new QCheckBox{};
     final_step_cb->setToolTip(tr("Final"));
@@ -265,6 +271,9 @@ void StepWidget::contextMenuEvent(QContextMenuEvent* event)
     menu->setAttribute(Qt::WA_DeleteOnClose);
 
     menu->addAction(duplicate_action);
+    menu->addAction(copy_action);
+    if (plan_widget->haveCopyStep())
+        menu->addAction(paste_action);
     menu->addAction(move_up_action);
     menu->addAction(move_down_action);
 
