@@ -48,16 +48,10 @@ public:
     static Domain domainId(const QString& domain);
     static QString domainUrl(Domain domain_id);
     static QString gameUrl(Game game_id);
+
+    friend auto operator<=>(const TradeRequestKey& l, const TradeRequestKey& r) = default;
 };
 
-inline bool operator==(const TradeRequestKey& l, const TradeRequestKey& r)
-{
-    return l.request_id == r.request_id && l.domain == r.domain;
-}
-inline bool operator<(const TradeRequestKey& l, const TradeRequestKey& r)
-{
-    return std::tie(l.request_id, l.domain) < std::tie(r.request_id, r.domain);
-}
 } // namespace planner
 
 namespace std {

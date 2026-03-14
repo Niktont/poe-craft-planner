@@ -22,6 +22,7 @@ public slots:
 
 protected:
     void contextMenuEvent(QContextMenuEvent* event) override;
+    void focusOutEvent(QFocusEvent* event) override;
 
 private slots:
     void resizeColumns(const QModelIndex& top_left,
@@ -45,10 +46,11 @@ private:
     QAction* default_time_action;
     QAction* delete_action;
 
-    std::optional<QModelIndex> contextIndex;
+    bool context_menu_shown{};
+    std::optional<QModelIndex> context_index;
+
     void syncColumn(int col);
     int widthForItemText(QStyleOptionViewItem& option, const QString& text) const;
-
     void setupColumns();
 };
 

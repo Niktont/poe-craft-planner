@@ -98,51 +98,43 @@ StepItemView::StepItemView(StepItemModel& model, QWidget* parent)
     connect(this, &QTableView::clicked, this, &StepItemView::indexClicked);
 
     add_exchange_action = addAction(tr("Add Exchange Item"), this, [this] {
-        auto current = contextIndex ? *contextIndex : selectionModel()->currentIndex();
+        auto current = context_index ? *context_index : selectionModel()->currentIndex();
         stepModel()->insertItem(current, StepItemType::Exchange);
-        contextIndex.reset();
+        context_index.reset();
     });
     add_trade_action = addAction(tr("Add Trade Item"), this, [this] {
-        auto current = contextIndex ? *contextIndex : selectionModel()->currentIndex();
+        auto current = context_index ? *context_index : selectionModel()->currentIndex();
         stepModel()->insertItem(current, StepItemType::Trade);
-        contextIndex.reset();
+        context_index.reset();
     });
     add_custom_action = addAction(tr("Add Custom Item"), this, [this] {
-        auto current = contextIndex ? *contextIndex : selectionModel()->currentIndex();
+        auto current = context_index ? *context_index : selectionModel()->currentIndex();
         stepModel()->insertItem(current, StepItemType::Custom);
-        contextIndex.reset();
+        context_index.reset();
     });
     add_step_action = addAction(tr("Add Step Item"), this, [this] {
-        auto current = contextIndex ? *contextIndex : selectionModel()->currentIndex();
+        auto current = context_index ? *context_index : selectionModel()->currentIndex();
         stepModel()->insertItem(current, StepItemType::Step);
-        contextIndex.reset();
+        context_index.reset();
     });
     duplicate_action = addAction(tr("Duplicate"), {Qt::CTRL | Qt::Key_D}, this, [this] {
-        auto current = contextIndex ? *contextIndex : selectionModel()->currentIndex();
-        stepModel()->duplicateItem(current);
-        contextIndex.reset();
+        stepModel()->duplicateItem(selectionModel()->currentIndex());
     });
     duplicate_action->setShortcutContext(Qt::WidgetShortcut);
 
     copy_regex_action = addAction(tr("Copy Regex"), {Qt::ALT | Qt::Key_C}, this, [this] {
-        auto current = contextIndex ? *contextIndex : selectionModel()->currentIndex();
-        stepModel()->copyRegex(current);
-        contextIndex.reset();
+        stepModel()->copyRegex(selectionModel()->currentIndex());
     });
     copy_regex_action->setShortcutContext(Qt::WidgetShortcut);
 
     manage_searches_action = addAction(tr("Manage Searches"), this, [this] {
-        auto current = contextIndex ? *contextIndex : selectionModel()->currentIndex();
-        stepModel()->openSearch(current);
-        contextIndex.reset();
+        stepModel()->openSearch(selectionModel()->currentIndex());
     });
 
     delete_search_action = addAction(tr("Delete Search"), this, &StepItemView::deleteSearch);
 
     default_time_action = addAction(tr("Set As Default"), this, [this] {
-        auto current = contextIndex ? *contextIndex : selectionModel()->currentIndex();
-        stepModel()->setDefaultTime(current);
-        contextIndex.reset();
+        stepModel()->setDefaultTime(selectionModel()->currentIndex());
     });
 
     delete_action = addAction(tr("Delete"), QKeySequence{Qt::SHIFT | Qt::Key_Delete});
@@ -153,7 +145,6 @@ StepItemView::StepItemView(StepItemModel& model, QWidget* parent)
             for (const auto& sel_range : selection)
                 stepModel()->removeRows(sel_range.top(), sel_range.bottom() - sel_range.top() + 1);
         }
-        contextIndex.reset();
     });
 }
 
@@ -165,14 +156,14 @@ void StepItemView::contextMenuEvent(QContextMenuEvent* event)
     menu->addAction(add_trade_action);
     menu->addAction(add_exchange_action);
     menu->addAction(add_custom_action);
-    contextIndex = indexAt(event->pos());
+    context_index = indexAt(event->pos());
     if (stepModel()->stepPos() > 0)
         menu->addAction(add_step_action);
 
-    if (contextIndex->isValid()) {
+    if (context_index->isValid()) {
         menu->addAction(duplicate_action);
         menu->addSeparator();
-        auto item = stepModel()->stepItem(*contextIndex);
+        auto item = stepModel()->stepItem(*context_index);
         if (item) {
             switch (item->type()) {
             case StepItemType::Trade:
@@ -180,12 +171,12 @@ void StepItemView::contextMenuEvent(QContextMenuEvent* event)
                     menu->addAction(copy_regex_action);
                 menu->addAction(manage_searches_action);
                 menu->addAction(delete_search_action);
-                if (contextIndex->column() == static_cast<int>(StepItemColumn::Time))
+                if (context_index->column() == static_cast<int>(StepItemColumn::Time))
                     menu->addAction(default_time_action);
                 menu->addSeparator();
                 break;
             case StepItemType::Exchange:
-                if (contextIndex->column() == static_cast<int>(StepItemColumn::Time)) {
+                if (context_index->column() == static_cast<int>(StepItemColumn::Time)) {
                     menu->addAction(default_time_action);
                     menu->addSeparator();
                 }
@@ -197,7 +188,16 @@ void StepItemView::contextMenuEvent(QContextMenuEvent* event)
         menu->addAction(delete_action);
     }
 
+    context_menu_shown = true;
     menu->popup(event->globalPos());
+}
+
+void StepItemView::focusOutEvent(QFocusEvent* event)
+{
+    QTableView::focusOutEvent(event);
+    if (!context_menu_shown)
+        selectionModel()->clearSelection();
+    context_menu_shown = false;
 }
 
 QSize StepItemView::sizeHint() const
@@ -262,12 +262,8 @@ void StepItemView::deleteSearch()
         msg.addButton(QMessageBox::Cancel);
         delete_search = msg.exec() == QMessageBox::Ok;
     }
-    if (delete_search) {
-        auto current = contextIndex ? *contextIndex : selectionModel()->currentIndex();
-        stepModel()->deleteSearch(current);
-    }
-
-    contextIndex.reset();
+    if (delete_search)
+        stepModel()->deleteSearch(selectionModel()->currentIndex());
 }
 
 void StepItemView::syncColumns()

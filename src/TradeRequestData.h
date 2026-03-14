@@ -34,18 +34,7 @@ public:
         return description_o;
     }
 
-    friend auto operator<=>(const RequestDescription& l, const RequestDescription& r)
-    {
-        return std::tie(l.type, l.text) <=> std::tie(r.type, r.text);
-    }
-    friend bool operator==(const RequestDescription& lhs, const RequestDescription& rhs)
-    {
-        return (lhs <=> rhs) == 0;
-    }
-    friend bool operator!=(const RequestDescription& lhs, const RequestDescription& rhs)
-    {
-        return (lhs <=> rhs) != 0;
-    }
+    friend auto operator<=>(const RequestDescription& l, const RequestDescription& r) = default;
 };
 
 class TradeRequestData

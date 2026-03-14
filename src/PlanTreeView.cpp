@@ -23,31 +23,25 @@ PlanTreeView::PlanTreeView(PlanModel& model, QWidget* parent)
     header()->setSectionResizeMode(QHeaderView::ResizeToContents);
 
     add_plan_action = addAction(tr("New Plan"), this, [this] {
-        auto current = contextIndex ? *contextIndex : selectionModel()->currentIndex();
+        auto current = context_index ? *context_index : selectionModel()->currentIndex();
         planModel()->insertPlan(current);
-        contextIndex.reset();
+        context_index.reset();
     });
     add_folder_action = addAction(tr("New Folder"), this, [this] {
-        auto current = contextIndex ? *contextIndex : selectionModel()->currentIndex();
+        auto current = context_index ? *context_index : selectionModel()->currentIndex();
         planModel()->insertFolder(current);
-        contextIndex.reset();
+        context_index.reset();
     });
     duplicate_action = addAction(tr("Duplicate"), {Qt::CTRL | Qt::Key_D}, this, [this] {
-        auto current = contextIndex ? *contextIndex : selectionModel()->currentIndex();
-        planModel()->duplicateItem(current);
-        contextIndex.reset();
+        planModel()->duplicateItem(selectionModel()->currentIndex());
     });
     duplicate_action->setShortcutContext(Qt::WidgetShortcut);
 
     save_action = addAction(tr("Save"), this, [this] {
-        auto current = contextIndex ? *contextIndex : selectionModel()->currentIndex();
-        planModel()->savePlan(current);
-        contextIndex.reset();
+        planModel()->savePlan(selectionModel()->currentIndex());
     });
     restore_action = addAction(tr("Restore"), this, [this] {
-        auto current = contextIndex ? *contextIndex : selectionModel()->currentIndex();
-        planModel()->restorePlan(current);
-        contextIndex.reset();
+        planModel()->restorePlan(selectionModel()->currentIndex());
     });
 
     delete_action = addAction(tr("Delete"),
@@ -57,15 +51,11 @@ PlanTreeView::PlanTreeView(PlanModel& model, QWidget* parent)
     delete_action->setShortcutContext(Qt::WidgetShortcut);
 
     export_clipboard_action = addAction(tr("Export (Clipboard)"), this, [this] {
-        auto current = contextIndex ? *contextIndex : selectionModel()->currentIndex();
-        planModel()->exportItem(current, true);
-        contextIndex.reset();
+        planModel()->exportItem(selectionModel()->currentIndex(), true);
     });
 
     export_file_action = addAction(tr("Export (File)"), this, [this] {
-        auto current = contextIndex ? *contextIndex : selectionModel()->currentIndex();
-        planModel()->exportItem(current, false);
-        contextIndex.reset();
+        planModel()->exportItem(selectionModel()->currentIndex(), false);
     });
 }
 
@@ -82,15 +72,15 @@ void PlanTreeView::contextMenuEvent(QContextMenuEvent* event)
     menu->addAction(add_plan_action);
     menu->addAction(add_folder_action);
 
-    contextIndex = indexAt(event->pos());
-    if (contextIndex->isValid()) {
+    context_index = indexAt(event->pos());
+    if (context_index->isValid()) {
         menu->addAction(duplicate_action);
 
-        auto item = planModel()->internalPtr(*contextIndex);
+        auto item = planModel()->internalPtr(*context_index);
         if (!item->isFolder() && item->plan()->is_changed) {
             menu->addSeparator();
             menu->addAction(save_action);
-            if (!planModel()->isNewPlan(*contextIndex))
+            if (!planModel()->isNewPlan(*context_index))
                 menu->addAction(restore_action);
         }
         menu->addSeparator();
@@ -113,7 +103,7 @@ void PlanTreeView::keyPressEvent(QKeyEvent* event)
 
 void PlanTreeView::deleteItem()
 {
-    auto current = contextIndex ? *contextIndex : selectionModel()->currentIndex();
+    auto current = selectionModel()->currentIndex();
     if (!current.isValid())
         return;
     auto item = planModel()->internalPtr(current);
@@ -134,8 +124,6 @@ void PlanTreeView::deleteItem()
     }
     if (delete_item)
         planModel()->removeRows(current.row(), 1, current.parent());
-
-    contextIndex.reset();
 }
 
 } // namespace planner
