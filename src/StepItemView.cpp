@@ -1,4 +1,5 @@
 #include "StepItemView.h"
+#include "PlanWidget.h"
 #include "StepItemModel.h"
 #include <QApplication>
 #include <QContextMenuEvent>
@@ -122,6 +123,15 @@ StepItemView::StepItemView(StepItemModel& model, QWidget* parent)
     });
     duplicate_action->setShortcutContext(Qt::WidgetShortcut);
 
+    copy_action = addAction(tr("Copy"), this, [this] {
+        stepModel()->copyItem(selectionModel()->currentIndex());
+    });
+    paste_action = addAction(tr("Paste"), this, [this] {
+        auto current = context_index ? *context_index : selectionModel()->currentIndex();
+        stepModel()->pasteItem(current);
+        context_index.reset();
+    });
+
     copy_regex_action = addAction(tr("Copy Regex"), {Qt::ALT | Qt::Key_C}, this, [this] {
         stepModel()->copyRegex(selectionModel()->currentIndex());
     });
@@ -160,8 +170,13 @@ void StepItemView::contextMenuEvent(QContextMenuEvent* event)
     if (stepModel()->stepPos() > 0)
         menu->addAction(add_step_action);
 
+    bool have_item_copy = stepModel()->planWidget()->haveCopyItem(stepModel()->game());
     if (context_index->isValid()) {
         menu->addAction(duplicate_action);
+        menu->addAction(copy_action);
+        if (have_item_copy)
+            menu->addAction(paste_action);
+
         menu->addSeparator();
         auto item = stepModel()->stepItem(*context_index);
         if (item) {
@@ -186,7 +201,8 @@ void StepItemView::contextMenuEvent(QContextMenuEvent* event)
             }
         }
         menu->addAction(delete_action);
-    }
+    } else if (have_item_copy)
+        menu->addAction(paste_action);
 
     context_menu_shown = true;
     menu->popup(event->globalPos());

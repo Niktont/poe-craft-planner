@@ -115,8 +115,11 @@ void MainWindow::restoreLastPlan()
         if (it == plan_model_poe2->plans.end())
             return;
         plan_view_poe2->setCurrentIndex(it->second.item()->index());
-    } else
+        plans_widget_poe2->raise();
+    } else {
         plan_view_poe1->setCurrentIndex(it->second.item()->index());
+        plans_widget_poe1->raise();
+    }
 }
 
 void MainWindow::closeEvent(QCloseEvent* event)

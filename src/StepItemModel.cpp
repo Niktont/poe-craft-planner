@@ -1110,11 +1110,10 @@ void StepItemModel::insertItem(const QModelIndex& idx, StepItemType type)
     beginInsertRows({}, row, row);
 
     items.insert(items.begin() + row, 1, {});
-    if (items[row].setType(type)) {
-        if (auto step = items[row].step(); step && step_pos > 0)
-            step->step_id = plan->steps[step_pos - 1].id;
-        plan->setChanged();
-    }
+    items[row].setType(type);
+    if (auto step = items[row].step(); step && step_pos > 0)
+        step->step_id = plan->steps[step_pos - 1].id;
+    plan->setChanged();
 
     endInsertRows();
 }
@@ -1130,6 +1129,28 @@ void StepItemModel::duplicateItem(const QModelIndex& idx)
     beginInsertRows({}, pos, pos);
     items.emplace(items.begin() + pos, items[idx.row()]);
     endInsertRows();
+    plan->setChanged();
+}
+
+void StepItemModel::copyItem(const QModelIndex& idx)
+{
+    if (!plan || !idx.isValid())
+        return;
+
+    planWidget()->copyItem(plan->game, stepItems()[idx.row()]);
+}
+
+void StepItemModel::pasteItem(const QModelIndex& idx)
+{
+    if (!plan || !planWidget()->haveCopyItem(plan->game))
+        return;
+
+    auto row = idx.isValid() ? idx.row() : rowCount();
+    auto& items = stepItems();
+    beginInsertRows({}, row, row);
+    items.emplace(items.begin() + row, planWidget()->itemForPaste().second);
+    endInsertRows();
+    plan->setChanged();
 }
 
 bool StepItemModel::haveRegex(const StepItem& item) const
@@ -1205,6 +1226,16 @@ void StepItemModel::openLink(const QModelIndex& idx)
     }
 }
 
+Game StepItemModel::game() const
+{
+    return plan ? plan->game : Game::Unknown;
+}
+
+PlanWidget* StepItemModel::planWidget() const
+{
+    return static_cast<PlanWidget*>(parent());
+}
+
 void StepItemModel::clearTradeRequest(const TradeRequestKey& request)
 {
     if (!plan)
@@ -1271,7 +1302,7 @@ void StepItemModel::updateTime(const Currency& currency)
 
 MainWindow* StepItemModel::mw() const
 {
-    return static_cast<MainWindow*>(static_cast<PlanWidget*>(parent())->mw());
+    return static_cast<MainWindow*>(planWidget()->mw());
 }
 
 } // namespace planner

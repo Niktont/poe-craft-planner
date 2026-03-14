@@ -2,6 +2,7 @@
 #define PLANWIDGET_H
 
 #include "Plan.h"
+#include "StepItem.h"
 #include <vector>
 #include <QWidget>
 
@@ -40,7 +41,14 @@ public:
     void copyStep(size_t step_pos);
     void pasteStep(size_t step_pos);
 
+    void copyItem(Game game, const StepItem& item) { step_item_copy_state = {game, item}; }
+    const std::pair<Game, StepItem>& itemForPaste() const { return step_item_copy_state; }
+
     bool haveCopyStep() const { return !step_copy_state.first.isNull(); }
+    bool haveCopyItem(Game game) const
+    {
+        return step_item_copy_state.first == game && game != Game::Unknown;
+    }
 
     bool isEmptyResourcesHidden() const { return is_empty_resources_hidden; }
     bool isEmptyResultsHidden() const { return is_empty_results_hidden; }
@@ -98,6 +106,7 @@ private:
     void displayCost();
 
     std::pair<QUuid, QUuid> step_copy_state;
+    std::pair<Game, StepItem> step_item_copy_state{Game::Unknown, {}};
 };
 } // namespace planner
 #endif // PLANWIDGET_H

@@ -40,10 +40,14 @@ private:
     QAction* add_custom_action;
     QAction* add_step_action;
     QAction* duplicate_action;
+    QAction* copy_action;
+    QAction* paste_action;
+
     QAction* copy_regex_action;
     QAction* manage_searches_action;
     QAction* delete_search_action;
     QAction* default_time_action;
+
     QAction* delete_action;
 
     bool context_menu_shown{};

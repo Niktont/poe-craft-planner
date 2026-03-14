@@ -93,6 +93,8 @@ public:
 
     void insertItem(const QModelIndex& idx, planner::StepItemType type);
     void duplicateItem(const QModelIndex& idx);
+    void copyItem(const QModelIndex& idx);
+    void pasteItem(const QModelIndex& idx);
 
     bool haveRegex(const StepItem& item) const;
     void copyRegex(const QModelIndex& idx);
@@ -102,6 +104,9 @@ public:
     void setDefaultTime(const QModelIndex& idx);
 
     void openLink(const QModelIndex& idx);
+
+    Game game() const;
+    PlanWidget* planWidget() const;
 
 private:
     friend class StepItemDelegate;
