@@ -77,7 +77,7 @@ public:
 
     bool readDatabase();
 
-    void importItem(const QJsonObject& export_o);
+    bool importItem(const QJsonObject& export_o);
     void exportItem(const QModelIndex& index, bool to_clipboard) const;
 
     void savePlan(PlanItem* item);

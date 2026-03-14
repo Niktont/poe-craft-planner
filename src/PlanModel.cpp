@@ -368,7 +368,7 @@ bool PlanModel::readDatabase()
     return true;
 }
 
-void PlanModel::importItem(const QJsonObject& export_o)
+bool PlanModel::importItem(const QJsonObject& export_o)
 {
     auto plan_v = export_o["plan"];
 
@@ -441,7 +441,7 @@ void PlanModel::importItem(const QJsonObject& export_o)
             case QDialog::Rejected:
             default:
                 import_plans.clear();
-                return;
+                return false;
             }
         } else
             trade_cache->mergeImportRequests(std::move(import_requests));
@@ -473,9 +473,11 @@ void PlanModel::importItem(const QJsonObject& export_o)
             break;
         }
         msg.exec();
+        return false;
     }
 
     import_plans.clear();
+    return true;
 }
 
 void PlanModel::exportItem(const QModelIndex& index, bool to_clipboard) const

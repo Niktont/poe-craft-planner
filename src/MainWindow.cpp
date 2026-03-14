@@ -17,11 +17,14 @@
 #include <QCloseEvent>
 #include <QDialog>
 #include <QDockWidget>
+#include <QDragEnterEvent>
+#include <QDropEvent>
 #include <QFileDialog>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QMimeData>
 #include <QNetworkAccessManager>
 #include <QNetworkCookieJar>
 #include <QPushButton>
@@ -47,6 +50,8 @@ MainWindow::MainWindow(QWidget* parent)
         setGeometry(200, 200, 980, 600);
     else
         restoreGeometry(geometry.toByteArray());
+
+    setAcceptDrops(true);
 
     auto plan_widget = new PlanWidget{*this};
     setCentralWidget(plan_widget);
@@ -147,6 +152,37 @@ void MainWindow::closeEvent(QCloseEvent* event)
     event->accept();
 }
 
+void MainWindow::dragEnterEvent(QDragEnterEvent* event)
+{
+    auto urls = event->mimeData()->urls();
+    if (urls.empty())
+        return;
+
+    auto& url = urls.front();
+    if (!url.isLocalFile() || !url.fileName().endsWith(".json"))
+        return;
+
+    event->acceptProposedAction();
+}
+
+void MainWindow::dropEvent(QDropEvent* event)
+{
+    auto urls = event->mimeData()->urls();
+    auto& url = urls.front();
+    QJsonDocument json;
+    if (!readFileForImport(url.toLocalFile(), json)) {
+        event->ignore();
+        return;
+    }
+
+    if (!importItem(json)) {
+        event->ignore();
+        return;
+    }
+
+    event->acceptProposedAction();
+}
+
 void MainWindow::setAlwaysOnTop(bool checked)
 {
     setWindowFlag(Qt::WindowStaysOnTopHint, checked);
@@ -178,20 +214,15 @@ void MainWindow::importItem(bool from_clipboard)
                                                      tr("Import"),
                                                      {},
                                                      tr("JSON file (*.json)"));
-        if (filename.isEmpty())
+        if (filename.isEmpty() || !readFileForImport(filename, json))
             return;
-
-        QFile file{filename};
-        if (file.open(QFile::ReadOnly))
-            json = {QJsonDocument::fromJson(file.readAll())};
-        else {
-            QMessageBox msg;
-            msg.setWindowTitle(tr("Import (File)"));
-            msg.setText(tr("Failed to read file \"%1\".").arg(filename));
-            msg.exec();
-        }
     }
 
+    importItem(json);
+}
+
+bool MainWindow::importItem(const QJsonDocument& json)
+{
     const auto export_o = json.object();
     auto game = gamefromStr(export_o["game"].toString());
     auto folder_v = export_o["folder"];
@@ -203,10 +234,10 @@ void MainWindow::importItem(bool from_clipboard)
         msg.setWindowTitle(tr("Import Failed"));
         msg.setText(tr("Unrecognized format."));
         msg.exec();
-        return;
+        return false;
     }
 
-    planModel(game)->importItem(export_o);
+    return planModel(game)->importItem(export_o);
 }
 
 void MainWindow::openShoppingDialog()
@@ -482,6 +513,21 @@ bool MainWindow::execSaveMsg()
     case QMessageBox::Cancel:
         return false;
     }
+    return false;
+}
+
+bool MainWindow::readFileForImport(const QString& file_path, QJsonDocument& json)
+{
+    QFile file{file_path};
+    if (file.open(QFile::ReadOnly)) {
+        json = {QJsonDocument::fromJson(file.readAll())};
+        return true;
+    }
+
+    QMessageBox msg;
+    msg.setWindowTitle(tr("Import (File)"));
+    msg.setText(tr("Failed to read file \"%1\".").arg(file_path));
+    msg.exec();
     return false;
 }
 

@@ -110,6 +110,8 @@ public:
 
 protected:
     void closeEvent(QCloseEvent* event) override;
+    void dragEnterEvent(QDragEnterEvent* event) override;
+    void dropEvent(QDropEvent* event) override;
 
 private slots:
     void setAlwaysOnTop(bool checked);
@@ -117,6 +119,7 @@ private slots:
     void cleanup();
     void openRequestEdit();
     void importItem(bool from_clipboard);
+    bool importItem(const QJsonDocument& json);
     void openShoppingDialog();
 
 private:
@@ -129,6 +132,8 @@ private:
     bool haveUnsavedPlans();
 
     bool execSaveMsg();
+
+    bool readFileForImport(const QString& file_path, QJsonDocument& json);
 };
 
 } // namespace planner
