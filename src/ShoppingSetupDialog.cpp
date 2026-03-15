@@ -56,6 +56,7 @@ ShoppingSetupDialog::ShoppingSetupDialog(MainWindow& mw)
 
 void ShoppingSetupDialog::openPlan(Plan& plan_)
 {
+    auto index = step_combo->currentIndex();
     step_combo->clear();
     step_combo->addItem(tr("Final Step"));
     auto names = plan_.stepsName(plan_.steps.size());
@@ -63,7 +64,9 @@ void ShoppingSetupDialog::openPlan(Plan& plan_)
     if (plan != &plan_) {
         plan = &plan_;
         step_combo->setCurrentIndex(0);
-    }
+    } else
+        step_combo->setCurrentIndex(index);
+
     open();
 }
 
