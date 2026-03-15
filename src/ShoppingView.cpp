@@ -15,6 +15,7 @@ ShoppingView::ShoppingView(ShoppingModel& model, QWidget* parent)
     setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
     setWordWrap(false);
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
 
     setSelectionMode(SingleSelection);
     setSelectionBehavior(QAbstractItemView::SelectRows);

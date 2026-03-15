@@ -76,6 +76,7 @@ void ShoppingDialog::openPlan(Plan& plan, size_t step_pos, double amount, bool i
 
         view->adjustNameWidth();
         view->updateGeometry();
+        view->selectRow(0);
 
         auto width = layout()->contentsRect().width();
         resize(width, height());
