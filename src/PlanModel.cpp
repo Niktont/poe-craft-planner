@@ -473,6 +473,7 @@ bool PlanModel::importItem(const QJsonObject& export_o)
             break;
         }
         msg.exec();
+        import_plans.clear();
         return false;
     }
 
