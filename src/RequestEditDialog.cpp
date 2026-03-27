@@ -149,8 +149,8 @@ void RequestEditDialog::openRequest(Game game, const TradeRequestKey& request)
 
 void RequestEditDialog::closeEvent(QCloseEvent* event)
 {
-    cleanup();
     event->accept();
+    reject();
 }
 
 void RequestEditDialog::setGame(Game game_)

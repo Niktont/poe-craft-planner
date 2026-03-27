@@ -21,6 +21,8 @@ class RequestEditDialog : public QDialog
 public:
     RequestEditDialog(MainWindow& mw);
 
+    TradeRequestKey edit_request;
+
 public slots:
     void openGame(planner::Game game, bool need_clear = false);
     void openRequest(planner::Game game, const planner::TradeRequestKey& request);
@@ -53,7 +55,6 @@ private:
     QPushButton* save_button;
     QPushButton* cancel_button;
 
-    TradeRequestKey edit_request;
     QJsonDocument edit_query;
 
     TradeRequestCache* cache;

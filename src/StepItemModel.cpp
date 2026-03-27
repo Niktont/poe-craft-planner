@@ -1193,6 +1193,23 @@ void StepItemModel::openSearch(const QModelIndex& idx)
         request = trade->request_key;
 
     mw()->request_edit_dialog->openRequest(plan->game, request);
+    connect(
+        mw()->request_edit_dialog,
+        &QDialog::finished,
+        this,
+        [this, row = idx.row()](int result) {
+            if (result == QDialog::Accepted) {
+                if (auto trade = stepItems()[row].trade()) {
+                    auto& request = mw()->request_edit_dialog->edit_request;
+                    if (trade->request_key != request) {
+                        trade->request_key = request;
+                        auto idx = index(row, StepItemColumn::Name);
+                        emit dataChanged(idx, sibling(idx, StepItemColumn::Time));
+                    }
+                }
+            }
+        },
+        Qt::SingleShotConnection);
 }
 
 void StepItemModel::deleteSearch(const QModelIndex& idx)
