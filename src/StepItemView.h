@@ -44,7 +44,7 @@ private:
     QAction* paste_action;
 
     QAction* copy_regex_action;
-    QAction* manage_searches_action;
+    QAction* edit_search_action;
     QAction* delete_search_action;
     QAction* default_time_action;
 

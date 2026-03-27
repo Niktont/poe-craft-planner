@@ -31,6 +31,7 @@ class UpdateCostDialog;
 class SettingsDialog;
 class ShoppingDialog;
 class ShoppingSetupDialog;
+class SearchesDialog;
 
 class MainWindow : public QMainWindow
 {
@@ -61,6 +62,7 @@ public:
     ExchangeRequestCache* exchange_cache_poe2;
 
     SettingsDialog* settings_dialog;
+    SearchesDialog* searches_dialog;
     RequestEditDialog* request_edit_dialog;
     UpdateCostDialog* update_cost_dialog;
     ShoppingDialog* shopping_dialog;
@@ -99,9 +101,9 @@ public:
 
     QAction* add_step_action;
 
-    QAction* manage_searches_action;
-    QAction* manage_searches_poe1_action;
-    QAction* manage_searches_poe2_action;
+    QAction* searches_action;
+    QAction* searches_poe1_action;
+    QAction* searches_poe2_action;
     QAction* update_cost_action;
     QAction* shopping_mode_action;
 
@@ -119,7 +121,6 @@ private slots:
     void setAlwaysOnTop(bool checked);
 
     void cleanup();
-    void openRequestEdit();
     void importItem(bool from_clipboard);
     bool importItem(const QJsonDocument& json);
     void openShoppingDialog();

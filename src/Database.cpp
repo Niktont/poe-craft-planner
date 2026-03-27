@@ -323,6 +323,65 @@ QSqlQuery planner::Database::insertTradeCostCache(Game game)
     return query;
 }
 
+bool Database::updateTradeRequestName(Game game,
+                                      const TradeRequestKey& request,
+                                      const TradeRequestData& data)
+{
+    QSqlQuery query;
+    query.prepare("UPDATE " % trade_cache.forGame(game)
+                  % " SET name = ? WHERE id = ? AND domain = ?;");
+    query.addBindValue(data.name_);
+    query.addBindValue(request.request_id);
+    query.addBindValue(static_cast<std::underlying_type_t<Domain>>(request.domain));
+
+    return query.exec();
+}
+
+bool Database::updateTradeRequestRegex(Game game,
+                                       const TradeRequestKey& request,
+                                       const TradeRequestData& data)
+{
+    QSqlQuery query;
+    query.prepare("UPDATE " % trade_cache.forGame(game)
+                  % " SET regex = ? WHERE id = ? AND domain = ?;");
+    query.addBindValue(data.regex_);
+    query.addBindValue(request.request_id);
+    query.addBindValue(static_cast<std::underlying_type_t<Domain>>(request.domain));
+
+    return query.exec();
+}
+
+bool Database::updateTradeRequestDescription(Game game,
+                                             const TradeRequestKey& request,
+                                             const TradeRequestData& data)
+{
+    QSqlQuery query;
+    query.prepare("UPDATE " % trade_cache.forGame(game)
+                  % " SET description = ? WHERE id = ? AND domain = ?;");
+    query.addBindValue(QJsonDocument{data.description_.toJson()}.toJson(QJsonDocument::Compact));
+    query.addBindValue(request.request_id);
+    query.addBindValue(static_cast<std::underlying_type_t<Domain>>(request.domain));
+
+    return query.exec();
+}
+
+bool Database::updateTradeRequestTime(Game game,
+                                      const TradeRequestKey& request,
+                                      const TradeRequestData& data)
+{
+    QSqlQuery query;
+    query.prepare("UPDATE " % trade_cache.forGame(game)
+                  % " SET default_time = ? WHERE id = ? AND domain = ?;");
+    if (data.default_time)
+        query.addBindValue(data.default_time->count());
+    else
+        query.addBindValue(QVariant{QMetaType::fromType<double>()});
+    query.addBindValue(request.request_id);
+    query.addBindValue(static_cast<std::underlying_type_t<Domain>>(request.domain));
+
+    return query.exec();
+}
+
 bool Database::deleteTradeCache(Game game, const TradeRequestKey& request)
 {
     QSqlQuery query;
@@ -369,8 +428,6 @@ std::pair<TradeRequestKey, TradeRequestData> Database::tradeCacheFromQuery(const
     if (!default_time.isNull())
         result.second.default_time = ItemTime(default_time.toDouble());
 
-    result.second.is_changed = false;
-
     return result;
 }
 
@@ -387,9 +444,9 @@ std::pair<QString, TradeCostData> Database::tradeCostCacheFromQuery(
     return result;
 }
 
-bool Database::insertTradeCache(QSqlQuery& query,
-                                const TradeRequestKey& key,
-                                const TradeRequestData& data)
+bool Database::insertTradeRequest(QSqlQuery& query,
+                                  const TradeRequestKey& key,
+                                  const TradeRequestData& data)
 {
     query.addBindValue(key.request_id);
     query.addBindValue(static_cast<std::underlying_type_t<Domain>>(key.domain));

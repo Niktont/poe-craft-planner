@@ -73,38 +73,11 @@ public:
     const QJsonDocument& query() const { return query_; }
     const QString& regex() const { return regex_; }
     const RequestDescription& description() const { return description_; }
-    const std::optional<ItemTime>& defaultTme() const { return default_time; }
-
-    void setName(const QString& name)
-    {
-        name_ = name;
-        is_changed = true;
-    }
-    void setQuery(const QJsonDocument& query)
-    {
-        query_ = query;
-        is_changed = true;
-    }
-    void setRegex(const QString& regex)
-    {
-        regex_ = regex;
-        is_changed = true;
-    }
-    void setDescription(const RequestDescription& description)
-    {
-        description_ = description;
-        is_changed = true;
-    }
-    void setDefaultTime(std::optional<ItemTime> time)
-    {
-        default_time = time;
-        is_changed = true;
-    }
-
-    mutable bool is_changed{true};
+    const std::optional<ItemTime>& defaultTime() const { return default_time; }
 
 private:
     friend class Database;
+    friend class TradeRequestCache;
 
     QString name_;
     QJsonDocument query_;

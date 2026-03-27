@@ -1,10 +1,15 @@
 #include "RequestEditDialog.h"
 #include "MainWindow.h"
+#include "Settings.h"
 #include "TradeRequestCache.h"
 #include <QAbstractProxyModel>
 #include <QCheckBox>
+#include <QClipboard>
 #include <QCloseEvent>
 #include <QCompleter>
+#include <QDialogButtonBox>
+#include <QFormLayout>
+#include <QGuiApplication>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QLabel>
@@ -19,93 +24,93 @@ namespace planner {
 RequestEditDialog::RequestEditDialog(MainWindow& mw)
     : QDialog{&mw}
 {
-    setWindowTitle(tr("Manage Searches"));
+    setWindowTitle(tr("Edit Search"));
     setWindowModality(Qt::WindowModal);
 
-    auto main_layot = new QVBoxLayout{};
-    setLayout(main_layot);
-    setMinimumWidth(550);
-    load_label = new QLabel{tr("Loading query...")};
-    main_layot->addWidget(load_label);
-    load_label->hide();
+    auto main_layout = new QVBoxLayout{};
+    setLayout(main_layout);
+    main_layout->setVerticalSizeConstraint(QLayout::SetFixedSize);
 
-    auto button_layout = new QHBoxLayout{};
-    main_layot->addLayout(button_layout);
-
-    load_button = new QPushButton{tr("Load query")};
-    connect(load_button, &QPushButton::clicked, this, &RequestEditDialog::loadQuery);
-    load_button->setToolTip(tr("If you are adding a lot of searches, load one every 5+ seconds to "
-                               "not exceed rate limits."));
-    button_layout->addWidget(load_button);
-    load_button->setAutoDefault(false);
-
-    save_button = new QPushButton{tr("Save")};
-    connect(save_button, &QPushButton::clicked, this, &RequestEditDialog::saveRequest);
-    button_layout->addWidget(save_button);
-    save_button->setAutoDefault(false);
-
-    button_layout->addStretch(1);
-
-    delete_button = new QPushButton{tr("Delete")};
-    connect(delete_button, &QPushButton::clicked, this, &RequestEditDialog::deleteRequest);
-    button_layout->addWidget(delete_button);
-    delete_button->setAutoDefault(false);
-
-    auto label = new QLabel{tr("Search name:")};
-    layout()->addWidget(label);
+    auto form = new QFormLayout{};
+    main_layout->addLayout(form);
 
     name_edit = new QLineEdit{};
     name_edit->setMaxLength(40);
     name_edit->setPlaceholderText(tr("Search requests are unique, names aren't"));
     connect(name_edit, &QLineEdit::editingFinished, this, &RequestEditDialog::checkName);
-    layout()->addWidget(name_edit);
-
-    label = new QLabel{tr("Search link:")};
-    layout()->addWidget(label);
+    form->addRow(tr("Name:"), name_edit);
 
     link_edit = new QLineEdit{};
     connect(link_edit, &QLineEdit::editingFinished, this, &RequestEditDialog::checkLink);
-    layout()->addWidget(link_edit);
+    form->addRow(tr("Request link:"), link_edit);
 
-    label = new QLabel{tr("Query:")};
-    layout()->addWidget(label);
+    auto query_layout = new QHBoxLayout{};
+    query_layout->setContentsMargins(0, 0, 0, 0);
+    form->addRow(tr("Query:"), query_layout);
 
-    query_edit = new QLineEdit{};
-    connect(query_edit, &QLineEdit::editingFinished, this, &RequestEditDialog::checkQuery);
-    layout()->addWidget(query_edit);
+    query_cb = new QCheckBox{};
+    query_cb->setEnabled(false);
+    query_layout->addWidget(query_cb);
 
-    label = new QLabel{tr("Regex:")};
-    layout()->addWidget(label);
+    paste_button = new QPushButton{tr("Paste")};
+    connect(paste_button, &QPushButton::clicked, this, &RequestEditDialog::checkQuery);
+    query_layout->addWidget(paste_button);
+
+    load_button = new QPushButton{tr("Load")};
+    connect(load_button, &QPushButton::clicked, this, &RequestEditDialog::loadQuery);
+    load_button->setToolTip(tr("If you are adding a lot of searches, load one every 5+ seconds to "
+                               "not exceed rate limits."));
+    query_layout->addWidget(load_button);
+    query_layout->addStretch(1);
 
     regex_edit = new QLineEdit{};
     connect(regex_edit, &QLineEdit::editingFinished, this, &RequestEditDialog::checkChange);
-    layout()->addWidget(regex_edit);
-
-    label = new QLabel{tr("Description:")};
-    layout()->addWidget(label);
+    form->addRow(tr("Regex:"), regex_edit);
 
     description_edit = new QLineEdit{};
     connect(description_edit, &QLineEdit::editingFinished, this, &RequestEditDialog::checkChange);
-    layout()->addWidget(description_edit);
+    form->addRow(tr("Description:"), description_edit);
 
-    main_layot->addStretch();
+    auto buttons = new QDialogButtonBox{};
+    ok_button = buttons->addButton(QDialogButtonBox::Ok);
+    connect(ok_button, &QPushButton::clicked, this, [this] {
+        saveRequest();
+        accept();
+    });
+
+    save_button = buttons->addButton(QDialogButtonBox::Save);
+    connect(save_button, &QPushButton::clicked, this, &RequestEditDialog::saveRequest);
+
+    cancel_button = buttons->addButton(QDialogButtonBox::Cancel);
+    connect(cancel_button, &QPushButton::clicked, this, &RequestEditDialog::reject);
+
+    main_layout->addWidget(buttons);
+
+    main_layout->addStretch();
+
+    paste_button->setAutoDefault(false);
+    load_button->setAutoDefault(false);
+    ok_button->setAutoDefault(false);
+    save_button->setAutoDefault(false);
+    cancel_button->setAutoDefault(false);
 
     connect(this, &QDialog::finished, this, &RequestEditDialog::cleanup);
     setFocusPolicy(Qt::ClickFocus);
+
+    auto settings = Settings::get();
+    auto size = settings.value(Settings::windows_request_edit_size);
+    if (size.isValid())
+        resize(size.value<QSize>());
+    else
+        resize(620, 200);
 }
 
-void RequestEditDialog::checkDeletedRequest(const TradeRequestKey& request, Game game_)
-{
-    if (game == game_ && !edit_request.request_id.isEmpty() && edit_request == request)
-        clear();
-}
-
-void RequestEditDialog::openGame(Game game_)
+void RequestEditDialog::openGame(Game game_, bool need_clear)
 {
     if (game_ >= Game::Unknown)
         return;
 
-    if (game != game_)
+    if (need_clear || game != game_)
         clear();
 
     setGame(game_);
@@ -113,7 +118,7 @@ void RequestEditDialog::openGame(Game game_)
     open();
 }
 
-void RequestEditDialog::openRequest(const TradeRequestKey& request, Game game)
+void RequestEditDialog::openRequest(Game game, const TradeRequestKey& request)
 {
     if (game >= Game::Unknown)
         return;
@@ -124,17 +129,18 @@ void RequestEditDialog::openRequest(const TradeRequestKey& request, Game game)
     setGame(game);
 
     if (edit_request.isValid()) {
-        link_edit->setText(edit_request.toUrl(game));
         is_link_valid = true;
+        link_edit->setText(edit_request.toUrl(game));
         if (auto it = cache->requestData(edit_request); it != cache->cache.end()) {
-            name_edit->setText(it->second.name());
             is_name_valid = !it->second.name().isEmpty();
+            setQueryValid(!it->second.query().isEmpty());
 
+            name_edit->setText(it->second.name());
             edit_query = it->second.query();
-            query_edit->setText(edit_query.toJson(QJsonDocument::Compact));
             regex_edit->setText(it->second.regex());
             description_edit->setText(it->second.description().text);
-            is_query_valid = !it->second.query().isEmpty();
+
+            load_button->setEnabled(!is_query_valid);
         }
     }
 
@@ -152,11 +158,12 @@ void RequestEditDialog::setGame(Game game_)
     game = game_;
     if (game == Game::Poe1) {
         cache = mw()->trade_cache_poe1;
-        link_edit->setPlaceholderText("https://pathofexile.com/trade/search/[league]/EBo4ajr4S5");
+        link_edit->setPlaceholderText(
+            "https://www.pathofexile.com/trade/search/[league]/EBo4ajr4S5");
     } else {
         cache = mw()->trade_cache_poe2;
         link_edit->setPlaceholderText(
-            "https://pathofexile.com/trade2/search/poe2/[league]/7o6gMy2h5");
+            "https://www.pathofexile.com/trade2/search/poe2/[league]/7o6gMy2h5");
     }
 
     name_edit->setCompleter(cache->completer);
@@ -170,18 +177,17 @@ void RequestEditDialog::checkName()
 {
     auto name = name_edit->text().trimmed();
     if (name.isEmpty()) {
-        save_button->setEnabled(false);
         is_name_valid = false;
+        enableSave(false);
     } else {
         is_name_valid = true;
         if (is_link_valid && is_query_valid)
-            save_button->setEnabled(true);
+            enableSave(true);
     }
 }
 
 void RequestEditDialog::checkLink()
 {
-    delete_button->setEnabled(false);
     auto link = link_edit->text().trimmed();
     auto res = TradeRequestKey::fromUrl(link, game);
     if (!res) {
@@ -196,13 +202,14 @@ void RequestEditDialog::checkLink()
         } else {
             msg.setText(tr("Failed to parse link."));
         }
-
         msg.exec();
-        load_button->setEnabled(false);
-        save_button->setEnabled(false);
+
         is_link_valid = false;
+        load_button->setEnabled(false);
+        enableSave(false);
         return;
     }
+
     auto& new_request = res.assume_value();
     edit_request = new_request;
     is_link_valid = true;
@@ -210,15 +217,11 @@ void RequestEditDialog::checkLink()
 
     if (auto it = cache->requestData(edit_request); it != cache->cache.end()) {
         edit_query = it->second.query();
-        query_edit->setText(edit_query.toJson(QJsonDocument::Compact));
-        regex_edit->setText(it->second.regex());
-        description_edit->setText(it->second.description().text);
-        is_query_valid = !edit_query.isEmpty();
-        delete_button->setEnabled(true);
+        setQueryValid(!edit_query.isEmpty());
     }
 
     if (is_name_valid && is_query_valid)
-        save_button->setEnabled(true);
+        enableSave(true);
 }
 
 void RequestEditDialog::loadQuery()
@@ -228,18 +231,17 @@ void RequestEditDialog::loadQuery()
     if (!is_query_valid) {
         if (auto it = cache->requestData(edit_request);
             it != cache->cache.end() && !it->second.query().isEmpty()) {
+            setQueryValid(true);
             edit_query = it->second.query();
-            is_query_valid = true;
-            query_edit->setText(edit_query.toJson(QJsonDocument::Compact));
+
             if (is_name_valid)
-                save_button->setEnabled(true);
+                enableSave(true);
             return;
         }
     }
 
     load_button->setEnabled(false);
     link_edit->setEnabled(false);
-    load_label->show();
 
     auto web_view = mw()->web_view;
     web_view->load(edit_request.toUrl(game));
@@ -249,7 +251,6 @@ void RequestEditDialog::loadQuery()
         this,
         [this, web_view, request = edit_request] {
             web_view->page()->toHtml([this, request](const QString& html) {
-                load_label->hide();
                 if (request == edit_request)
                     findQuery(html);
                 else
@@ -261,44 +262,45 @@ void RequestEditDialog::loadQuery()
 
 void RequestEditDialog::checkQuery()
 {
-    QJsonDocument query = QJsonDocument::fromJson(query_edit->text().toUtf8());
+    QJsonDocument query = QJsonDocument::fromJson(qApp->clipboard()->text().toUtf8());
     if (query.isNull()) {
-        save_button->setEnabled(false);
-        is_query_valid = false;
+        enableSave(false);
+        setQueryValid(false);
         return;
     }
+
     edit_query = query;
-    is_query_valid = true;
+    setQueryValid(true);
+
     if (is_name_valid && is_link_valid)
-        save_button->setEnabled(true);
+        enableSave(true);
 }
 
 void RequestEditDialog::checkChange()
 {
     if (is_name_valid && is_link_valid && is_query_valid)
-        save_button->setEnabled(true);
+        enableSave(true);
 }
 
-void RequestEditDialog::selectRequest(const QModelIndex& proxy_i)
+void RequestEditDialog::selectRequest(const QModelIndex& proxy_idx)
 {
     auto proxy_m = static_cast<QAbstractProxyModel*>(name_edit->completer()->completionModel());
-    auto index = proxy_m->mapToSource(proxy_i);
+    auto index = proxy_m->mapToSource(proxy_idx);
 
     auto it = cache->cache.nth(index.row());
+    is_name_valid = true;
+    is_link_valid = true;
+    setQueryValid(!it->second.query().isEmpty());
+
     edit_request = it->first;
     link_edit->setText(edit_request.toUrl(game));
 
     edit_query = it->second.query();
-    query_edit->setText(edit_query.toJson(QJsonDocument::Compact));
     regex_edit->setText(it->second.regex());
     description_edit->setText(it->second.description().text);
 
-    is_name_valid = true;
-    is_link_valid = true;
-    is_query_valid = !it->second.query().isEmpty();
     load_button->setEnabled(!is_query_valid);
-    save_button->setEnabled(false);
-    delete_button->setEnabled(true);
+    enableSave(false);
 }
 
 void RequestEditDialog::findQuery(const QString& html)
@@ -345,14 +347,14 @@ void RequestEditDialog::findQuery(const QString& html)
     json_o["sort"] = sort_o;
     json.setObject(json_o);
 
+    setQueryValid(true);
     edit_query = json;
-    query_edit->setText(edit_query.toJson(QJsonDocument::Compact));
 
     load_button->setEnabled(false);
     link_edit->setEnabled(true);
-    is_query_valid = true;
+
     if (is_name_valid && is_link_valid)
-        save_button->setEnabled(true);
+        enableSave(true);
 }
 
 void RequestEditDialog::saveRequest()
@@ -361,19 +363,11 @@ void RequestEditDialog::saveRequest()
         return;
 
     cache->saveRequest(edit_request,
-                       {name_edit->text().trimmed(),
-                        edit_query,
-                        regex_edit->text().trimmed(),
-                        description_edit->text().trimmed()});
-    save_button->setEnabled(false);
-    delete_button->setEnabled(true);
-}
-
-void RequestEditDialog::deleteRequest()
-{
-    cache->deleteRequest(edit_request);
-
-    clear();
+                       name_edit->text().trimmed(),
+                       edit_query,
+                       regex_edit->text().trimmed(),
+                       description_edit->text().trimmed());
+    enableSave(false);
 }
 
 void RequestEditDialog::cleanup()
@@ -400,14 +394,12 @@ void RequestEditDialog::queryLoadFailed()
 void RequestEditDialog::clear()
 {
     load_button->setEnabled(false);
-    save_button->setEnabled(false);
-    delete_button->setEnabled(false);
+    enableSave(false);
     is_name_valid = false;
     is_link_valid = false;
-    is_query_valid = false;
+    setQueryValid(false);
     name_edit->clear();
     link_edit->clear();
-    query_edit->clear();
     regex_edit->clear();
     description_edit->clear();
     edit_request = {};
@@ -417,6 +409,18 @@ void RequestEditDialog::clear()
 MainWindow* RequestEditDialog::mw() const
 {
     return static_cast<MainWindow*>(parent());
+}
+
+void RequestEditDialog::setQueryValid(bool valid)
+{
+    is_query_valid = valid;
+    query_cb->setChecked(valid);
+}
+
+void RequestEditDialog::enableSave(bool enable)
+{
+    ok_button->setEnabled(enable);
+    save_button->setEnabled(enable);
 }
 
 } // namespace planner

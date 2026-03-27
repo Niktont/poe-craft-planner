@@ -137,7 +137,7 @@ StepItemView::StepItemView(StepItemModel& model, QWidget* parent)
     });
     copy_regex_action->setShortcutContext(Qt::WidgetShortcut);
 
-    manage_searches_action = addAction(tr("Manage Searches"), this, [this] {
+    edit_search_action = addAction(tr("Edit Search"), this, [this] {
         stepModel()->openSearch(selectionModel()->currentIndex());
     });
 
@@ -184,7 +184,7 @@ void StepItemView::contextMenuEvent(QContextMenuEvent* event)
             case StepItemType::Trade:
                 if (stepModel()->haveRegex(*item))
                     menu->addAction(copy_regex_action);
-                menu->addAction(manage_searches_action);
+                menu->addAction(edit_search_action);
                 menu->addAction(delete_search_action);
                 if (context_index->column() == static_cast<int>(StepItemColumn::Time))
                     menu->addAction(default_time_action);
@@ -273,7 +273,7 @@ void StepItemView::deleteSearch()
 
         msg.setWindowTitle(tr("Delete Search"));
         msg.setText(tr("Delete this search?"));
-        msg.setInformativeText(tr("This will affect all Trade items that uses this search."));
+        msg.setInformativeText(tr("This will affect all Trade items which uses this search."));
         msg.addButton(QMessageBox::Ok);
         msg.addButton(QMessageBox::Cancel);
         delete_search = msg.exec() == QMessageBox::Ok;

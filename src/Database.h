@@ -70,6 +70,19 @@ public:
     static QSqlQuery insertTradeCache(Game game);
     static QSqlQuery insertTradeCostCache(Game game);
 
+    static bool updateTradeRequestName(Game game,
+                                       const TradeRequestKey& request,
+                                       const TradeRequestData& data);
+    static bool updateTradeRequestRegex(Game game,
+                                        const TradeRequestKey& request,
+                                        const TradeRequestData& data);
+    static bool updateTradeRequestDescription(Game game,
+                                              const TradeRequestKey& request,
+                                              const TradeRequestData& data);
+    static bool updateTradeRequestTime(Game game,
+                                       const TradeRequestKey& request,
+                                       const TradeRequestData& data);
+
     static bool deleteTradeCache(Game game, const TradeRequestKey& request);
     static bool deleteTradeCostCache(Game game, const QString& league);
 
@@ -80,7 +93,7 @@ public:
     static std::pair<QString, TradeCostData> tradeCostCacheFromQuery(
         const QSqlQuery& query, const ExchangeRequestCache& cache);
 
-    static bool insertTradeCache(QSqlQuery& query,
+    static bool insertTradeRequest(QSqlQuery& query,
                                  const TradeRequestKey& key,
                                  const TradeRequestData& data);
     static bool insertTradeCostCache(QSqlQuery& query,

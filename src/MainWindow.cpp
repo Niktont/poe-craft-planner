@@ -5,6 +5,7 @@
 #include "PlanTreeView.h"
 #include "PlanWidget.h"
 #include "RequestEditDialog.h"
+#include "SearchesDialog.h"
 #include "Settings.h"
 #include "SettingsDialog.h"
 #include "ShoppingDialog.h"
@@ -67,6 +68,7 @@ MainWindow::MainWindow(QWidget* parent)
     setupNetwork();
 
     settings_dialog = new SettingsDialog{*this};
+    searches_dialog = new SearchesDialog{*this};
     request_edit_dialog = new RequestEditDialog{*this};
     update_cost_dialog = new UpdateCostDialog{*this};
     connect(update_cost_dialog,
@@ -141,6 +143,9 @@ void MainWindow::closeEvent(QCloseEvent* event)
     settings.setValue(Settings::windows_main_state, saveState());
     settings.setValue(Settings::windows_web_view_dialog_geometry, web_view_dialog->saveGeometry());
     settings.setValue(Settings::windows_shopping_dialog_geometry, shopping_dialog->saveGeometry());
+    searches_dialog->saveState(settings);
+    settings.setValue(Settings::windows_request_edit_size, request_edit_dialog->size());
+
     settings.setValue(Settings::windows_main_hide_descriptions,
                       hide_descriptions_action->isChecked());
     settings.setValue(Settings::windows_main_hide_empty_resources,
@@ -197,11 +202,6 @@ void MainWindow::cleanup()
 {
     web_view->page()->deleteLater();
     shopping_dialog->deleteLater();
-}
-
-void MainWindow::openRequestEdit()
-{
-    request_edit_dialog->openGame(planWidget()->game());
 }
 
 void MainWindow::importItem(bool from_clipboard)
@@ -431,16 +431,18 @@ void MainWindow::setupActions()
     add_step_action = new QAction{tr("Add Step"), this};
     connect(add_step_action, &QAction::triggered, planWidget(), &PlanWidget::addStep);
 
-    manage_searches_action = new QAction{tr("Manage Searches"), this};
-    connect(manage_searches_action, &QAction::triggered, this, &MainWindow::openRequestEdit);
-
-    manage_searches_poe1_action = new QAction{tr("Manage Searches (PoE 1)"), this};
-    connect(manage_searches_poe1_action, &QAction::triggered, this, [this] {
-        request_edit_dialog->openGame(Game::Poe1);
+    searches_action = new QAction{tr("Searches"), this};
+    connect(searches_action, &QAction::triggered, this, [this] {
+        searches_dialog->openGame(planWidget()->game());
     });
-    manage_searches_poe2_action = new QAction{tr("Manage Searches (PoE 2)"), this};
-    connect(manage_searches_poe2_action, &QAction::triggered, this, [this] {
-        request_edit_dialog->openGame(Game::Poe2);
+
+    searches_poe1_action = new QAction{tr("Searches (PoE 1)"), this};
+    connect(searches_poe1_action, &QAction::triggered, this, [this] {
+        searches_dialog->openGame(Game::Poe1);
+    });
+    searches_poe2_action = new QAction{tr("Searches (PoE 2)"), this};
+    connect(searches_poe2_action, &QAction::triggered, this, [this] {
+        searches_dialog->openGame(Game::Poe2);
     });
 
     update_cost_action = new QAction{tr("Update Costs"), this};
@@ -465,8 +467,8 @@ void MainWindow::setupActions()
     file_menu->addAction(import_file_action);
 
     auto edit_menu = menuBar()->addMenu(tr("Edit"));
-    edit_menu->addAction(manage_searches_poe1_action);
-    edit_menu->addAction(manage_searches_poe2_action);
+    edit_menu->addAction(searches_poe1_action);
+    edit_menu->addAction(searches_poe2_action);
     edit_menu->addSeparator();
     edit_menu->addAction(update_cost_action);
 
@@ -490,7 +492,7 @@ void MainWindow::setupActions()
     toolbar->addSeparator();
 
     toolbar->addAction(add_step_action);
-    toolbar->addAction(manage_searches_action);
+    toolbar->addAction(searches_action);
     toolbar->addAction(update_cost_action);
     toolbar->addSeparator();
 

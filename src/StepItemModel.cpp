@@ -1189,7 +1189,7 @@ void StepItemModel::openSearch(const QModelIndex& idx)
     if (auto trade = stepItems()[idx.row()].trade())
         request = trade->request_key;
 
-    mw()->request_edit_dialog->openRequest(request, plan->game);
+    mw()->request_edit_dialog->openRequest(plan->game, request);
 }
 
 void StepItemModel::deleteSearch(const QModelIndex& idx)
@@ -1200,7 +1200,6 @@ void StepItemModel::deleteSearch(const QModelIndex& idx)
     if (auto trade = stepItems()[idx.row()].trade()) {
         auto request = trade->request_key;
         trade_cache->deleteRequest(request);
-        mw()->request_edit_dialog->checkDeletedRequest(request, plan->game);
     }
 }
 
@@ -1250,6 +1249,7 @@ void StepItemModel::clearTradeRequest(const TradeRequestKey& request)
     for (size_t i = 0; i < items.size(); ++i) {
         if (auto trade = items[i].trade(); trade && trade->request_key == request) {
             trade->request_key = {};
+            plan->setChanged();
             auto idx = index(i, StepItemColumn::Name);
             auto time_idx = sibling(idx, StepItemColumn::Time);
             emit dataChanged(idx, time_idx);

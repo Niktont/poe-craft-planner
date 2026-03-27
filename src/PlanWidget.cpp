@@ -94,31 +94,22 @@ void PlanWidget::connectSignals()
             &PlanWidget::setPlanOnCurrentChange);
 
     connect(mw()->trade_cache_poe1,
-            &TradeRequestCache::defaultTimeChanged,
-            this,
-            &PlanWidget::updateTradeTime);
-    connect(mw()->trade_cache_poe2,
-            &TradeRequestCache::defaultTimeChanged,
-            this,
-            &PlanWidget::updateTradeTime);
-
-    connect(mw()->trade_cache_poe1,
             &TradeRequestCache::rowsAboutToBeRemoved,
             this,
-            [this](const QModelIndex&, int row) { checkDeletingTradeRequest(row, Game::Poe1); });
+            &PlanWidget::checkDeletingTradeRequests);
     connect(mw()->trade_cache_poe2,
             &TradeRequestCache::rowsAboutToBeRemoved,
             this,
-            [this](const QModelIndex&, int row) { checkDeletingTradeRequest(row, Game::Poe2); });
+            &PlanWidget::checkDeletingTradeRequests);
 
     connect(mw()->trade_cache_poe1,
             &TradeRequestCache::dataChanged,
             this,
-            [this](const QModelIndex& idx) { updateTradeName(idx.row(), Game::Poe1); });
+            &PlanWidget::updateTradeRequests);
     connect(mw()->trade_cache_poe2,
             &TradeRequestCache::dataChanged,
             this,
-            [this](const QModelIndex& idx) { updateTradeName(idx.row(), Game::Poe2); });
+            &PlanWidget::updateTradeRequests);
 
     connect(mw()->exchange_cache_poe1,
             &ExchangeRequestCache::defaultTimeChanged,
@@ -474,33 +465,51 @@ void PlanWidget::updatePlanName(Plan* renamed_plan)
         name_label->setText(plan_->name);
 }
 
-void PlanWidget::checkDeletingTradeRequest(int row, Game game)
-{
-    if (!plan_ || plan_->game != game)
-        return;
-
-    auto it = mw()->tradeCache(game)->cache.nth(row);
-    for (size_t i = 0; i < plan_->steps.size(); ++i)
-        step_widgets[i]->clearTradeRequest(it->first);
-}
-
-void PlanWidget::updateTradeName(int row, planner::Game game)
-{
-    if (!plan_ || plan_->game != game)
-        return;
-
-    auto it = mw()->tradeCache(game)->cache.nth(row);
-    for (size_t i = 0; i < plan_->steps.size(); ++i)
-        step_widgets[i]->updateTradeName(it->first);
-}
-
-void PlanWidget::updateTradeTime(const TradeRequestKey& request)
+void PlanWidget::updateTradeRequests(const QModelIndex& top_left, const QModelIndex& bottom_right)
 {
     if (!plan_)
         return;
 
+    auto model = static_cast<const TradeRequestCache*>(top_left.model());
+    if (plan_->game != model->game)
+        return;
+
+    auto col_left = static_cast<TradeRequestColumn>(top_left.column());
+    auto col_right = static_cast<TradeRequestColumn>(bottom_right.column());
+    if (col_left <= TradeRequestColumn::Name && TradeRequestColumn::Name <= col_right)
+        updateTradeName(top_left.row(), *model);
+    if (col_left <= TradeRequestColumn::Time && TradeRequestColumn::Time <= col_right)
+        updateTradeTime(top_left.row(), *model);
+}
+
+void PlanWidget::checkDeletingTradeRequests(const QModelIndex&, int first, int last)
+{
+    if (!plan_)
+        return;
+
+    auto model = static_cast<TradeRequestCache*>(sender());
+    if (plan_->game != model->game)
+        return;
+
+    for (int i = first; i <= last; ++i) {
+        auto it = model->cache.nth(i);
+        for (size_t i = 0; i < plan_->steps.size(); ++i)
+            step_widgets[i]->clearTradeRequest(it->first);
+    }
+}
+
+void PlanWidget::updateTradeName(int row, const TradeRequestCache& cache)
+{
+    auto it = cache.cache.nth(row);
     for (size_t i = 0; i < plan_->steps.size(); ++i)
-        step_widgets[i]->updateTradeTime(request);
+        step_widgets[i]->updateTradeName(it->first);
+}
+
+void PlanWidget::updateTradeTime(int row, const TradeRequestCache& cache)
+{
+    auto it = cache.cache.nth(row);
+    for (size_t i = 0; i < plan_->steps.size(); ++i)
+        step_widgets[i]->updateTradeTime(it->first);
 }
 
 void PlanWidget::updateCurrencyTime(const Currency& currency)

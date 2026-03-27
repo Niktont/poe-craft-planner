@@ -73,6 +73,8 @@ qt_add_executable(${PROJECT_NAME}
     src/ShoppingView.h src/ShoppingView.cpp
     src/HotkeyEdit.h src/HotkeyEdit.cpp
     src/ShoppingSetupDialog.h src/ShoppingSetupDialog.cpp
+    src/TradeRequestView.h src/TradeRequestView.cpp
+    src/SearchesDialog.h src/SearchesDialog.cpp
 )
 
 target_link_libraries(${PROJECT_NAME}

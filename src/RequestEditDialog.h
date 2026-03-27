@@ -21,11 +21,9 @@ class RequestEditDialog : public QDialog
 public:
     RequestEditDialog(MainWindow& mw);
 
-    void checkDeletedRequest(const TradeRequestKey& request, Game game);
-
 public slots:
-    void openGame(planner::Game game);
-    void openRequest(const planner::TradeRequestKey& request, planner::Game game);
+    void openGame(planner::Game game, bool need_clear = false);
+    void openRequest(planner::Game game, const planner::TradeRequestKey& request);
 
 protected:
     void closeEvent(QCloseEvent* event) override;
@@ -37,22 +35,23 @@ private slots:
     void checkQuery();
     void checkChange();
 
-    void selectRequest(const QModelIndex& proxy_i);
+    void selectRequest(const QModelIndex& proxy_idx);
     void saveRequest();
-    void deleteRequest();
     void cleanup();
 
 private:
-    QLabel* load_label;
     QLineEdit* name_edit;
     QLineEdit* link_edit;
-    QLineEdit* query_edit;
     QLineEdit* regex_edit;
     QLineEdit* description_edit;
 
+    QCheckBox* query_cb;
+    QPushButton* paste_button;
     QPushButton* load_button;
+
+    QPushButton* ok_button;
     QPushButton* save_button;
-    QPushButton* delete_button;
+    QPushButton* cancel_button;
 
     TradeRequestKey edit_request;
     QJsonDocument edit_query;
@@ -64,6 +63,9 @@ private:
     bool is_name_valid{false};
     bool is_link_valid{false};
     bool is_query_valid{false};
+
+    void setQueryValid(bool valid);
+    void enableSave(bool enable);
 
     void setGame(planner::Game game);
     void findQuery(const QString& html);

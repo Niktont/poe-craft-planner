@@ -16,6 +16,7 @@ class Plan;
 class StepWidget;
 class MainWindow;
 class CostWidget;
+class TradeRequestCache;
 
 class PlanWidget : public QWidget
 {
@@ -70,10 +71,11 @@ private slots:
     void checkDeletingPlans(const QModelIndex& parent, int first, int last);
     void updatePlanName(planner::Plan* renamed_plan);
 
-    void updateTradeName(int row, planner::Game game);
-    void checkDeletingTradeRequest(int row, planner::Game game);
+    void updateTradeRequests(const QModelIndex& top_left, const QModelIndex& bottom_right);
+    void updateTradeName(int row, const planner::TradeRequestCache& cache);
+    void updateTradeTime(int row, const planner::TradeRequestCache& cache);
+    void checkDeletingTradeRequests(const QModelIndex& parent, int first, int last);
 
-    void updateTradeTime(const planner::TradeRequestKey& request);
     void updateCurrencyTime(const planner::Currency& currency);
     void updateTradeDefaultTime();
     void updateExchangeDefaultTime();

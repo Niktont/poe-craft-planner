@@ -1,10 +1,12 @@
 #include "TradeRequestCache.h"
 #include "Database.h"
 #include "ExchangeRequestCache.h"
+#include "ImportException.h"
 #include "Settings.h"
 #include "TradeItemData.h"
-#include "ImportException.h"
 #include <QCompleter>
+#include <QFont>
+#include <QSortFilterProxyModel>
 
 namespace planner {
 
@@ -15,19 +17,20 @@ TradeRequestCache::TradeRequestCache(Game game,
     , game{game}
     , exchange_cache{&exchange_cache}
 {
-    completer = new QCompleter{this, this};
-
-    completer->setCompletionColumn(static_cast<int>(ExchangeRequestColumn::Name));
+    completer = new QCompleter{};
+    completer->setParent(this);
+    completer->setCompletionColumn(static_cast<int>(TradeRequestColumn::Name));
     completer->setCompletionMode(QCompleter::PopupCompletion);
     completer->setCompletionRole(Qt::DisplayRole);
     completer->setFilterMode(Qt::MatchContains);
     completer->setCaseSensitivity(Qt::CaseInsensitive);
-}
+    completer->setModel(this);
 
-TradeRequestCache::~TradeRequestCache()
-{
-    saveCache();
-    saveCostCache();
+    proxy_model = new QSortFilterProxyModel{this};
+    proxy_model->setFilterCaseSensitivity(Qt::CaseInsensitive);
+    proxy_model->setFilterKeyColumn(static_cast<int>(TradeRequestColumn::Name));
+    proxy_model->setDynamicSortFilter(false);
+    proxy_model->setSourceModel(this);
 }
 
 bool TradeRequestCache::readDatabase()
@@ -58,43 +61,64 @@ bool TradeRequestCache::readDatabase()
     return result;
 }
 
-void TradeRequestCache::saveRequest(const TradeRequestKey& request, TradeRequestData data)
+void TradeRequestCache::saveRequest(const TradeRequestKey& request,
+                                    const QString& name,
+                                    const QJsonDocument& query,
+                                    const QString& regex,
+                                    const RequestDescription& description)
 {
     auto it = cache.lower_bound(request);
+    bool is_changed = false;
     if (it == cache.end() || it->first != request) {
         beginInsertRows({}, cache.index_of(it), cache.index_of(it));
-        it = cache.emplace_hint(it, request, std::move(data));
+        it = cache.try_emplace(it, request, name, query, regex, description);
         endInsertRows();
+        is_changed = true;
     } else {
-        if (it->second.name() != data.name()) {
-            it->second.setName(data.name());
+        if (it->second.name() != name) {
+            it->second.name_ = name;
             auto idx = index(cache.index_of(it), static_cast<int>(TradeRequestColumn::Name));
             emit dataChanged(idx, idx, {Qt::DisplayRole});
+            is_changed = true;
         }
-        if (it->second.query() != data.query())
-            it->second.setQuery(data.query());
-        if (it->second.regex() != data.regex())
-            it->second.setRegex(data.regex());
-        if (it->second.description() != data.description())
-            it->second.setDescription(data.description());
+        if (it->second.query() != query) {
+            it->second.query_ = query;
+            is_changed = true;
+        }
+        if (it->second.regex_ != regex) {
+            it->second.regex_ = regex;
+            is_changed = true;
+        }
+        if (it->second.description() != description) {
+            it->second.description_ = description;
+            is_changed = true;
+        }
     }
 
-    if (it->second.is_changed) {
+    if (is_changed) {
         auto insert = Database::insertTradeCache(game);
-        Database::insertTradeCache(insert, it->first, it->second);
-        it->second.is_changed = false;
+        Database::insertTradeRequest(insert, it->first, it->second);
     }
 }
 
-void TradeRequestCache::deleteRequest(TradeRequestKey request)
+void TradeRequestCache::deleteRequests(int top, int bottom)
 {
-    auto it = requestData(request);
+    for (int i = top; i <= bottom; ++i)
+        Database::deleteTradeCache(game, cache.nth(i)->first);
+
+    beginRemoveRows({}, top, bottom);
+    cache.erase(cache.nth(top), cache.nth(bottom + 1));
+    endRemoveRows();
+}
+
+void TradeRequestCache::deleteRequest(Cache::const_iterator it)
+{
     if (it == cache.end())
         return;
-    auto pos = cache.index_of(it);
 
     Database::deleteTradeCache(game, it->first);
 
+    auto pos = cache.index_of(it);
     beginRemoveRows({}, pos, pos);
     cache.erase(it);
     endRemoveRows();
@@ -118,40 +142,17 @@ void TradeRequestCache::setDefaultTime(const TradeRequestKey& request, std::opti
     if (it == cache.end())
         return;
 
-    if (it->second.defaultTme() != time) {
-        it->second.setDefaultTime(time);
-        cache_changed = true;
-        emit defaultTimeChanged(request);
+    if (it->second.defaultTime() != time) {
+        it->second.default_time = time;
+        Database::updateTradeRequestTime(game, it->first, it->second);
+        auto idx = index(cache.index_of(it), static_cast<int>(TradeRequestColumn::Time));
+        emit dataChanged(idx, idx, {Qt::DisplayRole});
     }
 }
 
 TradeRequestCache::CostCache::iterator TradeRequestCache::currentLeagueData()
 {
     return cost_cache.find(Settings::currentLeague(game));
-}
-
-bool TradeRequestCache::saveCache() const
-{
-    if (!cache_changed)
-        return true;
-
-    auto db = QSqlDatabase::database();
-    db.transaction();
-    auto insert = Database::insertTradeCache(game);
-    auto result = true;
-    for (auto& [id, data] : cache) {
-        if (!data.is_changed)
-            continue;
-        if (!Database::insertTradeCache(insert, id, data))
-            result = false;
-        else
-            data.is_changed = false;
-    }
-    db.commit();
-    if (result)
-        cache_changed = false;
-
-    return result;
 }
 
 bool TradeRequestCache::saveCostCache() const
@@ -243,8 +244,8 @@ ItemTime TradeRequestCache::time(const TradeItemData& trade_item) const
 {
     if (trade_item.time)
         return *trade_item.time;
-    if (auto it = requestData(trade_item.request_key); it != cache.end() && it->second.defaultTme())
-        return *it->second.defaultTme();
+    if (auto it = requestData(trade_item.request_key); it != cache.end() && it->second.defaultTime())
+        return *it->second.defaultTime();
     return Settings::defaultTradeTime();
 }
 
@@ -256,6 +257,14 @@ QVariant TradeRequestCache::headerData(int section, Qt::Orientation orientation,
     switch (col) {
     case TradeRequestColumn::Name:
         return tr("Name");
+    case TradeRequestColumn::Link:
+        return tr("Link");
+    case TradeRequestColumn::Query:
+        return tr("Q");
+    case TradeRequestColumn::Regex:
+        return tr("Regex");
+    case TradeRequestColumn::Description:
+        return tr("Description");
     case TradeRequestColumn::Time:
         return tr("Time");
     }
@@ -265,24 +274,151 @@ QVariant TradeRequestCache::headerData(int section, Qt::Orientation orientation,
 
 QVariant TradeRequestCache::data(const QModelIndex& index, int role) const
 {
-    if (role != Qt::DisplayRole)
-        return {};
-
-    auto row = index.row();
-    auto request = cache.nth(row);
+    auto request = cache.nth(index.row());
     auto col = static_cast<TradeRequestColumn>(index.column());
     switch (col) {
     case TradeRequestColumn::Name:
-        return request->second.name();
+        switch (role) {
+        case Qt::DisplayRole:
+        case Qt::EditRole:
+            return request->second.name();
+        }
+        return {};
+    case TradeRequestColumn::Link:
+        switch (role) {
+        case Qt::DisplayRole:
+            return tr("Link");
+        case Qt::ToolTipRole:
+            return request->first.toUrl(game);
+        case Qt::FontRole: {
+            QFont font;
+            font.setUnderline(true);
+            return font;
+        }
+        case Qt::ForegroundRole:
+            if (request->first.isValid())
+                return QColor{0x0000EE};
+            return {};
+        }
+        return {};
+    case TradeRequestColumn::Query:
+        if (role == Qt::CheckStateRole)
+            return !request->second.query().isEmpty() ? Qt::Checked : Qt::Unchecked;
+        return {};
+    case TradeRequestColumn::Regex:
+        switch (role) {
+        case Qt::DisplayRole:
+        case Qt::EditRole:
+            return request->second.regex();
+        }
+        return {};
+    case TradeRequestColumn::Description:
+        switch (role) {
+        case Qt::DisplayRole:
+        //     switch (request->second.description().type) {
+        //     case DescriptionType::Text:
+        //         return tr("Text");
+        //     }
+        //     return {};
+        case Qt::EditRole:
+            // case Qt::ToolTipRole:
+            switch (request->second.description().type) {
+            case DescriptionType::Text:
+                return request->second.description().text;
+            }
+        }
+        return {};
     case TradeRequestColumn::Time:
-        return request->second.defaultTme() ? request->second.defaultTme()->count() : QVariant{};
+        switch (role) {
+        case Qt::DisplayRole:
+        case Qt::EditRole:
+            return request->second.defaultTime()
+                       ? QString::number(request->second.defaultTime()->count())
+                       : QVariant{};
+        case Qt::TextAlignmentRole:
+            return QVariant{Qt::AlignRight | Qt::AlignVCenter};
+        }
+        return {};
     }
     return {};
 }
 
+bool TradeRequestCache::setData(const QModelIndex& index, const QVariant& value, int role)
+{
+    if (!index.isValid() || role != Qt::EditRole)
+        return false;
+
+    if (index.row() >= std::ssize(cache))
+        return false;
+
+    auto request = cache.nth(index.row());
+    auto col = static_cast<TradeRequestColumn>(index.column());
+    switch (col) {
+    case TradeRequestColumn::Name: {
+        auto name = value.toString();
+        if (!name.isEmpty() && request->second.name() != name) {
+            request->second.name_ = name;
+            Database::updateTradeRequestName(game, request->first, request->second);
+            emit dataChanged(index, index, {Qt::DisplayRole});
+            return true;
+        }
+        return false;
+    }
+    case TradeRequestColumn::Regex: {
+        auto regex = value.toString();
+        if (request->second.regex() != regex) {
+            request->second.regex_ = regex;
+            Database::updateTradeRequestRegex(game, request->first, request->second);
+            emit dataChanged(index, index, {Qt::DisplayRole});
+            return true;
+        }
+        return false;
+    }
+    case TradeRequestColumn::Description: {
+        auto description = value.toString();
+        if (request->second.description().text != description) {
+            request->second.description_.text = description;
+            Database::updateTradeRequestDescription(game, request->first, request->second);
+            emit dataChanged(index, index, {Qt::DisplayRole});
+            return true;
+        }
+        return false;
+    }
+    case TradeRequestColumn::Time: {
+        auto time_str = value.toString();
+        if (time_str.isEmpty()) {
+            if (!request->second.default_time.has_value())
+                return false;
+            request->second.default_time.reset();
+            Database::updateTradeRequestTime(game, request->first, request->second);
+            emit dataChanged(index, index, {Qt::DisplayRole});
+            return true;
+        }
+        if (auto val = time_str.toDouble();
+            val >= 0.0 && request->second.default_time->count() != val) {
+            request->second.default_time = ItemTime{val};
+            Database::updateTradeRequestTime(game, request->first, request->second);
+            emit dataChanged(index, index, {Qt::DisplayRole});
+            return true;
+        }
+        return false;
+    }
+    default:
+        return false;
+    }
+}
+
 Qt::ItemFlags TradeRequestCache::flags(const QModelIndex& index) const
 {
-    return QAbstractTableModel::flags(index);
+    if (!index.isValid())
+        return {Qt::NoItemFlags};
+
+    auto default_flags = QAbstractTableModel::flags(index);
+
+    auto col = static_cast<TradeRequestColumn>(index.column());
+    if (col == TradeRequestColumn::Link || col == TradeRequestColumn::Query)
+        return default_flags;
+    return default_flags | Qt::ItemIsEditable;
 }
 
 QJsonArray TradeRequestCache::exportRequests()
@@ -305,17 +441,25 @@ QJsonArray TradeRequestCache::exportRequests()
 void TradeRequestCache::mergeImportRequests(Cache&& import_requests)
 {
     if (Settings::addImportPrefixRequests()) {
-        for (auto& p : import_requests) {
-            auto name = p.second.name();
-            if (!name.startsWith("(I) "))
-                p.second.setName(name.prepend("(I) "));
+        for (auto& [request, data] : import_requests) {
+            if (!data.name_.startsWith("(I) "))
+                data.name_.prepend("(I) ");
         }
     }
 
-    beginResetModel();
-    cache.merge(import_requests);
-    endResetModel();
-    cache_changed = true;
+    auto db = QSqlDatabase::database();
+    db.transaction();
+    auto insert = Database::insertTradeCache(game);
+    for (auto& [request, data] : import_requests) {
+        auto it = cache.lower_bound(request);
+        if (it == cache.end() || it->first != request) {
+            beginInsertRows({}, cache.index_of(it), cache.index_of(it));
+            it = cache.emplace_hint(it, std::move(request), std::move(data));
+            endInsertRows();
+            Database::insertTradeRequest(insert, it->first, it->second);
+        }
+    }
+    db.commit();
 }
 
 TradeRequestCache::Cache TradeRequestCache::requestsFromJson(const QJsonArray& requests_a)
