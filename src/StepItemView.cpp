@@ -163,14 +163,8 @@ void StepItemView::contextMenuEvent(QContextMenuEvent* event)
     auto menu = new QMenu{this};
     menu->setAttribute(Qt::WA_DeleteOnClose);
 
-    menu->addAction(add_trade_action);
-    menu->addAction(add_exchange_action);
-    menu->addAction(add_custom_action);
-    context_index = indexAt(event->pos());
-    if (stepModel()->stepPos() > 0)
-        menu->addAction(add_step_action);
-
     bool have_item_copy = stepModel()->planWidget()->haveCopyItem(stepModel()->game());
+    context_index = indexAt(event->pos());
     if (context_index->isValid()) {
         menu->addAction(duplicate_action);
         menu->addAction(copy_action);
@@ -201,8 +195,16 @@ void StepItemView::contextMenuEvent(QContextMenuEvent* event)
             }
         }
         menu->addAction(delete_action);
-    } else if (have_item_copy)
-        menu->addAction(paste_action);
+    } else {
+        menu->addAction(add_trade_action);
+        menu->addAction(add_exchange_action);
+        menu->addAction(add_custom_action);
+        if (stepModel()->stepPos() > 0)
+            menu->addAction(add_step_action);
+
+        if (have_item_copy)
+            menu->addAction(paste_action);
+    }
 
     context_menu_shown = true;
     menu->popup(event->globalPos());
@@ -219,7 +221,7 @@ void StepItemView::focusOutEvent(QFocusEvent* event)
 QSize StepItemView::sizeHint() const
 {
     return {horizontalHeader()->length() + verticalHeader()->sizeHint().width() + lineWidth() * 2,
-            static_cast<int>(horizontalHeader()->height() * 1.4) + verticalHeader()->length()
+            static_cast<int>(horizontalHeader()->height() * 1.5) + verticalHeader()->length()
                 + lineWidth() * 2};
 }
 
@@ -265,6 +267,13 @@ void StepItemView::indexClicked(const QModelIndex& idx)
 
 void StepItemView::deleteSearch()
 {
+    auto current = selectionModel()->currentIndex();
+    auto item = stepModel()->stepItem(current);
+    if (!item)
+        return;
+    if (auto trade = item->trade(); !trade || !trade->request_key.isValid())
+        return;
+
     auto modifiers = QGuiApplication::keyboardModifiers();
 
     bool delete_search = (modifiers & Qt::ShiftModifier);
@@ -279,7 +288,7 @@ void StepItemView::deleteSearch()
         delete_search = msg.exec() == QMessageBox::Ok;
     }
     if (delete_search)
-        stepModel()->deleteSearch(selectionModel()->currentIndex());
+        stepModel()->deleteSearch(current);
 }
 
 void StepItemView::syncColumns()

@@ -1116,6 +1116,9 @@ void StepItemModel::insertItem(const QModelIndex& idx, StepItemType type)
 
     items.insert(items.begin() + row, 1, {});
     items[row].setType(type);
+    if (row > 0)
+        items[row].amount = items[row - 1].amount;
+
     if (auto step = items[row].step(); step && step_pos > 0)
         step->step_id = plan->steps[step_pos - 1].id;
     plan->setChanged();
