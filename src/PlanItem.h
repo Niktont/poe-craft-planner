@@ -51,6 +51,9 @@ public:
 
     int row() const;
 
+    QString path() const;
+    QString shortPath() const;
+
     bool isDescendant(PlanItem* item) const;
     PlanItem* parent() { return parent_; }
     void setParent(PlanItem* parent) { parent_ = parent; }

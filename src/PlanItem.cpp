@@ -340,6 +340,20 @@ int PlanItem::row() const
     return -1;
 }
 
+QString PlanItem::path() const
+{
+    if (!parent_ || parent_->name().isEmpty())
+        return name();
+    return parent_->path() % '/' % name();
+}
+
+QString PlanItem::shortPath() const
+{
+    if (!parent_ || parent_->name().isEmpty())
+        return name();
+    return parent_->name() % '/' % name();
+}
+
 bool PlanItem::isDescendant(PlanItem* item) const
 {
     auto parent = item->parent_;

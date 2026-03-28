@@ -24,8 +24,8 @@ PlanModel::PlanModel(Game game, MainWindow& mw)
     : QAbstractItemModel{&mw}
     , game{game}
     , root{std::make_unique<PlanItem>(nullptr, this, nullptr)}
-    , base_plan_name{tr("New Plan")}
-    , base_folder_name{tr("New Folder")}
+    , base_plan_name{tr("New plan")}
+    , base_folder_name{tr("New folder")}
 {}
 
 QModelIndex PlanModel::insertPlan(const QModelIndex& dest)
@@ -125,9 +125,14 @@ bool PlanModel::moveRows(const QModelIndex& source_idx,
     auto last = first + count;
     auto dest = destination->childs.begin() + dest_row;
     int type;
-    if (source != destination)
+    if (source != destination) {
+        if (destination->parent_ == source) {
+            auto row = destination->row();
+            if (source_row <= row && row < source_row + count)
+                return false;
+        }
         type = 1;
-    else if (dest < first)
+    } else if (dest < first)
         type = 2;
     else if (dest > last)
         type = 3;
@@ -264,11 +269,12 @@ bool PlanModel::dropMimeData(
     if (action == Qt::IgnoreAction)
         return true;
 
+    auto parent_item = internalPtr(parent);
     int dest_row;
     if (row != -1)
         dest_row = row;
     else if (parent.isValid())
-        dest_row = internalPtr(parent)->childCount();
+        dest_row = parent_item->childCount();
     else
         dest_row = rowCount({});
 
@@ -282,6 +288,10 @@ bool PlanModel::dropMimeData(
         stream >> ptr;
         items.push_back(std::bit_cast<PlanItem*>(ptr));
     }
+
+    std::erase(items, parent_item);
+    if (items.empty())
+        return false;
 
     for (auto item : items) {
         auto idx = item->index();

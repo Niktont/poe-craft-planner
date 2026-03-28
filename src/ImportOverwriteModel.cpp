@@ -20,11 +20,11 @@ QVariant ImportOverwriteModel::data(const QModelIndex& index, int role) const
     switch (role) {
     case Qt::DisplayRole: {
         auto plan = plans_for_overwrite.nth(index.row())->second.first;
-        auto plan_item = plan->item();
-        auto parent = plan_item->parent();
-        if (parent && !parent->name().isEmpty())
-            return {parent->name() % '/' % plan->name};
-        return plan->name;
+        return plan->item()->shortPath();
+    }
+    case Qt::ToolTipRole: {
+        auto plan = plans_for_overwrite.nth(index.row())->second.first;
+        return plan->item()->path();
     }
     case Qt::CheckStateRole:
         if (plans_for_overwrite.nth(index.row())->second.second)
