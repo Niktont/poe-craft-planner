@@ -46,12 +46,19 @@ UpdateCostDialog::UpdateCostDialog(MainWindow& mw)
     main_layout->addStretch();
 }
 
-void UpdateCostDialog::updatePlan(Plan* plan)
+void UpdateCostDialog::updatePlan(Plan* plan, bool send_requests)
 {
     if (!plan)
         return;
 
     this->plan = plan;
+    if (!send_requests) {
+        trade_finished = true;
+        exchange_finished = true;
+        calculateCost();
+        return;
+    }
+
     cancel_button->setText(tr("Cancel"));
     progress_label->setText(tr("Requesting cost data..."));
 

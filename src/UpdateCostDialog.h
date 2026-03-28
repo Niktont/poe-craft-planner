@@ -29,7 +29,7 @@ signals:
     void costUpdated(planner::Plan* plan);
 
 public slots:
-    void updatePlan(planner::Plan* plan);
+    void updatePlan(planner::Plan* plan, bool send_requests);
     void cancelUpdate();
 
 protected:
