@@ -1,7 +1,10 @@
 #include "InitializationDialog.h"
 #include "MainWindow.h"
+#include "Settings.h"
 #include <QApplication>
+#include <QCommandLineParser>
 
+using namespace planner;
 int main(int argc, char* argv[])
 {
     QCoreApplication::setOrganizationName("CraftPlanner");
@@ -17,9 +20,19 @@ int main(int argc, char* argv[])
     f.setPixelSize(14);
     app.setFont(f);
 
-    planner::MainWindow mw;
+    QCommandLineParser parser;
+    parser.addHelpOption();
+    parser.addVersionOption();
 
-    auto init_dialog = new planner::InitializationDialog{mw};
+    QCommandLineOption offline_o{"offline"};
+    parser.addOption(offline_o);
+
+    parser.process(app);
+    Settings::offline_mode = parser.isSet(offline_o);
+
+    MainWindow mw;
+
+    auto init_dialog = new InitializationDialog{mw};
     init_dialog->open();
 
     return app.exec();

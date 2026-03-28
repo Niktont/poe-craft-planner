@@ -19,7 +19,6 @@
 #include <QLineEdit>
 #include <QPushButton>
 #include <QRestReply>
-#include <QStackedWidget>
 #include <QStringBuilder>
 #include <QTimer>
 #include <QVBoxLayout>
@@ -41,18 +40,28 @@ InitializationDialog::InitializationDialog(MainWindow& mw)
     progress_label->setWordWrap(true);
     layout()->addWidget(progress_label);
 
+    auto buttons_layout = new QHBoxLayout{};
+    main_layout->addLayout(buttons_layout);
+
+    offline_button = new QPushButton{tr("Offline mode")};
+    offline_button->setEnabled(false);
+    connect(offline_button, &QPushButton::clicked, this, [this] {
+        is_data_needed_poe1 = false;
+        is_data_needed_poe2 = false;
+        Settings::offline_mode = true;
+        finishInitialization();
+    });
+    buttons_layout->addWidget(offline_button);
+
     continue_button = new QPushButton{tr("Continue")};
-    layout()->addWidget(continue_button);
     continue_button->setEnabled(false);
     connect(continue_button, &QPushButton::clicked, this, &InitializationDialog::updateCacheData);
-
-    stacked_widget = new QStackedWidget{};
-    layout()->addWidget(stacked_widget);
-    stacked_widget->hide();
+    buttons_layout->addWidget(continue_button);
 
     select_league_widget = new QWidget{};
     select_league_widget->setLayout(new QVBoxLayout{});
-    stacked_widget->addWidget(select_league_widget);
+    layout()->addWidget(select_league_widget);
+    select_league_widget->hide();
 
     select_league_widget->layout()->addWidget(new QLabel{tr("Select league for PoE 1:")});
     league_combo_poe1 = new QComboBox{};
@@ -66,6 +75,7 @@ InitializationDialog::InitializationDialog(MainWindow& mw)
 
     main_layout->addStretch(1);
 
+    continue_button->setDefault(true);
     continue_button->setAutoDefault(true);
 
     QTimer::singleShot(0, this, &InitializationDialog::initDatabase);
@@ -131,6 +141,12 @@ void InitializationDialog::readDatabase()
         progress_label->setText(tr("Reading of database failed."));
         return;
     }
+
+    if (Settings::offline_mode) {
+        finishInitialization();
+        return;
+    }
+    offline_button->setEnabled(true);
 
     progress_label->setText(tr("Requesting leagues from poe.ninja..."));
     requestLeagues();
@@ -215,7 +231,7 @@ void InitializationDialog::parseLeagues(Game game, QNetworkReply* reply)
             progress_label->setText(tr("Select leagues to continue."));
         else
             progress_label->setText(tr("Active leagues were changed."));
-        stacked_widget->show();
+        select_league_widget->show();
         continue_button->setEnabled(true);
     } else
         updateCacheData();

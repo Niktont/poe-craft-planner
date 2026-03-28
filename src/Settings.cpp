@@ -12,6 +12,8 @@ QSettings Settings::get()
     return QSettings{file, QSettings::Format::IniFormat};
 }
 
+bool Settings::offline_mode{false};
+
 QString Settings::currentLeague(Game game)
 {
     auto settings = get();

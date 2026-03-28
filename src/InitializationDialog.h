@@ -8,7 +8,6 @@
 class QLabel;
 class QPushButton;
 class QLineEdit;
-class QStackedWidget;
 class QNetworkReply;
 class QComboBox;
 class QTimer;
@@ -43,10 +42,10 @@ private slots:
 private:
     MainWindow* mw;
     QLabel* progress_label;
+    QPushButton* offline_button;
     QPushButton* continue_button;
 
     QWidget* select_league_widget;
-    QStackedWidget* stacked_widget;
     QComboBox* league_combo_poe1;
     QComboBox* league_combo_poe2;
 

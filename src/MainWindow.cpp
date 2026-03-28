@@ -449,7 +449,7 @@ void MainWindow::setupActions()
     update_cost_action->setShortcuts({Qt::Key_F5, Qt::ShiftModifier | Qt::Key_F5});
     connect(update_cost_action, &QAction::triggered, this, [this] {
         auto modifiers = QGuiApplication::keyboardModifiers();
-        bool send_requests = !modifiers.testFlag(Qt::ShiftModifier);
+        bool send_requests = !Settings::offline_mode && !modifiers.testFlag(Qt::ShiftModifier);
         update_cost_dialog->updatePlan(planWidget()->plan(), send_requests);
     });
 

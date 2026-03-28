@@ -12,6 +12,8 @@ class Settings
 public:
     static QSettings get();
 
+    static bool offline_mode;
+
     static QString currentLeague(Game game);
     static bool initNeeded(Game game);
 
