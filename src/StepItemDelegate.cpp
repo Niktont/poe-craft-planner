@@ -34,7 +34,7 @@ QWidget* StepItemDelegate::createEditor(QWidget* parent,
     case StepItemColumn::Amount: {
         auto spin_box = qobject_cast<QDoubleSpinBox*>(
             QStyledItemDelegate::createEditor(parent, option, index));
-        spin_box->setDecimals(6);
+        spin_box->setDecimals(5);
         return spin_box;
     }
     case StepItemColumn::Type: {

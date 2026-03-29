@@ -25,8 +25,9 @@ ShoppingSetupDialog::ShoppingSetupDialog(MainWindow& mw)
     form->addRow(tr("Step:"), step_combo);
 
     amount_edit = new QDoubleSpinBox{};
-    amount_edit->setMaximum(9999.99);
+    amount_edit->setMaximum(9999.999999);
     amount_edit->setValue(1.0);
+    amount_edit->setDecimals(6);
     form->addRow(tr("Amount:"), amount_edit);
 
     dependencies_cb = new QCheckBox{tr("Include dependencies")};

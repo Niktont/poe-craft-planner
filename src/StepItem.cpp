@@ -19,16 +19,18 @@ const QStringList& StepItem::typeList()
     return list;
 }
 
-ItemCost StepItem::calculateCost(const Plan& plan,
-                                 const ExchangeRequestCache& exchange_cache,
-                                 const TradeRequestCache& trade_cache) const
+std::optional<ItemCost> StepItem::calculateCost(const Plan& plan,
+                                                const ExchangeRequestCache& exchange_cache,
+                                                const TradeRequestCache& trade_cache) const
 {
-    ItemCost result;
     if (amount <= 0.0)
-        return result;
+        return {};
 
+    ItemCost result;
     if (auto exchange = this->exchange()) {
         auto primary = exchange_cache.convertToPrimary(exchange->currency);
+        if (primary.value == 0.0)
+            return {};
         result.cost_in_primary.value = amount * primary.value;
         result.cost_in_primary.currency = primary.currency;
 
@@ -45,7 +47,8 @@ ItemCost StepItem::calculateCost(const Plan& plan,
             result.cost_in_primary.currency = primary.currency;
             result.gold = amount * costData->gold_fee;
             result.time = amount * trade_cache.time(*trade);
-        }
+        } else
+            return {};
     } else if (auto custom = this->custom()) {
         auto primary = exchange_cache.convertToPrimary(custom->cost.currency);
         result.cost_in_primary.value = amount * custom->cost.value * primary.value;
@@ -53,16 +56,20 @@ ItemCost StepItem::calculateCost(const Plan& plan,
         result.gold = amount * custom->gold;
         result.time = amount * custom->time;
     } else if (auto step = this->step()) {
-        if (auto plan_step = plan.findStep(step->step_id); plan_step) {
+        if (auto plan_step = plan.findStep(step->step_id); plan_step)
             result = plan_step->resources_cost - plan_step->failed_cost;
-        }
+        else
+            return {};
     }
 
+    if (!result.isValid() && result.gold == 0.0 && result.time.count() == 0.0)
+        return {};
     return result;
 }
 
 StepItem::StepItem(const QJsonObject& item_o, const ExchangeRequestCache& cache)
-    : amount{item_o["amount"].toDouble()}
+    : not_used{item_o["not_used"].toBool()}
+    , amount{item_o["amount"].toDouble()}
     , is_success_result{item_o["success"].toBool()}
 {
     auto type = static_cast<StepItemType>(item_o["type"].toInt());
@@ -85,6 +92,7 @@ StepItem::StepItem(const QJsonObject& item_o, const ExchangeRequestCache& cache)
 QJsonObject StepItem::saveJson() const
 {
     QJsonObject item_o;
+    item_o["not_used"] = not_used;
     item_o["amount"] = amount;
     item_o["type"] = static_cast<int>(data.index());
 
@@ -106,6 +114,7 @@ QJsonObject StepItem::exportJson(const ExchangeRequestCache& cache,
                                  TradeRequestCache& trade_cache) const
 {
     QJsonObject item_o;
+    item_o["not_used"] = not_used;
     item_o["amount"] = amount;
     item_o["type"] = static_cast<int>(data.index());
 

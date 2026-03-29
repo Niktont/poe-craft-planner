@@ -29,6 +29,7 @@ public:
     QJsonObject saveJson() const;
     QJsonObject exportJson(const ExchangeRequestCache& cache, TradeRequestCache& trade_cache) const;
 
+    bool not_used{false};
     double amount{1.0};
 
     std::variant<ExchangeItemData, TradeItemData, CustomItemData, StepItemData> data;
@@ -53,9 +54,9 @@ public:
     StepItemData* step() { return std::get_if<StepItemData>(&data); }
     const StepItemData* step() const { return std::get_if<StepItemData>(&data); }
 
-    ItemCost calculateCost(const Plan& plan,
-                           const ExchangeRequestCache& exchange_cache,
-                           const TradeRequestCache& trade_cache) const;
+    std::optional<ItemCost> calculateCost(const Plan& plan,
+                                          const ExchangeRequestCache& exchange_cache,
+                                          const TradeRequestCache& trade_cache) const;
 };
 
 } // namespace planner

@@ -151,21 +151,9 @@ void ShoppingModel::gatherStepItems(double amount,
         return;
 
     auto pos = std::distance(plan_->steps.cbegin(), step_it);
-    switch (step_it->resource_calc) {
-    case ResourceCalcMethod::Sum:
-        for (auto& item : step_it->resources)
+    for (auto& item : step_it->resources) {
+        if (!item.not_used)
             gatherItem(amount, pos, item, exchange_items, trade_items);
-        return;
-    case ResourceCalcMethod::Min: {
-        std::vector<ItemCost> resources_cost;
-        for (auto& item : step_it->resources)
-            resources_cost.push_back(item.calculateCost(*plan_, *exchange_cache, *trade_cache));
-
-        auto min_it = std::min_element(resources_cost.begin(), resources_cost.end());
-        auto min_pos = std::distance(resources_cost.begin(), min_it);
-        gatherItem(amount, pos, step_it->resources[min_pos], exchange_items, trade_items);
-        return;
-    }
     }
 }
 

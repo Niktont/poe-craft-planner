@@ -663,6 +663,13 @@ QVariant StepItemModel::tradeItemData(double amount,
                                       StepItemColumn col,
                                       int role) const
 {
+    if (!trade.request_key.isValid()) {
+        if (col == StepItemColumn::Name && !trade.name.isEmpty()
+            && (role == Qt::DisplayRole || role == Qt::EditRole))
+            return trade.name;
+        return {};
+    }
+
     switch (col) {
     case StepItemColumn::Amount:
         if (role == Qt::ToolTipRole) {

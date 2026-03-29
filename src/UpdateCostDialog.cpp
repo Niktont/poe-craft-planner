@@ -371,54 +371,83 @@ void UpdateCostDialog::calculateStepCost(Step& step)
 {
     auto trade_cache = mw()->tradeCache(plan->game);
     auto exchange_cache = mw()->exchangeCache(plan->game);
-    std::vector<ItemCost> resources_cost;
-    for (auto& item : step.resources)
-        resources_cost.push_back(item.calculateCost(*plan, *exchange_cache, *trade_cache));
 
-    std::vector<ItemCost> results_cost;
-    std::vector<ItemCost> failed_cost;
-    for (auto& item : step.results) {
-        if (item.is_success_result)
-            results_cost.push_back(item.calculateCost(*plan, *exchange_cache, *trade_cache));
-        else {
-            auto& cost = failed_cost.emplace_back(
-                item.calculateCost(*plan, *exchange_cache, *trade_cache));
-            if (item.type() != StepItemType::Step) {
-                cost.gold = 0.0;
-                cost.time = {};
-            }
-        }
+    std::vector<std::optional<ItemCost>> resources_cost;
+    for (auto& item : step.resources) {
+        item.not_used = !resources_cost
+                             .emplace_back(item.calculateCost(*plan, *exchange_cache, *trade_cache))
+                             .has_value();
     }
 
+    auto has_value = [](const std::optional<ItemCost>& opt) { return opt.has_value(); };
+    auto value = [](const std::optional<ItemCost>& opt) { return *opt; };
+    auto resources_view = std::views::filter(resources_cost, has_value);
     step.resources_cost = {};
     switch (step.resource_calc) {
     case ResourceCalcMethod::Sum:
-        step.resources_cost = std::accumulate(resources_cost.begin(),
-                                              resources_cost.end(),
-                                              step.resources_cost);
+        for (auto& cost : resources_view)
+            step.resources_cost += *cost;
         break;
     case ResourceCalcMethod::Min: {
-        if (auto min_it = std::min_element(resources_cost.begin(), resources_cost.end());
-            min_it != resources_cost.end())
-            step.resources_cost = *min_it;
+        if (auto min_it = std::ranges::min_element(resources_view, std::less{}, value);
+            min_it != resources_view.end()) {
+            for (auto& item : step.resources)
+                item.not_used = true;
+
+            auto pos = std::distance(resources_cost.begin(), min_it.base());
+            step.resources[pos].not_used = false;
+            step.resources_cost = *(*min_it);
+        }
         break;
     }
     }
+
+    std::vector<std::pair<std::optional<ItemCost>, bool>> results_cost;
+    for (auto& item : step.results) {
+        auto& cost = results_cost
+                         .emplace_back(item.calculateCost(*plan, *exchange_cache, *trade_cache),
+                                       item.is_success_result)
+                         .first;
+        if (cost && item.type() != StepItemType::Step) {
+            if (!cost->isValid())
+                cost.reset();
+            else {
+                cost->gold = 0.0;
+                cost->time = {};
+            }
+        }
+        item.not_used = !cost.has_value();
+    }
+
+    auto has_success = [](auto& p) { return p.first.has_value() && p.second; };
+    auto result_value = [](auto& p) { return *p.first; };
+    auto success_view = std::views::filter(results_cost, has_success);
     step.results_cost = {};
     switch (step.result_calc) {
     case ResultCalcMethod::Sum:
-        step.results_cost = std::accumulate(results_cost.begin(),
-                                            results_cost.end(),
-                                            step.results_cost);
+        for (auto& cost : success_view)
+            step.results_cost += *cost.first;
         break;
-    case ResultCalcMethod::Max: {
-        if (auto max_it = std::max_element(results_cost.begin(), results_cost.end());
-            max_it != results_cost.end())
-            step.results_cost = *max_it;
+    case ResultCalcMethod::Max:
+        if (auto max_it = std::ranges::max_element(success_view, std::less{}, result_value);
+            max_it != success_view.end()) {
+            for (auto& item : step.results) {
+                if (item.is_success_result)
+                    item.not_used = true;
+            }
+
+            auto pos = std::distance(results_cost.begin(), max_it.base());
+            step.results[pos].not_used = false;
+            step.results_cost = *max_it->first;
+        }
         break;
     }
-    }
-    step.failed_cost = std::accumulate(failed_cost.begin(), failed_cost.end(), ItemCost{});
+
+    auto has_failed = [](auto& p) { return p.first.has_value() && !p.second; };
+    auto failed_view = std::views::filter(results_cost, has_failed);
+    step.failed_cost = {};
+    for (auto& cost : failed_view)
+        step.failed_cost += *cost.first;
 }
 
 } // namespace planner
