@@ -64,6 +64,12 @@ PlanModel* PlanTreeView::planModel()
     return static_cast<PlanModel*>(model());
 }
 
+void PlanTreeView::selectPlan(const QUuid& plan_id)
+{
+    if (auto it = planModel()->plans.find(plan_id); it != planModel()->plans.end())
+        setCurrentIndex(it->second.item()->index());
+}
+
 void PlanTreeView::contextMenuEvent(QContextMenuEvent* event)
 {
     auto menu = new QMenu{this};

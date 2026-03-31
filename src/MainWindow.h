@@ -77,6 +77,10 @@ public:
 
     void restoreLastPlan();
 
+    PlanTreeView* planView(Game game) const
+    {
+        return game == Game::Poe1 ? plan_view_poe1 : plan_view_poe2;
+    }
     PlanModel* planModel(Game game) const
     {
         return game == Game::Poe1 ? plan_model_poe1 : plan_model_poe2;

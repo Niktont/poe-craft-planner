@@ -39,6 +39,7 @@ private:
     QAction* add_exchange_action;
     QAction* add_custom_action;
     QAction* add_step_action;
+    QAction* add_plan_action;
     QAction* duplicate_action;
     QAction* copy_action;
     QAction* paste_action;

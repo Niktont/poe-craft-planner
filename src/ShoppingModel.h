@@ -2,6 +2,7 @@
 #define SHOPPINGMODEL_H
 
 #include "ShoppingItem.h"
+#include <boost/container/flat_map.hpp>
 #include <map>
 #include <vector>
 #include <QAbstractTableModel>
@@ -13,7 +14,9 @@ class ExchangeRequestCache;
 class TradeRequestCache;
 class MainWindow;
 class TradeItemData;
+class PlanItemData;
 class StepItem;
+class PlanModel;
 
 enum class ShoppingColumn {
     Amount,
@@ -33,11 +36,8 @@ public:
                         Qt::Orientation orientation,
                         int role = Qt::DisplayRole) const override;
 
-    int rowCount(const QModelIndex& /*parent*/ = {}) const override { return items.size(); }
-    int columnCount(const QModelIndex& /*parent*/ = {}) const override
-    {
-        return static_cast<int>(ShoppingColumn::last) + 1;
-    }
+    int rowCount(const QModelIndex& parent = {}) const override;
+    int columnCount(const QModelIndex& parent = {}) const override;
 
     QVariant data(const QModelIndex& index, int role) const override;
     const ShoppingItem& item(size_t row) const { return items[row]; }
@@ -50,26 +50,31 @@ public:
 
 private:
     Plan* plan_{};
+    PlanModel* plan_model{};
     ExchangeRequestCache* exchange_cache{};
     TradeRequestCache* trade_cache{};
 
     bool include_dependencies{true};
     std::vector<ShoppingItem> items;
 
-    bool gatherPlanItems(size_t step_pos, double amount);
-
     using ExchangeItems = std::map<Currency, double, CurrencyIdLess>;
     using TradeItems = std::map<TradeRequestKey, std::pair<double, QString>>;
-    void gatherStepItems(double amount,
-                         std::vector<Step>::const_iterator step_it,
-                         ExchangeItems& exchange_items,
-                         TradeItems& trade_items);
 
-    void gatherItem(double amount,
-                    ptrdiff_t pos,
-                    const StepItem& item,
-                    ExchangeItems& exchange_items,
-                    TradeItems& trade_items);
+    struct PlanData
+    {
+        boost::container::flat_map<const Step*, double> steps;
+        ExchangeItems exchange_items;
+        TradeItems trade_items;
+
+        void addStep(const Step* step, double amount);
+        void mergeItems(double amount, const PlanData& data);
+    };
+    std::map<QUuid, PlanData> dependencies;
+
+    bool gatherPlanItems(size_t step_pos, double amount);
+    void gatherItems(const Plan& plan, PlanData& data);
+
+    void gatherPlanItem(double amount, const PlanItemData& plan_item, PlanData& data);
     void gatherCurrency(double amount, const Currency& currency, ExchangeItems& exchange_items);
     void gatherTradeItem(double amount,
                          const TradeItemData& trade,

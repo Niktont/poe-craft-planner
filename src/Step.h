@@ -2,7 +2,7 @@
 #define STEP_H
 
 #include "StepItem.h"
-#include <boost/container/flat_map.hpp>
+#include <boost/container/container_fwd.hpp>
 #include <vector>
 #include <QJsonObject>
 #include <QString>
@@ -35,6 +35,8 @@ public:
 
     QJsonObject saveJson() const;
     QJsonObject exportJson(const ExchangeRequestCache& cache, TradeRequestCache& trade_cache) const;
+    void gatherDependencies(std::vector<QUuid>& dependencies) const;
+    void gatherDependencies(const PlanModel& model, std::vector<QUuid>& dependencies) const;
 
     QUuid id;
 
@@ -58,7 +60,8 @@ public:
     double costGold() const { return resources_cost.gold - failed_cost.gold; }
     ItemTime costTime() const { return resources_cost.time - failed_cost.time; }
 
-    void updateIds(const boost::container::flat_map<QUuid, QUuid>& steps_id);
+    void updateIds(const boost::container::flat_map<QUuid, QUuid>& changed_ids);
+    void updatePlanIds(const boost::container::flat_map<QUuid, QUuid>& changed_ids);
 
 private:
     void commonJson(QJsonObject& step_o) const;

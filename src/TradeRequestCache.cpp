@@ -14,11 +14,10 @@ TradeRequestCache::TradeRequestCache(Game game,
                                      ExchangeRequestCache& exchange_cache,
                                      QObject* parent)
     : QAbstractTableModel{parent}
+    , completer{new QCompleter{{}, this}}
     , game{game}
     , exchange_cache{&exchange_cache}
 {
-    completer = new QCompleter{};
-    completer->setParent(this);
     completer->setCompletionColumn(static_cast<int>(TradeRequestColumn::Name));
     completer->setCompletionMode(QCompleter::PopupCompletion);
     completer->setCompletionRole(Qt::DisplayRole);
@@ -270,6 +269,20 @@ QVariant TradeRequestCache::headerData(int section, Qt::Orientation orientation,
     }
 
     return {};
+}
+
+int TradeRequestCache::rowCount(const QModelIndex& parent) const
+{
+    if (parent.isValid())
+        return 0;
+    return cache.size();
+}
+
+int TradeRequestCache::columnCount(const QModelIndex& parent) const
+{
+    if (parent.isValid())
+        return 0;
+    return static_cast<int>(TradeRequestColumn::last) + 1;
 }
 
 QVariant TradeRequestCache::data(const QModelIndex& index, int role) const

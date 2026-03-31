@@ -16,6 +16,8 @@ public:
 
     PlanModel* planModel();
 
+    void selectPlan(const QUuid& plan_id);
+
 protected:
     void contextMenuEvent(QContextMenuEvent* event) override;
     void keyPressEvent(QKeyEvent* event) override;

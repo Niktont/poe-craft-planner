@@ -1,6 +1,7 @@
 #include "StepItem.h"
 #include "ExchangeRequestCache.h"
 #include "Plan.h"
+#include "PlanModel.h"
 #include "StepItemModel.h"
 #include "TradeRequestCache.h"
 
@@ -15,55 +16,64 @@ const QStringList& StepItem::typeList()
         StepItemModel::tr("Trade"),
         StepItemModel::tr("Custom"),
         StepItemModel::tr("Step"),
+        StepItemModel::tr("Plan"),
     };
     return list;
 }
 
 std::optional<ItemCost> StepItem::calculateCost(const Plan& plan,
                                                 const ExchangeRequestCache& exchange_cache,
-                                                const TradeRequestCache& trade_cache) const
+                                                const TradeRequestCache& trade_cache,
+                                                const PlanModel& plan_model) const
 {
     if (amount <= 0.0)
         return {};
 
     ItemCost result;
     if (auto exchange = this->exchange()) {
-        auto primary = exchange_cache.convertToPrimary(exchange->currency);
-        if (primary.value == 0.0)
+        result.cost_in_primary = exchange_cache.convertToPrimary(exchange->currency);
+        if (result.cost_in_primary.value == 0.0)
             return {};
-        result.cost_in_primary.value = amount * primary.value;
-        result.cost_in_primary.currency = primary.currency;
 
         auto data_it = exchange_cache.currencyData(exchange->currency);
         if (data_it != exchange_cache.cache.end())
-            result.gold = amount * data_it->second.gold_fee;
+            result.gold = data_it->second.gold_fee;
 
-        result.time = amount * exchange_cache.time(*exchange);
+        result.time = exchange_cache.time(*exchange);
     } else if (auto trade = this->trade()) {
-        auto costData = trade_cache.costData(trade->request_key);
-        if (costData) {
-            auto primary = exchange_cache.convertToPrimary(costData->cost.currency);
-            result.cost_in_primary.value = amount * costData->cost.value * primary.value;
-            result.cost_in_primary.currency = primary.currency;
-            result.gold = amount * costData->gold_fee;
-            result.time = amount * trade_cache.time(*trade);
+        if (auto costData = trade_cache.costData(trade->request_key)) {
+            result.cost_in_primary = exchange_cache.convertToPrimary(costData->cost.currency);
+            result.cost_in_primary.value *= costData->cost.value;
+            result.gold = costData->gold_fee;
+            result.time = trade_cache.time(*trade);
         } else
             return {};
     } else if (auto custom = this->custom()) {
-        auto primary = exchange_cache.convertToPrimary(custom->cost.currency);
-        result.cost_in_primary.value = amount * custom->cost.value * primary.value;
-        result.cost_in_primary.currency = primary.currency;
-        result.gold = amount * custom->gold;
-        result.time = amount * custom->time;
+        result.cost_in_primary = exchange_cache.convertToPrimary(custom->cost.currency);
+        result.cost_in_primary.value *= custom->cost.value;
+        result.gold = custom->gold;
+        result.time = custom->time;
     } else if (auto step = this->step()) {
         if (auto plan_step = plan.findStep(step->step_id); plan_step)
-            result = plan_step->resources_cost - plan_step->failed_cost;
+            result = plan_step->cost();
         else
+            return {};
+    } else if (auto plan = this->plan()) {
+        if (auto it = plan_model.plans.find(plan->plan_id); it != plan_model.plans.end()) {
+            if (auto cost_step = it->second.costStep())
+                result = cost_step->cost();
+            else
+                return {};
+        } else
             return {};
     }
 
     if (!result.isValid() && result.gold == 0.0 && result.time.count() == 0.0)
         return {};
+
+    result.cost_in_primary.value *= amount;
+    result.gold *= amount;
+    result.time *= amount;
     return result;
 }
 
@@ -86,6 +96,9 @@ StepItem::StepItem(const QJsonObject& item_o, const ExchangeRequestCache& cache)
     case StepItemType::Step:
         data.emplace<StepItemData>(item_o);
         break;
+    case StepItemType::Plan:
+        data.emplace<PlanItemData>(item_o);
+        break;
     }
 }
 
@@ -104,6 +117,8 @@ QJsonObject StepItem::saveJson() const
         custom->toJson(item_o);
     } else if (auto step = this->step()) {
         step->toJson(item_o);
+    } else if (auto plan = this->plan()) {
+        plan->toJson(item_o);
     }
 
     item_o["success"] = is_success_result;
@@ -126,31 +141,35 @@ QJsonObject StepItem::exportJson(const ExchangeRequestCache& cache,
         custom->toJson(item_o);
     } else if (auto step = this->step()) {
         step->toJson(item_o);
+    } else if (auto plan = this->plan()) {
+        plan->toJson(item_o);
     }
 
     item_o["success"] = is_success_result;
     return item_o;
 }
 
-bool StepItem::setType(StepItemType type)
+void StepItem::setType(StepItemType type)
 {
     switch (type) {
     case StepItemType::Exchange:
         data.emplace<ExchangeItemData>();
-        return true;
+        return;
     case StepItemType::Trade:
         data.emplace<TradeItemData>();
-        return true;
+        return;
     case StepItemType::Custom:
         data.emplace<CustomItemData>();
-        return true;
+        return;
     case StepItemType::Step:
         data.emplace<StepItemData>();
         is_success_result = false;
-        return true;
+        return;
+    case StepItemType::Plan:
+        data.emplace<PlanItemData>();
+        is_success_result = false;
+        return;
     }
-
-    return false;
 }
 
 } // namespace planner

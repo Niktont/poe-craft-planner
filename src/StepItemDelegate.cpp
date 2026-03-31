@@ -1,6 +1,9 @@
 #include "StepItemDelegate.h"
 #include "ExchangeRequestCache.h"
+#include "MainWindow.h"
 #include "Plan.h"
+#include "PlanModel.h"
+#include "PlanSearchModel.h"
 #include "StepItemModel.h"
 #include "TradeRequestCache.h"
 #include <QAbstractItemView>
@@ -60,6 +63,8 @@ QWidget* StepItemDelegate::createEditor(QWidget* parent,
     case StepItemColumn::Link:
         if (items[index.row()].type() == StepItemType::Trade)
             return createTradeEdit(parent, step_model);
+        if (items[index.row()].type() == StepItemType::Plan)
+            return createPlanEdit(parent, step_model);
         break;
     case StepItemColumn::CostCurrency: {
         return createCurrencyEdit(parent, step_model);
@@ -150,6 +155,20 @@ void StepItemDelegate::setModelData(QWidget* editor,
             model->setData(index, selected_index);
             return;
         }
+        if (item.type() == StepItemType::Plan) {
+            auto edit = static_cast<QLineEdit*>(editor);
+            disconnect(edit->completer(),
+                       qOverload<const QModelIndex&>(&QCompleter::activated),
+                       this,
+                       &StepItemDelegate::commitAndCloseCompleterEditor);
+            auto selected_index = edit->property("index").toModelIndex();
+            if (!selected_index.isValid())
+                return;
+            auto id = static_cast<PlanSearchModel*>(edit->completer()->model())
+                          ->planId(selected_index);
+            model->setData(index, id);
+            return;
+        }
         break;
     case StepItemColumn::CostCurrency: {
         auto edit = static_cast<QLineEdit*>(editor);
@@ -215,6 +234,19 @@ QLineEdit* StepItemDelegate::createTradeEdit(QWidget* parent, const StepItemMode
     auto edit = new QLineEdit{parent};
 
     edit->setCompleter(model->trade_cache->completer);
+    connect(edit->completer(),
+            qOverload<const QModelIndex&>(&QCompleter::activated),
+            this,
+            &StepItemDelegate::commitAndCloseCompleterEditor);
+
+    return edit;
+}
+
+QLineEdit* StepItemDelegate::createPlanEdit(QWidget* parent, const StepItemModel* model) const
+{
+    auto edit = new QLineEdit{parent};
+
+    edit->setCompleter(model->mw()->planModel(model->game())->search_model->completer);
     connect(edit->completer(),
             qOverload<const QModelIndex&>(&QCompleter::activated),
             this,

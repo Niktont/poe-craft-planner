@@ -25,7 +25,12 @@ public:
     Plan& operator=(Plan&&) = default;
 
     QJsonObject saveJson() const;
+    QJsonObject exportJson(const ExchangeRequestCache& cache,
+                           TradeRequestCache& trade_cache,
+                           std::vector<QUuid>& plans_to_check) const;
     QJsonObject exportJson(const ExchangeRequestCache& cache, TradeRequestCache& trade_cache) const;
+    void gatherDependencies(std::vector<QUuid>& dependencies) const;
+    void gatherDependencies(const PlanModel& model, std::vector<QUuid>& dependencies) const;
 
     QString name;
 

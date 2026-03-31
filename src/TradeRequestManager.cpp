@@ -138,6 +138,8 @@ std::chrono::milliseconds TradeRequestManager::findDelay(QNetworkReply* reply, s
         rules.append(headers.combinedValue(base % rule).split(','));
         states.append(headers.combinedValue(base % rule % "-state").split(','));
     }
+
+    bool limit_exceeded = false;
     std::vector<std::pair<size_t, double>> delays;
     for (qsizetype i = 0; i < rules.size(); ++i) {
         auto rule_parts = rules[i].split(':');
@@ -147,23 +149,31 @@ std::chrono::milliseconds TradeRequestManager::findDelay(QNetworkReply* reply, s
         double test_period = rule_parts[1].toInt();
         int state = state_parts[0].toInt();
         int hits_left = max_hits - state + 1;
-
-        delays.emplace_back(hits_left, test_period / hits_left);
+        if (hits_left > 0)
+            delays.emplace_back(hits_left, test_period / hits_left);
+        else {
+            delays.emplace_back(hits_left, state_parts[2].toDouble());
+            limit_exceeded = true;
+        }
     }
     if (delays.empty())
         return std::chrono::milliseconds{2500};
 
-    std::ranges::sort(delays, [](const auto& l, const auto& r) { return l.first < r.first; });
-    auto it = std::ranges::find_if(delays, [request_count](const auto& p) {
-        return p.first >= request_count;
-    });
+    double delay;
+    auto delay_less = [](const auto& l, const auto& r) { return l.second < r.second; };
+    if (limit_exceeded)
+        delay = std::ranges::max_element(delays, delay_less)->second;
+    else {
+        std::ranges::sort(delays, [](const auto& l, const auto& r) { return l.first < r.first; });
+        auto it = std::ranges::find_if(delays, [request_count](const auto& p) {
+            return p.first >= request_count;
+        });
 
-    auto max_it = std::ranges::max_element(delays.begin(),
-                                           it == delays.end() ? it : ++it,
-                                           [](const auto& l, const auto& r) {
-                                               return l.second < r.second;
-                                           });
-    double delay = max_it->second;
+        delay = std::ranges::max_element(delays.begin(),
+                                         it == delays.end() ? it : std::next(it),
+                                         delay_less)
+                    ->second;
+    }
 
     return std::chrono::milliseconds{static_cast<long long>(std::ceil(delay * 1000))};
 }

@@ -86,7 +86,10 @@ public:
     void updateTradeName(const planner::TradeRequestKey& request);
     void updateTime(const planner::TradeRequestKey& request);
     void updateTime(const planner::Currency& currency);
+
     void updateStepName(const QUuid& changed_step, bool deleted);
+    void updatePlanName(const QUuid& changed_plan);
+
     void updatePos(size_t new_pos) { step_pos = new_pos; }
     void setStep(planner::Plan* plan, size_t step_pos);
     void updateCosts();
@@ -148,6 +151,12 @@ private:
                           StepItemColumn col,
                           int role) const;
     bool setStepItemData(StepItemData& step_item, const QVariant& value, const QModelIndex& idx);
+
+    QVariant planItemData(double amount,
+                          const PlanItemData& plan_item,
+                          StepItemColumn col,
+                          int role) const;
+    bool setPlanItemData(PlanItemData& plan_item, const QVariant& value, const QModelIndex& idx);
 
     static QVariant formatCostWithRatio(double cost);
     static QVariant formatCost(double cost);

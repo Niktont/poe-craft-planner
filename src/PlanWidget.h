@@ -34,6 +34,8 @@ public:
     void updateStepNames(size_t renamed_step);
     void setDescriptions(planner::Plan* plan);
 
+    void openPlan(QUuid plan_id, Game game);
+
     void moveStep(size_t step_pos, bool up);
     void deleteStep(size_t step_pos);
     void duplicateStep(size_t step_pos);
@@ -56,7 +58,8 @@ public:
 
 public slots:
     void addStep();
-    void updateCost(planner::Plan* plan);
+    void updateCost(Game game, const std::vector<QUuid>& updated_plans);
+
     void hideDescriptions(bool hide);
     void hideEmptyResources(bool hide);
     void hideEmptyResults(bool hide);

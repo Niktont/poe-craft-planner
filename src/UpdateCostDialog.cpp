@@ -39,7 +39,7 @@ UpdateCostDialog::UpdateCostDialog(MainWindow& mw)
 
     empty_results_view = new QListView{};
     layout()->addWidget(empty_results_view);
-    empty_results_view->setModel(new QStringListModel{});
+    empty_results_view->setModel(new QStringListModel{this});
     empty_results_view->setEditTriggers(QAbstractItemView::NoEditTriggers);
     empty_results_view->hide();
 
@@ -52,6 +52,12 @@ void UpdateCostDialog::updatePlan(Plan* plan, bool send_requests)
         return;
 
     this->plan = plan;
+
+    dependencies.clear();
+    dependencies.push_back(plan->id());
+    auto plan_model = mw()->planModel(plan->game);
+    plan->gatherDependencies(*plan_model, dependencies);
+
     if (!send_requests) {
         trade_finished = true;
         exchange_finished = true;
@@ -60,17 +66,24 @@ void UpdateCostDialog::updatePlan(Plan* plan, bool send_requests)
     }
 
     cancel_button->setText(tr("Cancel"));
-    progress_label->setText(tr("Requesting cost data..."));
+    progress_label->setText(tr("Requesting data..."));
 
     auto trade_cache = mw()->tradeCache(plan->game);
 
     auto now = QDateTime::currentDateTimeUtc();
-    for (auto& step : plan->steps) {
-        for (auto& item : step.resources)
-            checkItem(item, now, *trade_cache);
-        for (auto& item : step.results)
-            checkItem(item, now, *trade_cache);
+    for (auto& id : dependencies) {
+        auto it = plan_model->plans.find(id);
+        if (it == plan_model->plans.end())
+            continue;
+
+        for (auto& step : it->second.steps) {
+            for (auto& item : step.resources)
+                checkItem(item, now, *trade_cache);
+            for (auto& item : step.results)
+                checkItem(item, now, *trade_cache);
+        }
     }
+
     trade_finished = trade_requests.empty();
     if (!trade_finished) {
         checkCurrency({"chaos"}, now);
@@ -95,6 +108,7 @@ void UpdateCostDialog::cancelUpdate()
 {
     plan = nullptr;
     clearRequests();
+    dependencies.clear();
 }
 
 void UpdateCostDialog::closeEvent(QCloseEvent* event)
@@ -343,13 +357,29 @@ void UpdateCostDialog::calculateCost()
     if (!plan || !trade_finished || !exchange_finished)
         return;
 
-    for (auto& step : plan->steps)
-        calculateStepCost(step);
+    auto plan_model = mw()->planModel(plan->game);
 
-    plan->league = Settings::currentLeague(plan->game);
-    plan->setChanged();
+    std::vector<Plan*> plans;
+    for (auto& id : std::views::reverse(dependencies)) {
+        auto it = plan_model->plans.find(id);
+        if (it == plan_model->plans.end())
+            continue;
+        auto plan = plans.emplace_back(&it->second);
+        for (auto& step : plan->steps) {
+            step.resources_cost = {};
+            step.results_cost = {};
+            step.failed_cost = {};
+        }
+    }
 
-    emit costUpdated(plan);
+    for (auto plan : plans) {
+        for (auto& step : plan->steps)
+            calculateStepCost(*plan, step);
+
+        plan->league = Settings::currentLeague(plan->game);
+        plan->setChanged();
+    }
+    emit costUpdated(plan->game, dependencies);
 
     if (empty_search_results.empty())
         accept();
@@ -367,22 +397,25 @@ void UpdateCostDialog::calculateCost()
     }
 }
 
-void UpdateCostDialog::calculateStepCost(Step& step)
+void UpdateCostDialog::calculateStepCost(const Plan& step_plan, Step& step)
 {
-    auto trade_cache = mw()->tradeCache(plan->game);
-    auto exchange_cache = mw()->exchangeCache(plan->game);
+    auto trade_cache = mw()->tradeCache(step_plan.game);
+    auto exchange_cache = mw()->exchangeCache(step_plan.game);
+    auto plan_model = mw()->planModel(step_plan.game);
 
     std::vector<std::optional<ItemCost>> resources_cost;
     for (auto& item : step.resources) {
         item.not_used = !resources_cost
-                             .emplace_back(item.calculateCost(*plan, *exchange_cache, *trade_cache))
+                             .emplace_back(item.calculateCost(step_plan,
+                                                              *exchange_cache,
+                                                              *trade_cache,
+                                                              *plan_model))
                              .has_value();
     }
 
     auto has_value = [](const std::optional<ItemCost>& opt) { return opt.has_value(); };
     auto value = [](const std::optional<ItemCost>& opt) { return *opt; };
     auto resources_view = std::views::filter(resources_cost, has_value);
-    step.resources_cost = {};
     switch (step.resource_calc) {
     case ResourceCalcMethod::Sum:
         for (auto& cost : resources_view)
@@ -405,10 +438,13 @@ void UpdateCostDialog::calculateStepCost(Step& step)
     std::vector<std::pair<std::optional<ItemCost>, bool>> results_cost;
     for (auto& item : step.results) {
         auto& cost = results_cost
-                         .emplace_back(item.calculateCost(*plan, *exchange_cache, *trade_cache),
+                         .emplace_back(item.calculateCost(step_plan,
+                                                          *exchange_cache,
+                                                          *trade_cache,
+                                                          *plan_model),
                                        item.is_success_result)
                          .first;
-        if (cost && item.type() != StepItemType::Step) {
+        if (cost && item.type() != StepItemType::Step && item.type() != StepItemType::Plan) {
             if (!cost->isValid())
                 cost.reset();
             else {
@@ -422,7 +458,6 @@ void UpdateCostDialog::calculateStepCost(Step& step)
     auto has_success = [](auto& p) { return p.first.has_value() && p.second; };
     auto result_value = [](auto& p) { return *p.first; };
     auto success_view = std::views::filter(results_cost, has_success);
-    step.results_cost = {};
     switch (step.result_calc) {
     case ResultCalcMethod::Sum:
         for (auto& cost : success_view)
@@ -445,7 +480,6 @@ void UpdateCostDialog::calculateStepCost(Step& step)
 
     auto has_failed = [](auto& p) { return p.first.has_value() && !p.second; };
     auto failed_view = std::views::filter(results_cost, has_failed);
-    step.failed_cost = {};
     for (auto& cost : failed_view)
         step.failed_cost += *cost.first;
 }

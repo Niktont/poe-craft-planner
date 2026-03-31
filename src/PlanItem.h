@@ -33,18 +33,19 @@ public:
     ~PlanItem();
 
     QJsonObject saveJson() const;
-    QJsonObject exportJson(const ExchangeRequestCache& cache, TradeRequestCache& trade_cache) const;
+    QJsonObject exportJson(const ExchangeRequestCache& cache,
+                           TradeRequestCache& trade_cache,
+                           std::vector<QUuid>* plans_to_check) const;
 
     PlanItem* replacePlan(int row, Plan&& new_plan);
 
     PlanItem* restoreChild(int row);
-    void duplicateChild(int row);
+    PlanItem* duplicateChild(int row);
 
     QModelIndex index() const;
 
     PlanItem* child(int row);
     int childCount() const { return childs.size(); }
-    int columnCount() const;
 
     QVariant data(int column, int role) const;
     bool setData(int column, const QVariant& value, int role);

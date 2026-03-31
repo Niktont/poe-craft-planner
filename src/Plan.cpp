@@ -59,6 +59,14 @@ QJsonObject Plan::saveJson() const
     return plan_o;
 }
 
+QJsonObject Plan::exportJson(const ExchangeRequestCache& cache,
+                             TradeRequestCache& trade_cache,
+                             std::vector<QUuid>& plans_to_check) const
+{
+    plans_to_check.push_back(id_);
+    return exportJson(cache, trade_cache);
+}
+
 QJsonObject Plan::exportJson(const ExchangeRequestCache& cache, TradeRequestCache& trade_cache) const
 {
     QJsonObject plan_o;
@@ -75,6 +83,18 @@ QJsonObject Plan::exportJson(const ExchangeRequestCache& cache, TradeRequestCach
     plan_o["steps"] = steps_a;
 
     return plan_o;
+}
+
+void Plan::gatherDependencies(std::vector<QUuid>& dependencies) const
+{
+    for (auto& step : steps)
+        step.gatherDependencies(dependencies);
+}
+
+void Plan::gatherDependencies(const PlanModel& model, std::vector<QUuid>& dependencies) const
+{
+    for (auto& step : steps)
+        step.gatherDependencies(model, dependencies);
 }
 
 QUuid Plan::changeId()

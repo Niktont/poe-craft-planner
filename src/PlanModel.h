@@ -14,6 +14,7 @@
 namespace planner {
 class MainWindow;
 class ImportOverwriteModel;
+class PlanSearchModel;
 
 enum class PlanItemColumn {
     Name,
@@ -27,13 +28,13 @@ class PlanModel : public QAbstractItemModel
     Q_OBJECT
 public:
     PlanModel(Game game, MainWindow& mw);
-    ~PlanModel()
-    {
-        saveFoldersTransaction();
-    }
+    ~PlanModel();
+
     using Plans = boost::unordered::unordered_node_map<QUuid, Plan>;
     Plans plans;
+
     const Game game;
+    PlanSearchModel* search_model;
 
     QModelIndex insertPlan(const QModelIndex& dest = {});
     QModelIndex insertFolder(const QModelIndex& dest = {});
@@ -46,7 +47,10 @@ public:
     Qt::ItemFlags flags(const QModelIndex& index) const override;
 
     int rowCount(const QModelIndex& parent = {}) const override;
-    int columnCount(const QModelIndex& parent = {}) const override;
+    int columnCount(const QModelIndex& /*parent*/ = {}) const override
+    {
+        return static_cast<int>(PlanItemColumn::last) + 1;
+    }
 
     bool moveRows(const QModelIndex& source_idx,
                   int source_row,
@@ -114,6 +118,11 @@ private:
     void saveFolders(QSqlQuery& save_query);
     void savePlanItem(PlanItem* item, QSqlQuery& save_query);
 
+    bool gatherDependencies(QJsonObject& export_o,
+                            const QJsonObject& item_o,
+                            std::vector<QUuid>& dependencies) const;
+
+    bool handleOverwrite();
     Plans import_plans;
 
     friend class PlanItem;

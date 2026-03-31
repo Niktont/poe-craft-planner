@@ -1,5 +1,7 @@
 #include "Step.h"
+#include "PlanModel.h"
 #include "StepItemsWidget.h"
+#include <boost/container/flat_map.hpp>
 #include <QJsonArray>
 
 namespace planner {
@@ -90,14 +92,74 @@ QJsonObject Step::exportJson(const ExchangeRequestCache& cache, TradeRequestCach
     return step_o;
 }
 
-void Step::updateIds(const boost::container::flat_map<QUuid, QUuid>& steps_id)
+void Step::gatherDependencies(std::vector<QUuid>& dependencies) const
+{
+    for (auto& item : resources) {
+        if (auto plan = item.plan();
+            plan && !plan->plan_id.isNull()
+            && std::ranges::find(dependencies, plan->plan_id) == dependencies.end())
+            dependencies.push_back(plan->plan_id);
+    }
+    for (auto& item : results) {
+        if (auto plan = item.plan();
+            plan && !plan->plan_id.isNull()
+            && std::ranges::find(dependencies, plan->plan_id) == dependencies.end())
+            dependencies.push_back(plan->plan_id);
+    }
+}
+
+void Step::gatherDependencies(const PlanModel& model, std::vector<QUuid>& dependencies) const
+{
+    for (auto& item : resources) {
+        if (auto plan = item.plan();
+            plan && !plan->plan_id.isNull()
+            && std::ranges::find(dependencies, plan->plan_id) == dependencies.end()) {
+            if (auto it = model.plans.find(plan->plan_id); it != model.plans.end()) {
+                dependencies.push_back(plan->plan_id);
+                it->second.gatherDependencies(model, dependencies);
+            }
+        }
+    }
+    for (auto& item : results) {
+        if (auto plan = item.plan();
+            plan && !plan->plan_id.isNull()
+            && std::ranges::find(dependencies, plan->plan_id) == dependencies.end()) {
+            if (auto it = model.plans.find(plan->plan_id); it != model.plans.end()) {
+                dependencies.push_back(plan->plan_id);
+                it->second.gatherDependencies(model, dependencies);
+            }
+        }
+    }
+}
+
+void Step::updateIds(const boost::container::flat_map<QUuid, QUuid>& changed_ids)
 {
     for (auto& item : resources) {
         if (auto step = item.step(); step && !step->step_id.isNull())
-            if (auto it = steps_id.find(step->step_id); it != steps_id.end())
+            if (auto it = changed_ids.find(step->step_id); it != changed_ids.end())
+                step->step_id = it->second;
+    }
+    for (auto& item : results) {
+        if (auto step = item.step(); step && !step->step_id.isNull())
+            if (auto it = changed_ids.find(step->step_id); it != changed_ids.end())
                 step->step_id = it->second;
     }
 }
+
+void Step::updatePlanIds(const boost::container::flat_map<QUuid, QUuid>& changed_ids)
+{
+    for (auto& item : resources) {
+        if (auto plan = item.plan(); plan && !plan->plan_id.isNull())
+            if (auto it = changed_ids.find(plan->plan_id); it != changed_ids.end())
+                plan->plan_id = it->second;
+    }
+    for (auto& item : results) {
+        if (auto plan = item.plan(); plan && !plan->plan_id.isNull())
+            if (auto it = changed_ids.find(plan->plan_id); it != changed_ids.end())
+                plan->plan_id = it->second;
+    }
+}
+
 void Step::commonJson(QJsonObject& step_o) const
 {
     step_o["id"] = id.toString();

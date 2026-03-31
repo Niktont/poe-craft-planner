@@ -1,12 +1,13 @@
 #include "PlanModel.h"
 #include "Database.h"
+#include "ImportException.h"
 #include "ImportOverwriteDialog.h"
 #include "ImportOverwriteModel.h"
 #include "MainWindow.h"
 #include "Plan.h"
+#include "PlanSearchModel.h"
 #include "PlanWidget.h"
 #include "Settings.h"
-#include "ImportException.h"
 #include <boost/container/flat_set.hpp>
 #include <QApplication>
 #include <QClipboard>
@@ -23,10 +24,17 @@ static const QString move_mime_poe2{u"application/x-moveplanitem2"};
 PlanModel::PlanModel(Game game, MainWindow& mw)
     : QAbstractItemModel{&mw}
     , game{game}
+    , search_model{new PlanSearchModel{*this}}
     , root{std::make_unique<PlanItem>(nullptr, this, nullptr)}
     , base_plan_name{tr("New plan")}
     , base_folder_name{tr("New folder")}
 {}
+
+PlanModel::~PlanModel()
+{
+    saveFoldersTransaction();
+    search_model->plans.clear();
+}
 
 QModelIndex PlanModel::insertPlan(const QModelIndex& dest)
 {
@@ -57,6 +65,8 @@ QModelIndex PlanModel::insertPlan(const QModelIndex& dest)
     beginInsertRows(parent_index, row, row);
     auto plan_index = parent_item->insertPlan(plan, row, parent_index);
     endInsertRows();
+
+    search_model->insertPlan(plan);
 
     return plan_index;
 }
@@ -101,11 +111,6 @@ int PlanModel::rowCount(const QModelIndex& parent) const
     return constInternalPtr(parent)->childCount();
 }
 
-int PlanModel::columnCount(const QModelIndex& parent) const
-{
-    return constInternalPtr(parent)->columnCount();
-}
-
 bool PlanModel::moveRows(const QModelIndex& source_idx,
                          int source_row,
                          int count,
@@ -147,8 +152,11 @@ bool PlanModel::moveRows(const QModelIndex& source_idx,
         auto first_moved = destination->childs.insert(dest, move_first, move_last);
         source->childs.erase(first, last);
 
-        for (auto it = first_moved; it < first_moved + count; ++it)
-            it->get()->setParent(destination);
+        for (auto it = first_moved; it < first_moved + count; ++it) {
+            (*it)->setParent(destination);
+            if ((*it)->plan())
+                search_model->updatePath(*(*it)->plan());
+        }
     } else if (type == 2)
         std::rotate(dest, first, last);
     else
@@ -201,8 +209,15 @@ bool PlanModel::setData(const QModelIndex& index, const QVariant& value, int rol
     auto item = internalPtr(index);
     auto result = item->setData(index.column(), value, role);
     if (result) {
-        if (!item->isFolder())
+        if (!item->isFolder()) {
+            search_model->updatePath(*item->plan());
             emit planRenamed(item->plan());
+        } else {
+            for (auto& child : item->childs) {
+                if (child->plan())
+                    search_model->updatePath(*item->plan());
+            }
+        }
         saveName(*item);
         emit dataChanged(index, index, {role});
     }
@@ -375,16 +390,18 @@ bool PlanModel::readDatabase()
     root = std::make_unique<PlanItem>(QUuid{}, select, this, nullptr);
     endResetModel();
 
+    search_model->reset();
+
     return true;
 }
 
 bool PlanModel::importItem(const QJsonObject& export_o)
 {
-    auto plan_v = export_o["plan"];
-
-    std::unique_ptr<PlanItem> import_root;
-    bool is_folder = plan_v.isUndefined();
     try {
+        std::unique_ptr<PlanItem> import_root;
+
+        auto plan_v = export_o["plan"];
+        bool is_folder = plan_v.isUndefined();
         if (is_folder)
             import_root = std::make_unique<PlanItem>(is_folder,
                                                      export_o["folder"].toObject(),
@@ -394,67 +411,14 @@ bool PlanModel::importItem(const QJsonObject& export_o)
             import_root = std::make_unique<PlanItem>(is_folder, plan_v.toObject(), this, nullptr);
 
         auto trade_cache = mw()->tradeCache(game);
-        auto requests_a = export_o["trade_requests"].toArray();
-        auto import_requests = trade_cache->requestsFromJson(requests_a);
+        auto import_requests = trade_cache->requestsFromJson(export_o["trade_requests"].toArray());
 
-        ImportOverwriteModel overwrite_model{import_plans, plans};
-        if (!overwrite_model.plans_for_overwrite.empty()) {
-            ImportOverwriteDialog dialog{overwrite_model, mw()};
-            auto res = dialog.exec();
-            switch (res) {
-            case QDialogButtonBox::NoRole:
-                trade_cache->mergeImportRequests(std::move(import_requests));
-                for (auto& p : overwrite_model.plans_for_overwrite) {
-                    auto node = import_plans.extract(p.first);
-                    node.key() = node.mapped().changeId();
-                    import_plans.insert(std::move(node));
-                }
-                break;
-            case QDialogButtonBox::YesRole:
-                trade_cache->mergeImportRequests(std::move(import_requests));
-                for (auto& p : overwrite_model.plans_for_overwrite) {
-                    if (!p.second.second) {
-                        auto node = import_plans.extract(p.first);
-                        node.key() = node.mapped().changeId();
-                        import_plans.insert(std::move(node));
-                    } else {
-                        auto old_plan = p.second.first;
-                        auto old_item = old_plan->item();
-                        auto parent = old_item->parent();
+        if (!handleOverwrite()) {
+            import_plans.clear();
+            return false;
+        }
 
-                        auto import_it = import_plans.find(p.first);
-                        auto import_item = import_it->second.item();
-
-                        auto import_parent = import_item->parent();
-
-                        PlanItem* new_item;
-                        if (Settings::overwriteNames()) {
-                            new_item = parent->replacePlan(old_item->row(),
-                                                           std::move(import_it->second));
-                            saveName(*new_item);
-                        } else {
-                            import_item->setName(old_item->name());
-                            new_item = parent->replacePlan(old_item->row(),
-                                                           std::move(import_it->second));
-                        }
-
-                        emit planUpdated(new_item->plan(), old_plan);
-
-                        import_plans.erase(import_it);
-                        import_item->plan_ = nullptr;
-                        if (import_parent)
-                            import_parent->childs.erase(import_parent->childs.begin()
-                                                        + import_item->row());
-                    }
-                }
-                break;
-            case QDialog::Rejected:
-            default:
-                import_plans.clear();
-                return false;
-            }
-        } else
-            trade_cache->mergeImportRequests(std::move(import_requests));
+        trade_cache->mergeImportRequests(std::move(import_requests));
 
         if (!import_plans.empty()) {
             if (Settings::addImportPrefix()) {
@@ -463,6 +427,8 @@ bool PlanModel::importItem(const QJsonObject& export_o)
                     root_name.prepend("(I) ");
                 import_root->setName(root_name);
             }
+            for (auto& [id, plan] : import_plans)
+                search_model->insertPlan(plan);
 
             import_root->setItemChanged(true);
             plans.merge(std::move(import_plans));
@@ -491,6 +457,83 @@ bool PlanModel::importItem(const QJsonObject& export_o)
     return true;
 }
 
+bool PlanModel::handleOverwrite()
+{
+    ImportOverwriteModel overwrite_model{import_plans, plans};
+    if (overwrite_model.plans_for_overwrite.empty())
+        return true;
+
+    ImportOverwriteDialog dialog{overwrite_model, mw()};
+    auto res = dialog.exec();
+
+    boost::container::flat_map<QUuid, QUuid> changed_ids;
+    switch (res) {
+    case QDialogButtonBox::NoRole:
+        for (auto& p : overwrite_model.plans_for_overwrite) {
+            auto node = import_plans.extract(p.first);
+            node.key() = node.mapped().changeId();
+            changed_ids.emplace(p.first, node.key());
+
+            import_plans.insert(std::move(node));
+        }
+        for (auto& p : import_plans) {
+            for (auto& step : p.second.steps)
+                step.updatePlanIds(changed_ids);
+        }
+        return true;
+    case QDialogButtonBox::YesRole:
+        for (auto& p : overwrite_model.plans_for_overwrite) {
+            if (p.second.second)
+                continue;
+
+            auto node = import_plans.extract(p.first);
+            node.key() = node.mapped().changeId();
+            changed_ids.emplace(p.first, node.key());
+
+            import_plans.insert(std::move(node));
+        }
+        for (auto& p : import_plans) {
+            for (auto& step : p.second.steps)
+                step.updatePlanIds(changed_ids);
+        }
+
+        for (auto& p : overwrite_model.plans_for_overwrite) {
+            if (!p.second.second)
+                continue;
+
+            auto old_plan = p.second.first;
+            auto old_item = old_plan->item();
+            auto parent = old_item->parent();
+
+            auto import_it = import_plans.find(p.first);
+            auto import_item = import_it->second.item();
+
+            auto import_parent = import_item->parent();
+
+            PlanItem* new_item;
+            if (Settings::overwriteNames()) {
+                new_item = parent->replacePlan(old_item->row(), std::move(import_it->second));
+                saveName(*new_item);
+                search_model->updatePath(*new_item->plan());
+            } else {
+                import_item->setName(old_item->name());
+                new_item = parent->replacePlan(old_item->row(), std::move(import_it->second));
+            }
+
+            emit planUpdated(new_item->plan(), old_plan);
+
+            import_plans.erase(import_it);
+            import_item->plan_ = nullptr;
+            if (import_parent)
+                import_parent->childs.erase(import_parent->childs.begin() + import_item->row());
+        }
+        return true;
+    case QDialog::Rejected:
+    default:
+        return false;
+    }
+}
+
 void PlanModel::exportItem(const QModelIndex& index, bool to_clipboard) const
 {
     auto item = internalPtr(index);
@@ -502,10 +545,16 @@ void PlanModel::exportItem(const QModelIndex& index, bool to_clipboard) const
 
     QJsonObject export_o;
     export_o["game"] = gameStr(game);
-    if (item->isFolder())
-        export_o["folder"] = item->exportJson(*mw()->exchangeCache(game), *trade_cache);
-    else
-        export_o["plan"] = item->exportJson(*mw()->exchangeCache(game), *trade_cache);
+
+    std::vector<QUuid> dependencies;
+    auto item_o = item->exportJson(*mw()->exchangeCache(game), *trade_cache, &dependencies);
+    if (!gatherDependencies(export_o, item_o, dependencies)) {
+        if (item->isFolder())
+            export_o["folder"] = item_o;
+        else
+            export_o["plan"] = item_o;
+    }
+
     export_o["trade_requests"] = trade_cache->exportRequests();
 
     QJsonDocument json;
@@ -594,10 +643,11 @@ void PlanModel::restorePlan(const QModelIndex& index)
     if (auto new_item = parent_item->restoreChild(index.row())) {
         changed_plans.erase(item);
 
+        search_model->updatePath(*new_item->plan());
         auto cost_idx = index.siblingAtColumn(static_cast<int>(PlanItemColumn::Cost));
         emit dataChanged(index, cost_idx, {Qt::DisplayRole, Qt::DecorationRole});
 
-        emit planUpdated(new_item->plan_, old_plan);
+        emit planUpdated(new_item->plan(), old_plan);
     }
 }
 
@@ -609,8 +659,11 @@ void PlanModel::duplicateItem(const QModelIndex& index)
     auto parent = index.parent();
     auto parent_item = internalPtr(parent);
     beginInsertRows(parent, index.row() + 1, index.row() + 1);
-    parent_item->duplicateChild(index.row());
+    auto copy_item = parent_item->duplicateChild(index.row());
     endInsertRows();
+
+    if (copy_item->plan())
+        search_model->insertPlan(*copy_item->plan());
 }
 
 bool PlanModel::isNewPlan(const QModelIndex& index) const
@@ -684,6 +737,52 @@ void PlanModel::savePlanItem(PlanItem* item, QSqlQuery& save_query)
         auto idx = item->index();
         emit dataChanged(idx, idx, {Qt::DisplayRole});
     }
+}
+
+bool PlanModel::gatherDependencies(QJsonObject& export_o,
+                                   const QJsonObject& item_o,
+                                   std::vector<QUuid>& dependencies) const
+{
+    size_t export_end = dependencies.size();
+    if (export_end == 0)
+        return false;
+
+    for (size_t i = 0; i < export_end; ++i) {
+        if (auto it = plans.find(dependencies[i]); it != plans.end())
+            it->second.gatherDependencies(dependencies);
+    }
+    if (export_end == dependencies.size())
+        return false;
+
+    auto exchange_cache = mw()->exchangeCache(game);
+    auto trade_cache = mw()->tradeCache(game);
+
+    QJsonArray dependencies_a;
+    for (size_t i = export_end; i < dependencies.size(); ++i) {
+        if (auto it = plans.find(dependencies[i]); it != plans.end()) {
+            dependencies_a.push_back(it->second.exportJson(*exchange_cache, *trade_cache));
+            it->second.gatherDependencies(dependencies);
+        }
+    }
+    if (dependencies_a.empty())
+        return false;
+
+    QJsonObject dependencies_o;
+    dependencies_o["is_folder"] = true;
+    dependencies_o["name"] = "Dependencies";
+    dependencies_o["childs"] = dependencies_a;
+
+    QJsonArray childs_a;
+    childs_a.push_back(item_o);
+    childs_a.push_back(dependencies_o);
+
+    QJsonObject export_folder;
+    export_folder["is_folder"] = true;
+    export_folder["name"] = "";
+    export_folder["childs"] = childs_a;
+
+    export_o["folder"] = export_folder;
+    return true;
 }
 
 MainWindow* PlanModel::mw() const

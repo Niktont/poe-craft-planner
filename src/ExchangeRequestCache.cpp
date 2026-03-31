@@ -12,16 +12,16 @@ namespace planner {
 
 ExchangeRequestCache::ExchangeRequestCache(Game game, QObject* parent)
     : QAbstractTableModel{parent}
+    , completer{new QCompleter{{}, this}}
     , game{game}
     , div_card_icon{iconFileName(u"div_card"_s)}
 {
-    completer = new QCompleter{this, this};
-
     completer->setCompletionColumn(static_cast<int>(ExchangeRequestColumn::Name));
     completer->setCompletionMode(QCompleter::PopupCompletion);
     completer->setCompletionRole(Qt::DisplayRole);
     completer->setFilterMode(Qt::MatchContains);
     completer->setCaseSensitivity(Qt::CaseInsensitive);
+    completer->setModel(this);
 }
 
 QVariant ExchangeRequestCache::headerData(int section, Qt::Orientation orientation, int role) const
@@ -35,6 +35,20 @@ QVariant ExchangeRequestCache::headerData(int section, Qt::Orientation orientati
     }
 
     return {};
+}
+
+int ExchangeRequestCache::rowCount(const QModelIndex& parent) const
+{
+    if (parent.isValid())
+        return 0;
+    return cache.size();
+}
+
+int ExchangeRequestCache::columnCount(const QModelIndex& parent) const
+{
+    if (parent.isValid())
+        return 0;
+    return static_cast<int>(ExchangeRequestColumn::last) + 1;
 }
 
 QVariant ExchangeRequestCache::data(const QModelIndex& index, int role) const

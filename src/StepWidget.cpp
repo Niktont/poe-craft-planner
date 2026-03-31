@@ -181,21 +181,28 @@ void StepWidget::setName(QString name)
     name_edit->setText(name);
 }
 
-void StepWidget::updateCost(Plan* plan)
+void StepWidget::updateCost(bool current_updated)
 {
-    if (!plan || plan != this->plan)
+    if (!plan)
         return;
 
-    displayCost();
+    if (current_updated)
+        displayCost();
 
     resources_model->updateCosts();
     results_model->updateCosts();
 }
 
-void StepWidget::updateStepNames(const QUuid& changed_step, bool deleted)
+void StepWidget::updateStepName(const QUuid& changed_step, bool deleted)
 {
     resources_model->updateStepName(changed_step, deleted);
     results_model->updateStepName(changed_step, deleted);
+}
+
+void StepWidget::updatePlanName(const QUuid& changed_plan)
+{
+    resources_model->updatePlanName(changed_plan);
+    results_model->updatePlanName(changed_plan);
 }
 
 void StepWidget::setDescription()

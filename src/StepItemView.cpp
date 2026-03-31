@@ -118,6 +118,12 @@ StepItemView::StepItemView(StepItemModel& model, QWidget* parent)
         stepModel()->insertItem(current, StepItemType::Step);
         context_index.reset();
     });
+    add_plan_action = addAction(tr("Add Plan Item"), this, [this] {
+        auto current = context_index ? *context_index : selectionModel()->currentIndex();
+        stepModel()->insertItem(current, StepItemType::Plan);
+        context_index.reset();
+    });
+
     duplicate_action = addAction(tr("Duplicate"), {Qt::CTRL | Qt::Key_D}, this, [this] {
         stepModel()->duplicateItem(selectionModel()->currentIndex());
     });
@@ -201,6 +207,7 @@ void StepItemView::contextMenuEvent(QContextMenuEvent* event)
         menu->addAction(add_custom_action);
         if (stepModel()->stepPos() > 0)
             menu->addAction(add_step_action);
+        menu->addAction(add_plan_action);
 
         if (have_item_copy)
             menu->addAction(paste_action);

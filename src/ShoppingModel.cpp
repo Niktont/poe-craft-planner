@@ -1,6 +1,7 @@
 #include "ShoppingModel.h"
 #include "MainWindow.h"
 #include "Plan.h"
+#include "PlanModel.h"
 
 namespace planner {
 
@@ -24,6 +25,20 @@ QVariant ShoppingModel::headerData(int section, Qt::Orientation orientation, int
         return tr("Link");
     }
     return {};
+}
+
+int ShoppingModel::rowCount(const QModelIndex& parent) const
+{
+    if (parent.isValid())
+        return 0;
+    return items.size();
+}
+
+int ShoppingModel::columnCount(const QModelIndex& parent) const
+{
+    if (parent.isValid())
+        return 0;
+    return static_cast<int>(ShoppingColumn::last) + 1;
 }
 
 QVariant ShoppingModel::data(const QModelIndex& index, int role) const
@@ -92,6 +107,9 @@ QVariant ShoppingModel::data(const QModelIndex& index, int role) const
 
 bool ShoppingModel::setPlan(Plan& plan, size_t step_pos, double amount, bool include_dependencies_)
 {
+    if (amount == 0.0)
+        return false;
+
     beginResetModel();
     items.clear();
     plan_ = &plan;
@@ -101,11 +119,16 @@ bool ShoppingModel::setPlan(Plan& plan, size_t step_pos, double amount, bool inc
     if (plan_->game == Game::Poe1) {
         exchange_cache = mw->exchange_cache_poe1;
         trade_cache = mw->trade_cache_poe1;
+        plan_model = mw->plan_model_poe1;
     } else {
         exchange_cache = mw->exchange_cache_poe2;
         trade_cache = mw->trade_cache_poe2;
+        plan_model = mw->plan_model_poe2;
     }
+
+    dependencies.clear();
     result = gatherPlanItems(step_pos, amount);
+    dependencies.clear();
 
     endResetModel();
     return result;
@@ -117,10 +140,11 @@ bool ShoppingModel::gatherPlanItems(size_t step_pos, double amount)
     if (step_it >= plan_->steps.end() || step_it->resources.empty())
         return false;
 
-    ExchangeItems exchange_items;
-    TradeItems trade_items;
-    gatherStepItems(amount, step_it, exchange_items, trade_items);
-    if (exchange_items.empty() && trade_items.empty())
+    auto& plan_data = dependencies.try_emplace(plan_->id()).first->second;
+    plan_data.addStep(&(*step_it), amount);
+    gatherItems(*plan_, plan_data);
+
+    if (plan_data.exchange_items.empty() && plan_data.trade_items.empty())
         return false;
 
     auto league_it = exchange_cache->currentLeagueData();
@@ -128,61 +152,79 @@ bool ShoppingModel::gatherPlanItems(size_t step_pos, double amount)
         return false;
     auto& cores = league_it->second.core_currencies;
     for (auto& core : std::ranges::reverse_view(cores)) {
-        if (auto it = exchange_items.find(core.currency); it != exchange_items.end()) {
+        if (auto it = plan_data.exchange_items.find(core.currency);
+            it != plan_data.exchange_items.end()) {
             items.emplace_back(it->second, decltype(ShoppingItem::data){it->first});
-            exchange_items.erase(it);
+            plan_data.exchange_items.erase(it);
         }
     }
 
-    for (auto& item : exchange_items)
+    for (auto& item : plan_data.exchange_items)
         items.emplace_back(item.second, item.first);
-    for (auto& item : trade_items)
+    for (auto& item : plan_data.trade_items)
         items.emplace_back(item.second.first, ShoppingItem::Trade{item.second.second, item.first});
 
     return true;
 }
 
-void ShoppingModel::gatherStepItems(double amount,
-                                    std::vector<Step>::const_iterator step_it,
-                                    ExchangeItems& exchange_items,
-                                    TradeItems& trade_items)
+void ShoppingModel::gatherItems(const Plan& plan, PlanData& data)
 {
-    if (step_it->resources.empty())
-        return;
+    if (include_dependencies) {
+        for (size_t i = 0; i < data.steps.size(); ++i) {
+            auto& step = *data.steps.nth(i)->first;
+            auto step_amount = data.steps.nth(i)->second;
+            for (auto& item : step.resources) {
+                if (item.not_used || item.amount == 0.0)
+                    continue;
 
-    auto pos = std::distance(plan_->steps.cbegin(), step_it);
-    for (auto& item : step_it->resources) {
-        if (!item.not_used)
-            gatherItem(amount, pos, item, exchange_items, trade_items);
+                if (auto step_item = item.step()) {
+                    auto step_it = plan.findStepIt(step_item->step_id);
+                    if (step_it != plan.steps.end())
+                        data.addStep(&(*step_it), step_amount * item.amount);
+                }
+            }
+        }
+    }
+
+    for (auto [step, step_amount] : data.steps) {
+        for (auto& item : step->resources) {
+            if (item.not_used || item.amount == 0.0)
+                continue;
+
+            if (auto plan_item = item.plan(); plan_item && include_dependencies)
+                gatherPlanItem(step_amount * item.amount, *plan_item, data);
+            else if (auto exchange = item.exchange())
+                gatherCurrency(step_amount * item.amount, exchange->currency, data.exchange_items);
+            else if (auto trade = item.trade())
+                gatherTradeItem(step_amount * item.amount,
+                                *trade,
+                                data.exchange_items,
+                                data.trade_items);
+            else if (auto custom = item.custom(); custom && custom->cost.value != 0.0)
+                gatherCurrency(step_amount * item.amount * custom->cost.value,
+                               custom->cost.currency,
+                               data.exchange_items);
+        }
     }
 }
 
-void ShoppingModel::gatherItem(double amount,
-                               ptrdiff_t pos,
-                               const StepItem& item,
-                               ExchangeItems& exchange_items,
-                               TradeItems& trade_items)
+void ShoppingModel::gatherPlanItem(double amount, const PlanItemData& plan_item, PlanData& data)
 {
-    if (item.amount == 0.0)
+    auto it = plan_model->plans.find(plan_item.plan_id);
+    if (it == plan_model->plans.end())
         return;
 
-    if (auto step_item = item.step()) {
-        if (!include_dependencies)
-            return;
+    auto final_step = it->second.costStepIt();
+    if (final_step == it->second.steps.end())
+        return;
 
-        if (auto dep_it = plan_->findStepIt(step_item->step_id); dep_it != plan_->steps.end()) {
-            auto dep_pos = std::distance(plan_->steps.cbegin(), dep_it);
-            if (dep_pos < pos)
-                gatherStepItems(amount * item.amount, dep_it, exchange_items, trade_items);
-        }
-    } else if (auto exchange = item.exchange())
-        gatherCurrency(amount * item.amount, exchange->currency, exchange_items);
-    else if (auto trade = item.trade())
-        gatherTradeItem(amount * item.amount, *trade, exchange_items, trade_items);
-    else if (auto custom = item.custom(); custom && custom->cost.value != 0.0)
-        gatherCurrency(amount * item.amount * custom->cost.value,
-                       custom->cost.currency,
-                       exchange_items);
+    auto [added_it, added] = dependencies.try_emplace(it->first);
+    if (added) {
+        added_it->second.addStep(&(*final_step), 1.0);
+        gatherItems(it->second, added_it->second);
+    }
+
+    data.mergeItems(amount, added_it->second);
 }
 
 void ShoppingModel::gatherCurrency(double amount,
@@ -223,4 +265,33 @@ void ShoppingModel::gatherTradeItem(double amount,
     if (auto cost_data = trade_cache->costData(trade.request_key))
         gatherCurrency(amount * cost_data->cost.value, cost_data->cost.currency, exchange_items);
 }
+
+void ShoppingModel::PlanData::addStep(const Step* step, double amount)
+{
+    auto [it, added] = steps.try_emplace(step, amount);
+    if (!added)
+        it->second += amount;
+}
+
+void ShoppingModel::PlanData::mergeItems(double amount, const PlanData& data)
+{
+    if (this == &data)
+        return;
+
+    for (auto& item : data.exchange_items) {
+        auto [it, added] = exchange_items.emplace(item);
+        if (added)
+            it->second *= amount;
+        else
+            it->second += amount * item.second;
+    }
+    for (auto& item : data.trade_items) {
+        auto [it, added] = trade_items.emplace(item);
+        if (added)
+            it->second.first *= amount;
+        else
+            it->second.first += amount * item.second.first;
+    }
+}
+
 } // namespace planner

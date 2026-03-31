@@ -5,6 +5,7 @@
 #include "MainWindow.h"
 #include "Plan.h"
 #include "PlanModel.h"
+#include "PlanSearchModel.h"
 #include <algorithm>
 #include <QIcon>
 #include <QJsonArray>
@@ -165,8 +166,10 @@ PlanItem::~PlanItem()
 {
     if (plan_) {
         if (auto it = model->plans.find(plan_->id());
-            it != model->plans.end() && (&it->second) == plan_)
+            it != model->plans.end() && (&it->second) == plan_) {
+            model->search_model->removePlan(it->first);
             model->plans.erase(it);
+        }
     }
 }
 
@@ -185,20 +188,24 @@ QJsonObject PlanItem::saveJson() const
 }
 
 QJsonObject PlanItem::exportJson(const ExchangeRequestCache& cache,
-                                 TradeRequestCache& trade_cache) const
+                                 TradeRequestCache& trade_cache,
+                                 std::vector<QUuid>* plans_to_check) const
 {
     if (isFolder()) {
         QJsonObject folder_o;
         QJsonArray childs_a;
         for (auto& child : childs)
-            childs_a.push_back(child->exportJson(cache, trade_cache));
+            childs_a.push_back(child->exportJson(cache, trade_cache, plans_to_check));
         folder_o["is_folder"] = true;
         folder_o["name"] = name_;
         folder_o["childs"] = childs_a;
         return folder_o;
     }
 
-    return plan_->exportJson(cache, trade_cache);
+    if (plans_to_check)
+        return plan_->exportJson(cache, trade_cache, *plans_to_check);
+    else
+        return plan_->exportJson(cache, trade_cache);
 }
 
 PlanItem* PlanItem::replacePlan(int row, Plan&& new_plan)
@@ -229,11 +236,12 @@ PlanItem* PlanItem::restoreChild(int row)
     return child_ptr.get();
 }
 
-void PlanItem::duplicateChild(int row)
+PlanItem* PlanItem::duplicateChild(int row)
 {
     auto& child = *childs.emplace(childs.begin() + row + 1,
                                   std::make_unique<PlanItem>(*childs[row]));
     child->setName(child->name() + PlanModel::tr(" - Copy"));
+    return child.get();
 }
 
 QModelIndex PlanItem::index() const
@@ -246,11 +254,6 @@ QModelIndex PlanItem::index() const
 PlanItem* PlanItem::child(int row)
 {
     return row >= 0 && row < childCount() ? childs[row].get() : nullptr;
-}
-
-int PlanItem::columnCount() const
-{
-    return static_cast<int>(PlanItemColumn::last) + 1;
 }
 
 QVariant PlanItem::data(int column, int role) const
@@ -276,7 +279,7 @@ QVariant PlanItem::data(int column, int role) const
             case Qt::DisplayRole:
                 return !plan_->is_changed ? plan_->name : plan_->name + u"*";
             case Qt::EditRole:
-                return !plan_->is_changed ? plan_->name : plan_->name;
+                return plan_->name;
             }
             return {};
         case PlanItemColumn::Cost:

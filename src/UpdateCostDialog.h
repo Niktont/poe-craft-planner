@@ -26,7 +26,7 @@ public:
     UpdateCostDialog(MainWindow& mw);
 
 signals:
-    void costUpdated(planner::Plan* plan);
+    void costUpdated(Game game, const std::vector<QUuid>& updated_plans);
 
 public slots:
     void updatePlan(planner::Plan* plan, bool send_requests);
@@ -45,6 +45,7 @@ private:
     QListView* empty_results_view;
 
     Plan* plan{};
+    std::vector<QUuid> dependencies;
 
     void parseTradeSearch(Game game, const TradeRequestKey& request, QNetworkReply* reply);
     void parseFetchSearch(Game game,
@@ -73,7 +74,7 @@ private:
 
     void updateProgress();
     void calculateCost();
-    void calculateStepCost(Step& step);
+    void calculateStepCost(const Plan& step_plan, Step& step);
 };
 
 } // namespace planner

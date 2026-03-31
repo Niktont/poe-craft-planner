@@ -28,8 +28,9 @@ public:
     size_t stepPos() const { return step_pos; }
     void updatePos(size_t new_pos);
 
-    void updateCost(planner::Plan* plan);
-    void updateStepNames(const QUuid& changed_step, bool deleted);
+    void updateCost(bool current_updated);
+    void updateStepName(const QUuid& changed_step, bool deleted);
+    void updatePlanName(const QUuid& changed_plan);
     void updateTradeName(const planner::TradeRequestKey& request);
     void updateTradeTime(const planner::TradeRequestKey& request);
     void updateCurrencyTime(const planner::Currency& currency);

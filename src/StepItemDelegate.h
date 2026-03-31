@@ -35,6 +35,7 @@ private slots:
 private:
     QLineEdit* createCurrencyEdit(QWidget* parent, const StepItemModel* model) const;
     QLineEdit* createTradeEdit(QWidget* parent, const StepItemModel* model) const;
+    QLineEdit* createPlanEdit(QWidget* parent, const StepItemModel* model) const;
 };
 
 } // namespace planner

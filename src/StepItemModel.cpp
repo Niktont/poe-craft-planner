@@ -64,7 +64,7 @@ QVariant StepItemModel::headerData(int section, Qt::Orientation orientation, int
         case StepItemColumn::Name:
             return tr("Selector for Exchange and Step items, name for others");
         case StepItemColumn::Link:
-            return tr("Selector/link for Trade item, link for others");
+            return tr("Selector/link for Trade and Plan items, link for others");
         case StepItemColumn::Cost:
             if (is_resource_model)
                 return tr("Cost per item");
@@ -84,16 +84,18 @@ QVariant StepItemModel::headerData(int section, Qt::Orientation orientation, int
     return {};
 }
 
-int StepItemModel::rowCount(const QModelIndex& /*parent*/) const
+int StepItemModel::rowCount(const QModelIndex& parent) const
 {
-    if (!plan)
+    if (!plan || parent.isValid())
         return 0;
 
     return stepItems().size();
 }
 
-int StepItemModel::columnCount(const QModelIndex& /*parent*/) const
+int StepItemModel::columnCount(const QModelIndex& parent) const
 {
+    if (parent.isValid())
+        return 0;
     return static_cast<int>(StepItemColumn::last) + 1;
 }
 
@@ -242,7 +244,7 @@ QVariant StepItemModel::data(const QModelIndex& index, int role) const
     case StepItemColumn::Success:
         switch (role) {
         case Qt::CheckStateRole:
-            if (item.type() == StepItemType::Step)
+            if (item.type() == StepItemType::Step || item.type() == StepItemType::Plan)
                 return Qt::Unchecked;
             return item.is_success_result ? Qt::Checked : Qt::Unchecked;
         }
@@ -259,6 +261,8 @@ QVariant StepItemModel::data(const QModelIndex& index, int role) const
         return customItemData(item.amount, *custom, col, role);
     else if (auto step = item.step())
         return stepItemData(item.amount, *step, col, role);
+    else if (auto plan = item.plan())
+        return planItemData(item.amount, *plan, col, role);
 
     return {};
 }
@@ -276,7 +280,7 @@ bool StepItemModel::setData(const QModelIndex& index, const QVariant& value, int
     auto col = static_cast<StepItemColumn>(index.column());
     if (col == StepItemColumn::Success && role == Qt::CheckStateRole) {
         auto checked = value.value<Qt::CheckState>() == Qt::Checked;
-        if (item.type() == StepItemType::Step && checked)
+        if ((item.type() == StepItemType::Step || item.type() == StepItemType::Plan) && checked)
             return false;
         if (item.is_success_result != checked) {
             item.is_success_result = checked;
@@ -317,6 +321,8 @@ bool StepItemModel::setData(const QModelIndex& index, const QVariant& value, int
         res = setCustomItemData(*custom, value, index);
     else if (auto step = item.step())
         res = setStepItemData(*step, value, index);
+    else if (auto plan = item.plan())
+        res = setPlanItemData(*plan, value, index);
 
     if (res)
         plan->setChanged();
@@ -341,7 +347,8 @@ Qt::ItemFlags StepItemModel::flags(const QModelIndex& index) const
         return default_flags | Qt::ItemIsEditable;
     case StepItemColumn::Link: {
         auto& item = stepItems().at(index.row());
-        if (item.type() == StepItemType::Custom || item.type() == StepItemType::Trade)
+        if (item.type() == StepItemType::Custom || item.type() == StepItemType::Trade
+            || item.type() == StepItemType::Plan)
             return default_flags | Qt::ItemIsEditable;
         return default_flags;
     }
@@ -355,7 +362,7 @@ Qt::ItemFlags StepItemModel::flags(const QModelIndex& index) const
     }
     case StepItemColumn::Time: {
         auto& item = stepItems().at(index.row());
-        if (item.type() == StepItemType::Step)
+        if (item.type() == StepItemType::Step || item.type() == StepItemType::Plan)
             return default_flags;
         return default_flags | Qt::ItemIsEditable;
     }
@@ -422,7 +429,7 @@ bool StepItemModel::dropMimeData(
     if (row != -1)
         dest_row = row;
     else
-        dest_row = rowCount({});
+        dest_row = rowCount();
 
     QByteArray encodedData = data->data(move_mime);
     QDataStream stream{&encodedData, QIODevice::ReadOnly};
@@ -495,7 +502,6 @@ void StepItemModel::setItemType(const QModelIndex& index, StepItemType type)
     if (item.type() == type)
         return;
 
-    bool result = true;
     if (auto custom = item.custom(); custom && type == StepItemType::Trade) {
         auto name = std::move(custom->name);
         auto link = std::move(custom->link);
@@ -518,13 +524,10 @@ void StepItemModel::setItemType(const QModelIndex& index, StepItemType type)
             custom.gold = data->gold_fee;
         }
     } else
-        result = item.setType(type);
+        item.setType(type);
 
-    if (result) {
-        auto right_index = this->index(index.row(), columnCount() - 1);
-        plan->setChanged();
-        emit dataChanged(index, right_index);
-    }
+    plan->setChanged();
+    emit dataChanged(index, index.siblingAtColumn(columnCount() - 1));
 }
 
 QVariant StepItemModel::exchangeItemData(double amount,
@@ -754,10 +757,12 @@ bool StepItemModel::setTradeItemData(TradeItemData& trade,
     auto col = static_cast<StepItemColumn>(idx.column());
     switch (col) {
     case StepItemColumn::Name: {
-        auto name = value.toString();
-        if (name != trade_cache->name(trade)) {
-            trade.name = name;
-            emit dataChanged(idx, idx, {Qt::DisplayRole});
+        if (auto name = value.toString(); name != trade.name) {
+            if (name != trade_cache->name(trade)) {
+                trade.name = name;
+                emit dataChanged(idx, idx, {Qt::DisplayRole});
+            } else
+                trade.name = name;
             return true;
         }
         return false;
@@ -958,15 +963,12 @@ QVariant StepItemModel::stepItemData(double amount,
         return {};
     case StepItemColumn::Cost:
         switch (role) {
-        case Qt::DisplayRole: {
-            auto cost = step_it->costCurrency();
-            if (!cost.currency.isValid())
-                return QVariant{};
-            return formatCost(cost.value);
-        }
+        case Qt::DisplayRole:
+            if (auto cost = step_it->costCurrency(); cost.currency.isValid())
+                return formatCost(cost.value);
+            return {};
         case Qt::ToolTipRole:
-            auto cost = step_it->costCurrency();
-            if (cost.currency.isValid() && cost.value > 0.0)
+            if (auto cost = step_it->costCurrency(); cost.currency.isValid() && cost.value > 0.0)
                 return QString::number(amount * cost.value);
             return {};
         }
@@ -1020,6 +1022,124 @@ bool StepItemModel::setStepItemData(StepItemData& step_item,
     auto right_idx = sibling(idx, StepItemColumn::Time);
     emit dataChanged(idx, right_idx);
     return true;
+}
+
+QVariant StepItemModel::planItemData(double amount,
+                                     const PlanItemData& plan_item,
+                                     StepItemColumn col,
+                                     int role) const
+{
+    auto& plans = mw()->planModel(plan->game)->plans;
+    auto plan_it = plans.find(plan_item.plan_id);
+    if (plan_it == plans.end()) {
+        if (col == StepItemColumn::Name && !plan_item.name.isEmpty()
+            && (role == Qt::DisplayRole || role == Qt::EditRole))
+            return plan_item.name;
+        return {};
+    }
+
+    auto& cache = exchange_cache->cache;
+    switch (col) {
+    case StepItemColumn::Name:
+        switch (role) {
+        case Qt::DisplayRole:
+            return !plan_item.name.isEmpty() ? plan_item.name : plan_it->second.name;
+        case Qt::EditRole:
+            return plan_item.name;
+        }
+        return {};
+    case StepItemColumn::Link:
+        switch (role) {
+        case Qt::EditRole:
+            return plan_it->second.name;
+        case Qt::ForegroundRole:
+            return QColor{0x0000EE};
+        }
+        return {};
+    case StepItemColumn::Cost:
+        switch (role) {
+        case Qt::DisplayRole: {
+            if (auto cost_step = plan_it->second.costStep()) {
+                if (auto cost = cost_step->costCurrency(); cost.currency.isValid())
+                    return formatCost(cost.value);
+            }
+            return {};
+        }
+        case Qt::ToolTipRole:
+            if (auto cost_step = plan_it->second.costStep()) {
+                if (auto cost = cost_step->costCurrency();
+                    cost.currency.isValid() && cost.value > 0.0)
+                    return QString::number(amount * cost.value);
+            }
+            return {};
+        }
+        return {};
+    case StepItemColumn::CostCurrency:
+        switch (role) {
+        case Qt::DecorationRole:
+            if (auto cost_step = plan_it->second.costStep()) {
+                auto cost = cost_step->costCurrency();
+                if (auto it = exchange_cache->currencyData(cost.currency); it != cache.end())
+                    return exchange_cache->icon(it);
+            }
+            return {};
+        case Qt::DisplayRole:
+            if (auto cost_step = plan_it->second.costStep()) {
+                auto cost = cost_step->costCurrency();
+                if (auto it = exchange_cache->currencyData(cost.currency); it != cache.end())
+                    return exchange_cache->name(it);
+            }
+            return {};
+        }
+        return {};
+    case StepItemColumn::Gold:
+        switch (role) {
+        case Qt::DisplayRole:
+            if (auto cost_step = plan_it->second.costStep()) {
+                return formatGold(cost_step->costGold());
+            }
+            return {};
+        }
+        return {};
+    case StepItemColumn::Time:
+        switch (role) {
+        case Qt::DisplayRole:
+            if (auto cost_step = plan_it->second.costStep()) {
+                return formatTime(cost_step->costTime());
+            }
+            return {};
+        }
+        return {};
+    default:
+        return {};
+    }
+}
+
+bool StepItemModel::setPlanItemData(PlanItemData& plan_item,
+                                    const QVariant& value,
+                                    const QModelIndex& idx)
+{
+    auto col = static_cast<StepItemColumn>(idx.column());
+    switch (col) {
+    case StepItemColumn::Name:
+        if (auto name = value.toString(); name != plan_item.name) {
+            plan_item.name = name;
+            emit dataChanged(idx, idx, {Qt::DisplayRole});
+            return true;
+        }
+        return false;
+    case StepItemColumn::Link:
+        if (auto plan_id = value.toUuid(); plan_id != plan_item.plan_id) {
+            plan_item.plan_id = plan_id;
+            auto name_idx = index(idx.row(), StepItemColumn::Name);
+            auto time_idx = index(idx.row(), StepItemColumn::Time);
+            emit dataChanged(name_idx, time_idx);
+            return true;
+        }
+        return false;
+    default:
+        return false;
+    }
 }
 
 QVariant StepItemModel::formatCostWithRatio(double cost)
@@ -1107,6 +1227,21 @@ void StepItemModel::updateStepName(const QUuid& changed_step, bool deleted)
                 emit dataChanged(idx, right_idx);
             } else
                 emit dataChanged(idx, idx, {Qt::DisplayRole});
+        }
+    }
+}
+
+void StepItemModel::updatePlanName(const QUuid& changed_plan)
+{
+    if (!plan)
+        return;
+
+    auto& items = stepItems();
+    for (size_t i = 0; i < items.size(); ++i) {
+        if (auto plan = items[i].plan();
+            plan && plan->name.isEmpty() && plan->plan_id == changed_plan) {
+            auto idx = index(i, StepItemColumn::Name);
+            emit dataChanged(idx, idx, {Qt::DisplayRole});
         }
     }
 }
@@ -1244,12 +1379,11 @@ void StepItemModel::setDefaultTime(const QModelIndex& idx)
 
 void StepItemModel::openLink(const QModelIndex& idx)
 {
-    if (!idx.isValid())
-        return;
-
     auto& item = stepItems()[idx.row()];
     if (auto step = item.step())
         mw()->planWidget()->scrollToStep(step->step_id);
+    else if (auto plan = item.plan())
+        mw()->planWidget()->openPlan(plan->plan_id, this->plan->game);
     else {
         auto url = QUrl::fromUserInput(data(idx, Qt::ToolTipRole).toString());
         if (url.isValid())
