@@ -70,6 +70,8 @@ TradeRequestView::TradeRequestView(MainWindow& mw_, QWidget* parent)
     delete_action = addAction(tr("Delete"), this, &TradeRequestView::deleteSearch);
     delete_action->setShortcuts({Qt::Key_Delete, Qt::ShiftModifier | Qt::Key_Delete});
     delete_action->setShortcutContext(Qt::WidgetShortcut);
+
+    connect(this, &QTableView::clicked, this, &TradeRequestView::indexClicked);
 }
 
 void TradeRequestView::setCache(TradeRequestCache& cache_)
@@ -111,14 +113,12 @@ void TradeRequestView::indexClicked(const QModelIndex& idx)
     if (idx.column() != static_cast<int>(TradeRequestColumn::Link))
         return;
 
-    auto modifiers = QGuiApplication::keyboardModifiers();
-    if (!(modifiers & Qt::ControlModifier))
-        return;
-
-    auto it = cache->cache.nth(cache->proxy_model->mapToSource(idx).row());
-    auto url = QUrl::fromUserInput(it->first.toUrl(cache->game));
-    if (url.isValid())
-        QDesktopServices::openUrl(url);
+    if (QGuiApplication::keyboardModifiers().testFlag(Qt::AltModifier)) {
+        auto it = cache->cache.nth(cache->proxy_model->mapToSource(idx).row());
+        auto url = QUrl::fromUserInput(it->first.toUrl(cache->game));
+        if (url.isValid())
+            QDesktopServices::openUrl(url);
+    }
 }
 
 void TradeRequestView::deleteSearch()
@@ -129,7 +129,7 @@ void TradeRequestView::deleteSearch()
     auto selection = selectionModel()->selection();
 
     auto modifiers = QGuiApplication::keyboardModifiers();
-    bool delete_search = (modifiers & Qt::ShiftModifier);
+    bool delete_search = modifiers.testFlag(Qt::ShiftModifier);
     if (!delete_search) {
         QMessageBox msg;
         if (selection[0].top() == selection[0].bottom()) {

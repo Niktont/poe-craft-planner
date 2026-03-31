@@ -67,8 +67,7 @@ void ShoppingView::indexClicked(const QModelIndex& idx)
     if (idx.column() != static_cast<int>(ShoppingColumn::Link))
         return;
 
-    auto modifiers = QGuiApplication::keyboardModifiers();
-    if (modifiers & Qt::ControlModifier) {
+    if (QGuiApplication::keyboardModifiers().testFlag(Qt::AltModifier)) {
         auto url = QUrl::fromUserInput(model()->data(idx, Qt::ToolTipRole).toString());
         if (url.isValid())
             QDesktopServices::openUrl(url);

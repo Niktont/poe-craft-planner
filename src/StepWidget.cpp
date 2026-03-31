@@ -246,7 +246,7 @@ void StepWidget::hideEmptyResults(bool hide)
 void StepWidget::deleteStep()
 {
     auto modifiers = QGuiApplication::keyboardModifiers();
-    bool delete_step = (modifiers & Qt::ShiftModifier);
+    bool delete_step = modifiers.testFlag(Qt::ShiftModifier);
     if (!delete_step) {
         QMessageBox msg;
         msg.setWindowTitle(tr("Delete Step"));

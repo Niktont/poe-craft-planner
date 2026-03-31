@@ -14,7 +14,7 @@ DescriptionTextEdit::DescriptionTextEdit(QWidget* parent)
     : QPlainTextEdit{parent}
 {
     finish_editing_action = addAction(tr("Finish Editing"));
-    finish_editing_action->setShortcuts({Qt::Key_F2, Qt::CTRL | Qt::Key_E});
+    finish_editing_action->setShortcuts({Qt::Key_F2, Qt::ControlModifier | Qt::Key_E});
     finish_editing_action->setShortcutContext(Qt::WidgetShortcut);
 }
 
@@ -30,7 +30,7 @@ DescriptionBrowser::DescriptionBrowser(QWidget* parent)
     : QTextBrowser{parent}
 {
     start_editing_action = addAction(tr("Edit"));
-    start_editing_action->setShortcuts({Qt::Key_F2, Qt::CTRL | Qt::Key_E});
+    start_editing_action->setShortcuts({Qt::Key_F2, Qt::ControlModifier | Qt::Key_E});
     start_editing_action->setShortcutContext(Qt::WidgetShortcut);
 }
 

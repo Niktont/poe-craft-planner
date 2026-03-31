@@ -32,7 +32,7 @@ PlanTreeView::PlanTreeView(PlanModel& model, QWidget* parent)
         planModel()->insertFolder(current);
         context_index.reset();
     });
-    duplicate_action = addAction(tr("Duplicate"), {Qt::CTRL | Qt::Key_D}, this, [this] {
+    duplicate_action = addAction(tr("Duplicate"), {Qt::ControlModifier | Qt::Key_D}, this, [this] {
         planModel()->duplicateItem(selectionModel()->currentIndex());
     });
     duplicate_action->setShortcutContext(Qt::WidgetShortcut);
@@ -47,7 +47,7 @@ PlanTreeView::PlanTreeView(PlanModel& model, QWidget* parent)
     delete_action = addAction(tr("Delete"),
                               this,
                               &PlanTreeView::deleteItem);
-    delete_action->setShortcuts({{Qt::Key_Delete}, {Qt::SHIFT | Qt::Key_Delete}});
+    delete_action->setShortcuts({{Qt::Key_Delete}, {Qt::ShiftModifier | Qt::Key_Delete}});
     delete_action->setShortcutContext(Qt::WidgetShortcut);
 
     export_clipboard_action = addAction(tr("Export (Clipboard)"), this, [this] {
@@ -115,7 +115,7 @@ void PlanTreeView::deleteItem()
     auto item = planModel()->internalPtr(current);
     auto modifiers = QGuiApplication::keyboardModifiers();
 
-    bool delete_item = (modifiers & Qt::ShiftModifier)
+    bool delete_item = modifiers.testFlag(Qt::ShiftModifier)
                        || (item->isFolder() && item->childCount() == 0);
     if (!delete_item) {
         QMessageBox msg;

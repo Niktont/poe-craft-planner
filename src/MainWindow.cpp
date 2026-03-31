@@ -258,7 +258,7 @@ void MainWindow::openShoppingDialog()
     if (!have_resources)
         return;
 
-    if (qApp->keyboardModifiers().testFlag(Qt::ControlModifier))
+    if (QGuiApplication::keyboardModifiers().testFlag(Qt::ControlModifier))
         shopping_setup->openPlan(*plan);
     else
         shopping_dialog->openPlan(*plan);
@@ -393,7 +393,7 @@ void MainWindow::setupActions()
     });
 
     save_all_action = new QAction{tr("Save All"), this};
-    save_all_action->setShortcut(Qt::CTRL | Qt::SHIFT | Qt::Key_S);
+    save_all_action->setShortcut(Qt::ControlModifier | Qt::ShiftModifier | Qt::Key_S);
     connect(save_all_action, &QAction::triggered, this, [this] {
         plan_model_poe1->saveAllPlans();
         plan_model_poe2->saveAllPlans();
@@ -407,7 +407,7 @@ void MainWindow::setupActions()
     connect(always_on_top_action, &QAction::toggled, this, &MainWindow::setAlwaysOnTop);
 
     hide_descriptions_action = new QAction{tr("Hide Descriptions"), this};
-    hide_descriptions_action->setShortcut(Qt::ALT | Qt::Key_D);
+    hide_descriptions_action->setShortcut(Qt::AltModifier | Qt::Key_D);
     hide_descriptions_action->setCheckable(true);
     connect(hide_descriptions_action,
             &QAction::toggled,

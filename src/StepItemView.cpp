@@ -124,7 +124,7 @@ StepItemView::StepItemView(StepItemModel& model, QWidget* parent)
         context_index.reset();
     });
 
-    duplicate_action = addAction(tr("Duplicate"), {Qt::CTRL | Qt::Key_D}, this, [this] {
+    duplicate_action = addAction(tr("Duplicate"), {Qt::ControlModifier | Qt::Key_D}, this, [this] {
         stepModel()->duplicateItem(selectionModel()->currentIndex());
     });
     duplicate_action->setShortcutContext(Qt::WidgetShortcut);
@@ -138,7 +138,7 @@ StepItemView::StepItemView(StepItemModel& model, QWidget* parent)
         context_index.reset();
     });
 
-    copy_regex_action = addAction(tr("Copy Regex"), {Qt::ALT | Qt::Key_C}, this, [this] {
+    copy_regex_action = addAction(tr("Copy Regex"), {Qt::AltModifier | Qt::Key_C}, this, [this] {
         stepModel()->copyRegex(selectionModel()->currentIndex());
     });
     copy_regex_action->setShortcutContext(Qt::WidgetShortcut);
@@ -153,7 +153,7 @@ StepItemView::StepItemView(StepItemModel& model, QWidget* parent)
         stepModel()->setDefaultTime(selectionModel()->currentIndex());
     });
 
-    delete_action = addAction(tr("Delete"), QKeySequence{Qt::SHIFT | Qt::Key_Delete});
+    delete_action = addAction(tr("Delete"), QKeySequence{Qt::ShiftModifier | Qt::Key_Delete});
     delete_action->setShortcutContext(Qt::WidgetShortcut);
     connect(delete_action, &QAction::triggered, this, [this] {
         auto selection = selectionModel()->selection();
@@ -267,8 +267,7 @@ void StepItemView::indexClicked(const QModelIndex& idx)
     if (idx.column() != static_cast<int>(StepItemColumn::Link))
         return;
 
-    auto modifiers = QGuiApplication::keyboardModifiers();
-    if (modifiers & Qt::ControlModifier)
+    if (QGuiApplication::keyboardModifiers().testFlag(Qt::AltModifier))
         stepModel()->openLink(idx);
 }
 
@@ -283,7 +282,7 @@ void StepItemView::deleteSearch()
 
     auto modifiers = QGuiApplication::keyboardModifiers();
 
-    bool delete_search = (modifiers & Qt::ShiftModifier);
+    bool delete_search = modifiers.testFlag(Qt::ShiftModifier);
     if (!delete_search) {
         QMessageBox msg;
 
