@@ -34,8 +34,10 @@ private slots:
 private:
     ShoppingView* view;
     ShoppingModel* model;
-    MainWindow* mw;
+    MainWindow& mw;
+
     bool web_view_dialog_was_visible{false};
+    bool plan_search_dialog_was_visible{false};
 
     keyboard_auto_type::AutoType auto_type;
     QHotkey* next_item_hk;

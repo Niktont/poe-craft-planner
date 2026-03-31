@@ -2,6 +2,7 @@
 
 #include "ExchangeRequestCache.h"
 #include "ExchangeRequestManager.h"
+#include "PlanSearchDialog.h"
 #include "PlanTreeView.h"
 #include "PlanWidget.h"
 #include "RequestEditDialog.h"
@@ -77,6 +78,7 @@ MainWindow::MainWindow(QWidget* parent)
             &PlanWidget::updateCost);
     shopping_dialog = new ShoppingDialog{*this};
     shopping_setup = new ShoppingSetupDialog{*this};
+    plan_search_dialog = new PlanSearchDialog{*this};
 
     setupAboutDialog();
 
@@ -144,7 +146,8 @@ void MainWindow::closeEvent(QCloseEvent* event)
     settings.setValue(Settings::windows_web_view_dialog_geometry, web_view_dialog->saveGeometry());
     settings.setValue(Settings::windows_shopping_dialog_geometry, shopping_dialog->saveGeometry());
     searches_dialog->saveState(settings);
-    settings.setValue(Settings::windows_request_edit_size, request_edit_dialog->size());
+    settings.setValue(Settings::windows_request_edit_dialog_size, request_edit_dialog->size());
+    settings.setValue(Settings::windows_plan_search_dialog_size, plan_search_dialog->size());
 
     settings.setValue(Settings::windows_main_hide_descriptions,
                       hide_descriptions_action->isChecked());
@@ -192,10 +195,14 @@ void MainWindow::dropEvent(QDropEvent* event)
 
 void MainWindow::setAlwaysOnTop(bool checked)
 {
-    setWindowFlag(Qt::WindowStaysOnTopHint, checked);
-    show();
-
-    shopping_dialog->setWindowFlag(Qt::WindowStaysOnTopHint, checked);
+    auto setStaysOnTop = [](bool checked, QWidget* window) {
+        bool was_visible = window->isVisible();
+        window->setWindowFlag(Qt::WindowStaysOnTopHint, checked);
+        if (was_visible)
+            window->show();
+    };
+    setStaysOnTop(checked, this);
+    setStaysOnTop(checked, shopping_dialog);
 }
 
 void MainWindow::cleanup()
@@ -399,6 +406,12 @@ void MainWindow::setupActions()
         plan_model_poe2->saveAllPlans();
     });
 
+    plan_search_action = new QAction{tr("Find Plan")};
+    plan_search_action->setShortcut(Qt::ControlModifier | Qt::Key_F);
+    connect(plan_search_action, &QAction::triggered, this, [this] {
+        plan_search_dialog->openGame(planWidget()->game());
+    });
+
     open_web_page_action = new QAction{tr("Open Web Page"), this};
     connect(open_web_page_action, &QAction::triggered, web_view_dialog, &QDialog::show);
 
@@ -473,6 +486,8 @@ void MainWindow::setupActions()
     edit_menu->addAction(searches_poe2_action);
     edit_menu->addSeparator();
     edit_menu->addAction(update_cost_action);
+    edit_menu->addSeparator();
+    edit_menu->addAction(plan_search_action);
 
     auto view_menu = menuBar()->addMenu(tr("View"));
     view_menu->addAction(open_web_page_action);

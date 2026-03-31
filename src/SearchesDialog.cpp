@@ -27,6 +27,9 @@ SearchesDialog::SearchesDialog(MainWindow& mw)
 
         request_view->filterName(text);
     });
+    connect(filter_edit, &QLineEdit::returnPressed, this, [this] {
+        request_view->filterName(filter_edit->text());
+    });
 
     layout->addWidget(filter_edit, 0, Qt::AlignLeft | Qt::AlignVCenter);
 
@@ -35,7 +38,7 @@ SearchesDialog::SearchesDialog(MainWindow& mw)
     auto settings = Settings::get();
     auto geometry = settings.value(Settings::windows_searches_dialog_geometry);
     if (!geometry.isValid())
-        resize(400, 400);
+        setGeometry(200, 200, 400, 400);
     else
         restoreGeometry(geometry.toByteArray());
 }

@@ -15,6 +15,7 @@ TradeRequestCache::TradeRequestCache(Game game,
                                      QObject* parent)
     : QAbstractTableModel{parent}
     , completer{new QCompleter{{}, this}}
+    , proxy_model{new QSortFilterProxyModel{this}}
     , game{game}
     , exchange_cache{&exchange_cache}
 {
@@ -25,7 +26,6 @@ TradeRequestCache::TradeRequestCache(Game game,
     completer->setCaseSensitivity(Qt::CaseInsensitive);
     completer->setModel(this);
 
-    proxy_model = new QSortFilterProxyModel{this};
     proxy_model->setFilterCaseSensitivity(Qt::CaseInsensitive);
     proxy_model->setFilterKeyColumn(static_cast<int>(TradeRequestColumn::Name));
     proxy_model->setDynamicSortFilter(false);

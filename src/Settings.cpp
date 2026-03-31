@@ -92,9 +92,12 @@ const QLatin1StringView Settings::windows_web_view_dialog_geometry{
 const QLatin1StringView Settings::windows_searches_dialog_geometry{
     "windows/searches_dialog_geometry"};
 const QLatin1StringView Settings::windows_searches_view_columns{"windows/searches_view_columns"};
-const QLatin1StringView Settings::windows_request_edit_size{"windows/request_edit_size"};
+const QLatin1StringView Settings::windows_request_edit_dialog_size{
+    "windows/request_edit_dialog_size"};
 const QLatin1StringView Settings::windows_shopping_dialog_geometry{
     "windows/shopping_dialog_geometry"};
+const QLatin1StringView Settings::windows_plan_search_dialog_size{
+    "windows/plan_search_dialog_size"};
 const QLatin1StringView Settings::windows_main_hide_descriptions{"windows/main_hide_descriptions"};
 const QLatin1StringView Settings::windows_main_hide_empty_resources{
     "windows/main_hide_empty_resources"};

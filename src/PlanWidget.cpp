@@ -197,17 +197,17 @@ void PlanWidget::updateCost(Game game, const std::vector<QUuid>& updated_plans)
     };
 
     bool current_updated = false;
-    if (plan_) {
-        for (auto& id : updated_plans) {
-            if (id != plan_->id())
-                updateModelCost(id, model);
-            else
-                current_updated = true;
-        }
-    } else {
+    if (!plan_ || plan_->game != game) {
         for (auto& id : updated_plans)
             updateModelCost(id, model);
         return;
+    }
+
+    for (auto& id : updated_plans) {
+        if (id != plan_->id())
+            updateModelCost(id, model);
+        else
+            current_updated = true;
     }
 
     if (current_updated) {
@@ -231,12 +231,26 @@ void PlanWidget::setDescriptions(Plan* plan)
         step_widgets[i]->setDescription();
 }
 
-void PlanWidget::openPlan(QUuid plan_id, Game game)
+void PlanWidget::openPlan(const QUuid& plan_id, Game game)
 {
     if (plan_ && plan_id == plan_->id())
         return;
 
     mw()->planView(game)->selectPlan(plan_id);
+}
+
+void PlanWidget::setPlanFromSearch(const QUuid& plan_id, Game game)
+{
+    if (plan_ && plan_id == plan_->id())
+        return;
+
+    auto plan_model = mw()->planModel(game);
+    if (auto it = plan_model->plans.find(plan_id); it != plan_model->plans.end()) {
+        setDescriptions(plan_);
+
+        setPlan(plan_model, &it->second);
+        mw()->planView(game)->selectPlan(plan_id);
+    }
 }
 
 void PlanWidget::deleteStep(size_t step_pos)
@@ -318,7 +332,7 @@ void PlanWidget::setFinalStep(size_t step_pos, bool checked)
     displayFinalStep();
 }
 
-void PlanWidget::scrollToStep(QUuid step_id)
+void PlanWidget::scrollToStep(const QUuid& step_id)
 {
     if (!plan_)
         return;
@@ -487,13 +501,13 @@ void PlanWidget::updateStepNames(size_t renamed_step)
         step_widgets[i]->updateStepName(step.id, false);
 }
 
-void PlanWidget::updatePlanName(Plan* renamed_plan)
+void PlanWidget::updatePlanName(const Plan& renamed_plan)
 {
-    if (renamed_plan == plan_)
+    if (&renamed_plan == plan_)
         name_label->setText(plan_->name);
 
     for (size_t i = 0; i < plan_->steps.size(); ++i)
-        step_widgets[i]->updatePlanName(renamed_plan->id());
+        step_widgets[i]->updatePlanName(renamed_plan.id());
 }
 
 void PlanWidget::updateTradeRequests(const QModelIndex& top_left, const QModelIndex& bottom_right)

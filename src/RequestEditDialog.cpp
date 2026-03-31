@@ -98,7 +98,7 @@ RequestEditDialog::RequestEditDialog(MainWindow& mw)
     setFocusPolicy(Qt::ClickFocus);
 
     auto settings = Settings::get();
-    auto size = settings.value(Settings::windows_request_edit_size);
+    auto size = settings.value(Settings::windows_request_edit_dialog_size);
     if (size.isValid())
         resize(size.value<QSize>());
     else

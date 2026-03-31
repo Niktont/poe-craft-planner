@@ -211,7 +211,7 @@ bool PlanModel::setData(const QModelIndex& index, const QVariant& value, int rol
     if (result) {
         if (!item->isFolder()) {
             search_model->updatePath(*item->plan());
-            emit planRenamed(item->plan());
+            emit planRenamed(*item->plan());
         } else {
             for (auto& child : item->childs) {
                 if (child->plan())

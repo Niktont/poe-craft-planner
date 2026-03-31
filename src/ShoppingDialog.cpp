@@ -1,5 +1,6 @@
 #include "ShoppingDialog.h"
 #include "MainWindow.h"
+#include "PlanSearchDialog.h"
 #include "Settings.h"
 #include "ShoppingModel.h"
 #include "ShoppingView.h"
@@ -15,7 +16,7 @@ namespace planner {
 
 ShoppingDialog::ShoppingDialog(MainWindow& mw)
     : QDialog{}
-    , mw{&mw}
+    , mw{mw}
 {
     model = new ShoppingModel{mw, this};
     view = new ShoppingView{*model};
@@ -33,10 +34,16 @@ ShoppingDialog::ShoppingDialog(MainWindow& mw)
         restoreGeometry(geometry.toByteArray());
 
     connect(this, &QDialog::finished, this, [this] {
-        this->mw->show();
+        this->mw.show();
+
         if (web_view_dialog_was_visible)
-            this->mw->web_view_dialog->show();
+            this->mw.web_view_dialog->show();
         web_view_dialog_was_visible = false;
+
+        if (plan_search_dialog_was_visible)
+            this->mw.plan_search_dialog->show();
+        plan_search_dialog_was_visible = false;
+
         removeHotkeys();
     });
 
@@ -68,11 +75,15 @@ void ShoppingDialog::openPlan(Plan& plan, size_t step_pos, double amount, bool i
 {
     auto res = model->setPlan(plan, step_pos, amount, include_dependencies);
     if (res) {
-        web_view_dialog_was_visible = mw->web_view_dialog->isVisible();
+        web_view_dialog_was_visible = mw.web_view_dialog->isVisible();
         if (web_view_dialog_was_visible)
-            mw->web_view_dialog->hide();
+            mw.web_view_dialog->hide();
 
-        mw->hide();
+        plan_search_dialog_was_visible = mw.plan_search_dialog->isVisible();
+        if (plan_search_dialog_was_visible)
+            mw.plan_search_dialog->hide();
+
+        mw.hide();
 
         view->adjustNameWidth();
         view->updateGeometry();

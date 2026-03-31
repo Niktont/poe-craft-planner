@@ -32,6 +32,7 @@ class SettingsDialog;
 class ShoppingDialog;
 class ShoppingSetupDialog;
 class SearchesDialog;
+class PlanSearchDialog;
 
 class MainWindow : public QMainWindow
 {
@@ -68,6 +69,8 @@ public:
     ShoppingDialog* shopping_dialog;
     ShoppingSetupDialog* shopping_setup;
 
+    PlanSearchDialog* plan_search_dialog;
+
     QDialog* about_dialog;
 
     PlanModel* plan_model_poe1;
@@ -96,6 +99,7 @@ public:
 
     QAction* save_action;
     QAction* save_all_action;
+    QAction* plan_search_action;
 
     QAction* open_web_page_action;
     QAction* always_on_top_action;

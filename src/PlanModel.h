@@ -98,7 +98,7 @@ public:
     MainWindow* mw() const;
 
 signals:
-    void planRenamed(planner::Plan* plan);
+    void planRenamed(const planner::Plan& plan);
     void planUpdated(planner::Plan* new_plan, const planner::Plan* old_plan);
 
 private:

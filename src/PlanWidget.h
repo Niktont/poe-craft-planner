@@ -34,13 +34,14 @@ public:
     void updateStepNames(size_t renamed_step);
     void setDescriptions(planner::Plan* plan);
 
-    void openPlan(QUuid plan_id, Game game);
+    void openPlan(const QUuid& plan_id, Game game);
+    void setPlanFromSearch(const QUuid& plan_id, Game game);
 
     void moveStep(size_t step_pos, bool up);
     void deleteStep(size_t step_pos);
     void duplicateStep(size_t step_pos);
     void setFinalStep(size_t step_pos, bool checked);
-    void scrollToStep(QUuid step_id);
+    void scrollToStep(const QUuid& step_id);
     void copyStep(size_t step_pos);
     void pasteStep(size_t step_pos);
 
@@ -58,7 +59,7 @@ public:
 
 public slots:
     void addStep();
-    void updateCost(Game game, const std::vector<QUuid>& updated_plans);
+    void updateCost(planner::Game game, const std::vector<QUuid>& updated_plans);
 
     void hideDescriptions(bool hide);
     void hideEmptyResources(bool hide);
@@ -72,7 +73,7 @@ private slots:
     void setPlanOnUpdate(planner::Plan* new_plan, const planner::Plan* old_plan);
     void setPlanOnCurrentChange(const QModelIndex& new_current);
     void checkDeletingPlans(const QModelIndex& parent, int first, int last);
-    void updatePlanName(planner::Plan* renamed_plan);
+    void updatePlanName(const planner::Plan& renamed_plan);
 
     void updateTradeRequests(const QModelIndex& top_left, const QModelIndex& bottom_right);
     void updateTradeName(int row, const planner::TradeRequestCache& cache);

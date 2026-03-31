@@ -77,6 +77,8 @@ qt_add_executable(${PROJECT_NAME}
     src/SearchesDialog.h src/SearchesDialog.cpp
     src/PlanItemData.h
     src/PlanSearchModel.h src/PlanSearchModel.cpp
+    src/PlanSearchDialog.h src/PlanSearchDialog.cpp
+    src/PlanSearchView.h src/PlanSearchView.cpp
 )
 
 target_link_libraries(${PROJECT_NAME}

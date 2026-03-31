@@ -1,12 +1,14 @@
 #include "PlanSearchModel.h"
 #include "PlanModel.h"
 #include <QCompleter>
+#include <QSortFilterProxyModel>
 
 namespace planner {
 
 PlanSearchModel::PlanSearchModel(PlanModel& model)
     : QAbstractTableModel{&model}
     , completer{new QCompleter{{}, this}}
+    , proxy_model{new QSortFilterProxyModel{this}}
 {
     completer->setCaseSensitivity(Qt::CaseInsensitive);
     completer->setCompletionColumn(static_cast<int>(PlanSearchColumn::Name));
@@ -14,6 +16,11 @@ PlanSearchModel::PlanSearchModel(PlanModel& model)
     completer->setCompletionRole(Qt::DisplayRole);
     completer->setFilterMode(Qt::MatchContains);
     completer->setModel(this);
+
+    proxy_model->setFilterCaseSensitivity(Qt::CaseInsensitive);
+    proxy_model->setFilterKeyColumn(static_cast<int>(PlanSearchColumn::Name));
+    proxy_model->setDynamicSortFilter(false);
+    proxy_model->setSourceModel(this);
 }
 
 void PlanSearchModel::reset()
@@ -57,6 +64,19 @@ void PlanSearchModel::updatePath(const Plan& plan)
     it->second = plan.item()->shortPath();
     auto idx = index(plans.index_of(it), static_cast<int>(PlanSearchColumn::Name));
     emit dataChanged(idx, idx, {Qt::DisplayRole});
+}
+
+QVariant PlanSearchModel::headerData(int section, Qt::Orientation orientation, int role) const
+{
+    if (role != Qt::DisplayRole || orientation == Qt::Vertical)
+        return {};
+
+    auto col = static_cast<PlanSearchColumn>(section);
+    switch (col) {
+    case PlanSearchColumn::Name:
+        return tr("Name");
+    }
+    return {};
 }
 
 int PlanSearchModel::rowCount(const QModelIndex& parent) const

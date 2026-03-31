@@ -39,8 +39,9 @@ public:
     static const QLatin1StringView windows_web_view_dialog_geometry;
     static const QLatin1StringView windows_searches_dialog_geometry;
     static const QLatin1StringView windows_searches_view_columns;
-    static const QLatin1StringView windows_request_edit_size;
+    static const QLatin1StringView windows_request_edit_dialog_size;
     static const QLatin1StringView windows_shopping_dialog_geometry;
+    static const QLatin1StringView windows_plan_search_dialog_size;
 
     static const QLatin1StringView poe1_realm;
     static const QLatin1StringView poe1_league;
