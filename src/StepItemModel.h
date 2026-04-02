@@ -111,6 +111,9 @@ public:
     Game game() const;
     PlanWidget* planWidget() const;
 
+    Step* step();
+    const Step* step() const { return const_cast<StepItemModel*>(this)->step(); };
+
 private:
     friend class StepItemDelegate;
 
@@ -119,8 +122,6 @@ private:
     ExchangeRequestCache* exchange_cache{};
     TradeRequestCache* trade_cache{};
 
-    Step* step();
-    const Step* step() const { return const_cast<StepItemModel*>(this)->step(); };
     std::vector<StepItem>& stepItems();
     const std::vector<StepItem>& stepItems() const;
 

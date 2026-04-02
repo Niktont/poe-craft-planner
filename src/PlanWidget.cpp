@@ -611,6 +611,16 @@ void PlanWidget::hideEmptyResults(bool hide)
         step_widgets[i]->hideEmptyResults(hide);
 }
 
+void PlanWidget::hideNotUsedItems(bool hide)
+{
+    is_not_used_items_hidden = hide;
+    if (!plan_)
+        return;
+
+    for (size_t i = 0; i < plan_->steps.size(); ++i)
+        step_widgets[i]->hideNotUsedItems(hide);
+}
+
 void PlanWidget::contextMenuEvent(QContextMenuEvent* event)
 {
     auto menu = new QMenu{this};

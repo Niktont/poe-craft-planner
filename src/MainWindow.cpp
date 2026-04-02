@@ -96,6 +96,8 @@ MainWindow::MainWindow(QWidget* parent)
         settings.value(Settings::windows_main_hide_empty_resources, false).toBool());
     hide_empty_results_action->setChecked(
         settings.value(Settings::windows_main_hide_empty_results, false).toBool());
+    hide_not_used_items_action->setChecked(
+        settings.value(Settings::windows_main_hide_not_used_items, false).toBool());
 
     auto state = settings.value(Settings::windows_main_state, {});
     if (!state.isValid()) {
@@ -157,6 +159,8 @@ void MainWindow::closeEvent(QCloseEvent* event)
                       hide_empty_resources_action->isChecked());
     settings.setValue(Settings::windows_main_hide_empty_results,
                       hide_empty_results_action->isChecked());
+    settings.setValue(Settings::windows_main_hide_not_used_items,
+                      hide_not_used_items_action->isChecked());
 
     if (planWidget()->plan())
         settings.setValue(Settings::windows_main_last_plan, planWidget()->plan()->id().toString());
@@ -443,6 +447,14 @@ void MainWindow::setupActions()
             planWidget(),
             &PlanWidget::hideEmptyResults);
 
+    hide_not_used_items_action = new QAction{tr("Hide Unused Items"), this};
+    hide_not_used_items_action->setShortcut(Qt::AltModifier | Qt::Key_I);
+    hide_not_used_items_action->setCheckable(true);
+    connect(hide_not_used_items_action,
+            &QAction::toggled,
+            planWidget(),
+            &PlanWidget::hideNotUsedItems);
+
     add_step_action = new QAction{tr("Add Step"), this};
     connect(add_step_action, &QAction::triggered, planWidget(), &PlanWidget::addStep);
 
@@ -494,9 +506,11 @@ void MainWindow::setupActions()
     auto view_menu = menuBar()->addMenu(tr("View"));
     view_menu->addAction(open_web_page_action);
     view_menu->addAction(always_on_top_action);
+    view_menu->addSeparator();
     view_menu->addAction(hide_descriptions_action);
     view_menu->addAction(hide_empty_resources_action);
     view_menu->addAction(hide_empty_results_action);
+    view_menu->addAction(hide_not_used_items_action);
 
     settings_action = menuBar()->addAction(tr("Settings"));
     connect(settings_action, &QAction::triggered, settings_dialog, &SettingsDialog::openSettings);

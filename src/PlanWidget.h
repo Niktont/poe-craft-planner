@@ -56,6 +56,7 @@ public:
 
     bool isEmptyResourcesHidden() const { return is_empty_resources_hidden; }
     bool isEmptyResultsHidden() const { return is_empty_results_hidden; }
+    bool isNotUsedItemsHidden() const { return is_not_used_items_hidden; }
 
 public slots:
     void addStep();
@@ -64,6 +65,7 @@ public slots:
     void hideDescriptions(bool hide);
     void hideEmptyResources(bool hide);
     void hideEmptyResults(bool hide);
+    void hideNotUsedItems(bool hide);
 
 protected:
     void contextMenuEvent(QContextMenuEvent* event) override;
@@ -103,6 +105,7 @@ private:
     bool is_descriptions_hidden{false};
     bool is_empty_resources_hidden{false};
     bool is_empty_results_hidden{false};
+    bool is_not_used_items_hidden{false};
 
     std::vector<StepWidget*> step_widgets;
     void emplaceStepWidget(size_t i);

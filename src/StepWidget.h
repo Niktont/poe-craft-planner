@@ -43,6 +43,7 @@ public:
     void hideDescription(bool hide);
     void hideEmptyResources(bool hide);
     void hideEmptyResults(bool hide);
+    void hideNotUsedItems(bool hide);
 
 protected:
     void contextMenuEvent(QContextMenuEvent* event) override;

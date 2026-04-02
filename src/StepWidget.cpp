@@ -86,7 +86,7 @@ StepWidget::StepWidget(PlanWidget* plan_widget, QWidget* parent)
     title_layout->addWidget(toolbar);
 
     edit_widget = new QWidget{};
-    auto step_layout = new QBoxLayout{QBoxLayout::TopToBottom};
+    auto step_layout = new QVBoxLayout{};
     edit_widget->setLayout(step_layout);
     layout->addWidget(edit_widget);
     step_layout->setContentsMargins(0, 0, 0, 0);
@@ -113,8 +113,6 @@ StepWidget::StepWidget(PlanWidget* plan_widget, QWidget* parent)
 
     table_layout->addWidget(resources_widget);
     table_layout->addWidget(results_widget);
-
-    step_layout->addStretch(1);
 }
 
 Step* StepWidget::currentStep()
@@ -147,6 +145,9 @@ void StepWidget::setStep(Plan* plan, size_t step_pos)
 
     resources_widget->view->verticalHeader()->reset();
     results_widget->view->verticalHeader()->reset();
+
+    if (plan_widget->isNotUsedItemsHidden())
+        hideNotUsedItems(true);
 
     resources_widget->view->syncColumns();
 
@@ -187,8 +188,11 @@ void StepWidget::updateCost(bool current_updated)
     if (!plan)
         return;
 
-    if (current_updated)
+    if (current_updated) {
         displayCost();
+        if (plan_widget->isNotUsedItemsHidden())
+            hideNotUsedItems(true);
+    }
 
     resources_model->updateCosts();
     results_model->updateCosts();
@@ -242,6 +246,16 @@ void StepWidget::hideEmptyResults(bool hide)
         results_widget->setHidden(hide);
     else
         results_widget->setHidden(false);
+}
+
+void StepWidget::hideNotUsedItems(bool hide)
+{
+    auto step = currentStep();
+    if (!step)
+        return;
+
+    resources_widget->view->hideNotUsedItems(hide);
+    results_widget->view->hideNotUsedItems(hide);
 }
 
 void StepWidget::deleteStep()

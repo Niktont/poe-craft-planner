@@ -35,6 +35,7 @@ public:
     static const QLatin1StringView windows_main_hide_descriptions;
     static const QLatin1StringView windows_main_hide_empty_resources;
     static const QLatin1StringView windows_main_hide_empty_results;
+    static const QLatin1StringView windows_main_hide_not_used_items;
     static const QLatin1StringView windows_main_last_plan;
     static const QLatin1StringView windows_web_view_dialog_geometry;
     static const QLatin1StringView windows_searches_dialog_geometry;

@@ -232,6 +232,34 @@ QSize StepItemView::sizeHint() const
                 + lineWidth() * 2};
 }
 
+void StepItemView::hideNotUsedItems(bool hide)
+{
+    auto step = stepModel()->step();
+    auto& items = stepModel()->is_resource_model ? step->resources : step->results;
+    if (items.empty())
+        return;
+
+    bool rows_changed = false;
+    if (hide) {
+        for (size_t i = 0; i < items.size(); ++i) {
+            if (isRowHidden(i) != items[i].not_used) {
+                setRowHidden(i, items[i].not_used);
+                rows_changed = true;
+            }
+        }
+    } else {
+        for (size_t i = 0; i < items.size(); ++i) {
+            if (items[i].not_used) {
+                setRowHidden(i, false);
+                rows_changed = true;
+            }
+        }
+    }
+
+    if (rows_changed)
+        updateGeometry();
+}
+
 void StepItemView::resizeColumns(const QModelIndex& top_left,
                                  const QModelIndex& bottom_right,
                                  const QList<int>& /*roles*/)
