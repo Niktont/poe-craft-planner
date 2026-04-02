@@ -14,7 +14,9 @@ Step::Step(const QJsonObject& step_o, const ExchangeRequestCache& cache)
     , results_cost{ItemCost::fromJson(step_o["results_cost"].toObject(), cache)}
     , failed_cost{ItemCost::fromJson(step_o["failed_cost"].toObject(), cache)}
     , resource_calc{static_cast<ResourceCalcMethod>(step_o["resource_calc"].toInt())}
+    , custom_resource_data{step_o["custom_resource_calc"].toObject()}
     , result_calc{static_cast<ResultCalcMethod>(step_o["result_calc"].toInt())}
+    , custom_result_data{step_o["custom_result_calc"].toObject()}
 {
     const auto resources_a = step_o["resources"].toArray();
     resources.reserve(resources_a.size());
@@ -171,7 +173,10 @@ void Step::commonJson(QJsonObject& step_o) const
     step_o["failed_cost"] = failed_cost.toJson();
 
     step_o["resource_calc"] = static_cast<std::underlying_type_t<ResourceCalcMethod>>(resource_calc);
+    step_o["custom_resource_calc"] = custom_resource_data.toJson();
+
     step_o["result_calc"] = static_cast<std::underlying_type_t<ResourceCalcMethod>>(result_calc);
+    step_o["custom_result_calc"] = custom_result_data.toJson();
 }
 
 const QStringList& resourceMethods()
@@ -179,6 +184,7 @@ const QStringList& resourceMethods()
     static const QStringList list{
         StepItemsWidget::tr("Sum"),
         StepItemsWidget::tr("Min"),
+        StepItemsWidget::tr("Custom"),
     };
     return list;
 }
@@ -188,6 +194,7 @@ const QStringList& resultMethods()
     static const QStringList list{
         StepItemsWidget::tr("Sum"),
         StepItemsWidget::tr("Max"),
+        StepItemsWidget::tr("Custom"),
     };
     return list;
 }

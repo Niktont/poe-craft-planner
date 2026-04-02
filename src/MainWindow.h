@@ -19,7 +19,7 @@ class QRestAccessManager;
 class QAction;
 
 namespace planner {
-
+class CustomEditDialog;
 class TradeRequestManager;
 class TradeRequestCache;
 class ExchangeRequestManager;
@@ -69,6 +69,7 @@ public:
     ShoppingDialog* shopping_dialog;
     ShoppingSetupDialog* shopping_setup;
 
+    CustomEditDialog* custom_edit_dialog;
     PlanSearchDialog* plan_search_dialog;
 
     QDialog* about_dialog;

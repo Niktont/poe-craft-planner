@@ -1,5 +1,6 @@
 #include "MainWindow.h"
 
+#include "CustomEditDialog.h"
 #include "ExchangeRequestCache.h"
 #include "ExchangeRequestManager.h"
 #include "PlanSearchDialog.h"
@@ -78,6 +79,7 @@ MainWindow::MainWindow(QWidget* parent)
             &PlanWidget::updateCost);
     shopping_dialog = new ShoppingDialog{*this};
     shopping_setup = new ShoppingSetupDialog{*this};
+    custom_edit_dialog = new CustomEditDialog{this};
     plan_search_dialog = new PlanSearchDialog{*this};
 
     setupAboutDialog();

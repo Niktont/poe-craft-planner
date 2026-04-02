@@ -4,20 +4,26 @@
 #include <QWidget>
 
 class QComboBox;
+class QPushButton;
 
 namespace planner {
 class StepItemView;
 class StepItemDelegate;
 class Plan;
 class StepItemModel;
+class CustomEditDialog;
 
 class StepItemsWidget : public QWidget
 {
     Q_OBJECT
 public:
-    explicit StepItemsWidget(StepItemModel& model, QWidget* parent = nullptr);
+    explicit StepItemsWidget(CustomEditDialog& custom_edit_dialog,
+                             StepItemModel& model,
+                             QWidget* parent = nullptr);
 
     const bool is_resources_widget;
+
+    void updateCustomText();
 
     void setOtherView(StepItemsWidget& other);
     StepItemView* view;
@@ -33,8 +39,11 @@ private:
     Plan* plan{};
     size_t step_pos{};
     QComboBox* method_combo;
+    QPushButton* custom_button;
 
     StepItemDelegate* delegate;
+
+    CustomEditDialog& custom_edit_dialog;
 };
 
 } // namespace planner

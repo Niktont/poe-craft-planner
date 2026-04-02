@@ -79,6 +79,12 @@ qt_add_executable(${PROJECT_NAME}
     src/PlanSearchModel.h src/PlanSearchModel.cpp
     src/PlanSearchDialog.h src/PlanSearchDialog.cpp
     src/PlanSearchView.h src/PlanSearchView.cpp
+    src/CustomCalculation.h src/CustomCalculation.cpp
+    src/CustomExpression.h
+    src/CustomParser.h src/CustomParser.cpp
+    src/CustomResult.h src/CustomResult.cpp
+    src/CustomVisitor.h src/CustomVisitor.cpp
+    src/CustomEditDialog.h src/CustomEditDialog.cpp
 )
 
 target_link_libraries(${PROJECT_NAME}

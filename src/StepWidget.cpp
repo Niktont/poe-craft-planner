@@ -1,6 +1,7 @@
 #include "StepWidget.h"
 #include "CostWidget.h"
 #include "DescriptionEdit.h"
+#include "MainWindow.h"
 #include "Plan.h"
 #include "PlanWidget.h"
 #include "StepItemDelegate.h"
@@ -103,10 +104,10 @@ StepWidget::StepWidget(PlanWidget* plan_widget, QWidget* parent)
     table_layout->setContentsMargins(5, 0, 0, 0);
 
     resources_model = new StepItemModel{true, *plan_widget};
-    resources_widget = new StepItemsWidget{*resources_model};
+    resources_widget = new StepItemsWidget{*plan_widget->mw()->custom_edit_dialog, *resources_model};
 
     results_model = new StepItemModel{false, *plan_widget};
-    results_widget = new StepItemsWidget{*results_model};
+    results_widget = new StepItemsWidget{*plan_widget->mw()->custom_edit_dialog, *results_model};
 
     results_widget->setOtherView(*resources_widget);
 

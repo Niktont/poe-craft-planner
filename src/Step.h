@@ -1,6 +1,7 @@
 #ifndef STEP_H
 #define STEP_H
 
+#include "CustomExpression.h"
 #include "StepItem.h"
 #include <boost/container/container_fwd.hpp>
 #include <vector>
@@ -12,10 +13,30 @@ namespace planner {
 enum class ResourceCalcMethod {
     Sum,
     Min,
+    Custom,
 };
 enum class ResultCalcMethod {
     Sum,
     Max,
+    Custom,
+};
+
+class CustomCalcData
+{
+public:
+    CustomCalcData() = default;
+    CustomCalcData(const QJsonObject& custom_o)
+        : text{custom_o["text"].toString()}
+    {}
+    QJsonObject toJson() const
+    {
+        QJsonObject custom_o;
+        custom_o["text"] = text;
+        return custom_o;
+    }
+
+    QString text;
+    std::optional<custom_tree::Expression> tree;
 };
 
 const QStringList& resourceMethods();
@@ -48,8 +69,11 @@ public:
     ItemCost failed_cost;
 
     ResourceCalcMethod resource_calc{ResourceCalcMethod::Sum};
+    CustomCalcData custom_resource_data;
     std::vector<StepItem> resources;
+
     ResultCalcMethod result_calc{ResultCalcMethod::Sum};
+    CustomCalcData custom_result_data;
     std::vector<StepItem> results;
 
     ItemCost cost() const { return resources_cost - failed_cost; }

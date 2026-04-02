@@ -26,7 +26,7 @@ public:
     UpdateCostDialog(MainWindow& mw);
 
 signals:
-    void costUpdated(Game game, const std::vector<QUuid>& updated_plans);
+    void costUpdated(planner::Game game, const std::vector<QUuid>& updated_plans);
 
 public slots:
     void updatePlan(planner::Plan* plan, bool send_requests);
@@ -74,7 +74,8 @@ private:
 
     void updateProgress();
     void calculateCost();
-    void calculateStepCost(const Plan& step_plan, Step& step);
+    bool calculateStepCost(const Plan& step_plan, Step& step);
+    bool calculateStepCustomCost(bool is_resource_cost, const Plan& step_plan, Step& step);
 };
 
 } // namespace planner

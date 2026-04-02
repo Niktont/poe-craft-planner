@@ -1,4 +1,5 @@
 #include "UpdateCostDialog.h"
+#include "CustomEditDialog.h"
 #include "ExchangeRequestCache.h"
 #include "ExchangeRequestManager.h"
 #include "MainWindow.h"
@@ -372,18 +373,28 @@ void UpdateCostDialog::calculateCost()
         }
     }
 
+    bool parse_failed = false;
     for (auto plan : plans) {
-        for (auto& step : plan->steps)
-            calculateStepCost(*plan, step);
+        if (!parse_failed) {
+            for (auto& step : plan->steps) {
+                if (!calculateStepCost(*plan, step)) {
+                    parse_failed = true;
+                    break;
+                }
+            }
+        }
 
         plan->league = Settings::currentLeague(plan->game);
         plan->setChanged();
     }
     emit costUpdated(plan->game, dependencies);
 
-    if (empty_search_results.empty())
-        accept();
-    else {
+    if (empty_search_results.empty()) {
+        if (parse_failed)
+            reject();
+        else
+            accept();
+    } else {
         progress_label->setText(tr("No results found for this searches:"));
         cancel_button->setText(tr("Ok"));
         QStringList list;
@@ -397,46 +408,57 @@ void UpdateCostDialog::calculateCost()
     }
 }
 
-void UpdateCostDialog::calculateStepCost(const Plan& step_plan, Step& step)
+bool UpdateCostDialog::calculateStepCost(const Plan& step_plan, Step& step)
 {
     auto trade_cache = mw()->tradeCache(step_plan.game);
     auto exchange_cache = mw()->exchangeCache(step_plan.game);
     auto plan_model = mw()->planModel(step_plan.game);
 
-    std::vector<std::optional<ItemCost>> resources_cost;
-    for (auto& item : step.resources) {
-        item.not_used = !resources_cost
-                             .emplace_back(item.calculateCost(step_plan,
-                                                              *exchange_cache,
-                                                              *trade_cache,
-                                                              *plan_model))
-                             .has_value();
-    }
+    auto& custom_visitor = mw()->custom_edit_dialog->calc.visitor;
+    custom_visitor.setPlan(step_plan);
+    custom_visitor.setModels(*exchange_cache, *trade_cache, *plan_model);
 
-    auto has_value = [](const std::optional<ItemCost>& opt) { return opt.has_value(); };
-    auto value = [](const std::optional<ItemCost>& opt) { return *opt; };
-    auto resources_view = std::views::filter(resources_cost, has_value);
-    switch (step.resource_calc) {
-    case ResourceCalcMethod::Sum:
-        for (auto& cost : resources_view)
-            step.resources_cost += *cost;
-        break;
-    case ResourceCalcMethod::Min: {
-        if (auto min_it = std::ranges::min_element(resources_view, std::less{}, value);
-            min_it != resources_view.end()) {
-            for (auto& item : step.resources)
-                item.not_used = true;
-
-            auto pos = std::distance(resources_cost.begin(), min_it.base());
-            step.resources[pos].not_used = false;
-            step.resources_cost = *(*min_it);
+    if (step.resource_calc == ResourceCalcMethod::Custom) {
+        if (!calculateStepCustomCost(true, step_plan, step))
+            return false;
+    } else {
+        std::vector<std::optional<ItemCost>> resources_cost;
+        for (auto& item : step.resources) {
+            item.not_used = !resources_cost
+                                 .emplace_back(item.calculateCost(step_plan,
+                                                                  *exchange_cache,
+                                                                  *trade_cache,
+                                                                  *plan_model))
+                                 .has_value();
         }
-        break;
-    }
+
+        auto hasValue = [](const std::optional<ItemCost>& opt) { return opt.has_value(); };
+        auto value = [](const std::optional<ItemCost>& opt) { return *opt; };
+        auto resources_view = std::views::filter(resources_cost, hasValue);
+        switch (step.resource_calc) {
+        case ResourceCalcMethod::Sum:
+            for (auto& cost : resources_view)
+                step.resources_cost += *cost;
+            break;
+        case ResourceCalcMethod::Min: {
+            if (auto min_it = std::ranges::min_element(resources_view, std::less{}, value);
+                min_it != resources_view.end()) {
+                for (auto& item : step.resources)
+                    item.not_used = true;
+
+                auto pos = std::distance(resources_cost.begin(), min_it.base());
+                step.resources[pos].not_used = false;
+                step.resources_cost = *(*min_it);
+            }
+            break;
+        }
+        case ResourceCalcMethod::Custom:
+            break;
+        }
     }
 
     std::vector<std::pair<std::optional<ItemCost>, bool>> results_cost;
-    for (auto& item : step.results) {
+    auto calcResult = [&](const StepItem& item) -> std::optional<ItemCost>& {
         auto& cost = results_cost
                          .emplace_back(item.calculateCost(step_plan,
                                                           *exchange_cache,
@@ -452,36 +474,109 @@ void UpdateCostDialog::calculateStepCost(const Plan& step_plan, Step& step)
                 cost->time = {};
             }
         }
-        item.not_used = !cost.has_value();
-    }
+        return cost;
+    };
 
-    auto has_success = [](auto& p) { return p.first.has_value() && p.second; };
-    auto result_value = [](auto& p) { return *p.first; };
-    auto success_view = std::views::filter(results_cost, has_success);
-    switch (step.result_calc) {
-    case ResultCalcMethod::Sum:
-        for (auto& cost : success_view)
-            step.results_cost += *cost.first;
-        break;
-    case ResultCalcMethod::Max:
-        if (auto max_it = std::ranges::max_element(success_view, std::less{}, result_value);
-            max_it != success_view.end()) {
-            for (auto& item : step.results) {
-                if (item.is_success_result)
-                    item.not_used = true;
+    if (step.result_calc == ResultCalcMethod::Custom) {
+        if (!calculateStepCustomCost(false, step_plan, step))
+            return false;
+
+        for (auto& item : step.results) {
+            if (item.is_success_result) {
+                results_cost.emplace_back(std::optional<ItemCost>{}, true);
+                continue;
             }
-
-            auto pos = std::distance(results_cost.begin(), max_it.base());
-            step.results[pos].not_used = false;
-            step.results_cost = *max_it->first;
+            auto& cost = calcResult(item);
+            if (item.not_used)
+                item.not_used = !cost.has_value();
         }
-        break;
+    } else {
+        for (auto& item : step.results) {
+            auto& cost = calcResult(item);
+            item.not_used = !cost.has_value();
+        }
+
+        auto hasSuccess = [](auto& p) { return p.first.has_value() && p.second; };
+        auto resultValue = [](auto& p) { return *p.first; };
+        auto success_view = std::views::filter(results_cost, hasSuccess);
+        switch (step.result_calc) {
+        case ResultCalcMethod::Sum:
+            for (auto& cost : success_view)
+                step.results_cost += *cost.first;
+            break;
+        case ResultCalcMethod::Max:
+            if (auto max_it = std::ranges::max_element(success_view, std::less{}, resultValue);
+                max_it != success_view.end()) {
+                for (auto& item : step.results) {
+                    if (item.is_success_result)
+                        item.not_used = true;
+                }
+
+                auto pos = std::distance(results_cost.begin(), max_it.base());
+                step.results[pos].not_used = false;
+                step.results_cost = *max_it->first;
+            }
+            break;
+        case ResultCalcMethod::Custom:
+            break;
+        }
     }
 
-    auto has_failed = [](auto& p) { return p.first.has_value() && !p.second; };
-    auto failed_view = std::views::filter(results_cost, has_failed);
+    auto hasFailed = [](auto& p) { return p.first.has_value() && !p.second; };
+    auto failed_view = std::views::filter(results_cost, hasFailed);
     for (auto& cost : failed_view)
         step.failed_cost += *cost.first;
+
+    return true;
+}
+
+bool UpdateCostDialog::calculateStepCustomCost(bool is_resource_cost,
+                                               const Plan& step_plan,
+                                               Step& step)
+{
+    auto& cost = is_resource_cost ? step.resources_cost : step.results_cost;
+    auto& items = is_resource_cost ? step.resources : step.results;
+    auto& custom_data = is_resource_cost ? step.custom_resource_data : step.custom_result_data;
+    auto& calc = mw()->custom_edit_dialog->calc;
+
+    calc.visitor.setItems(items);
+
+    std::optional<CustomResult> result;
+    try {
+        result = calc.calculate(custom_data);
+    } catch (ParseException& e) {
+        custom_data.tree.reset();
+    }
+    if (!result) {
+        auto msg = new QMessageBox{this};
+        msg->setAttribute(Qt::WA_DeleteOnClose);
+        msg->setWindowTitle(tr("Parse Failed"));
+        if (is_resource_cost)
+            msg->setText(
+                tr("Failed to parse custom expression for resources of step \"%1\" in plan \"%2\".")
+                    .arg(step.name, step_plan.name));
+        else
+            msg->setText(
+                tr("Failed to parse custom expression for results of step \"%1\" in plan \"%2\".")
+                    .arg(step.name, step_plan.name));
+        msg->open();
+        return false;
+    }
+
+    if (result->cost)
+        cost = std::move(*result->cost);
+
+    if (result->used_items.empty()) {
+        for (auto& item : items)
+            item.not_used = true;
+    } else {
+        for (auto i : calc.visitor.not_used_items)
+            items[i].not_used = true;
+        for (auto i : result->used_items)
+            items[i].not_used = false;
+    }
+
+    return true;
 }
 
 } // namespace planner
