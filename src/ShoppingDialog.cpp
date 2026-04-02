@@ -9,6 +9,9 @@
 #include <QDesktopServices>
 #include <QGuiApplication>
 #include <QVBoxLayout>
+#ifndef PLANNER_NO_BROWSER
+#include "WebViewDialog.h"
+#endif
 
 using namespace keyboard_auto_type;
 
@@ -36,9 +39,11 @@ ShoppingDialog::ShoppingDialog(MainWindow& mw)
     connect(this, &QDialog::finished, this, [this] {
         this->mw.show();
 
+#ifndef PLANNER_NO_BROWSER
         if (web_view_dialog_was_visible)
             this->mw.web_view_dialog->show();
         web_view_dialog_was_visible = false;
+#endif
 
         if (plan_search_dialog_was_visible)
             this->mw.plan_search_dialog->show();
@@ -75,9 +80,11 @@ void ShoppingDialog::openPlan(Plan& plan, size_t step_pos, double amount, bool i
 {
     auto res = model->setPlan(plan, step_pos, amount, include_dependencies);
     if (res) {
+#ifndef PLANNER_NO_BROWSER
         web_view_dialog_was_visible = mw.web_view_dialog->isVisible();
         if (web_view_dialog_was_visible)
             mw.web_view_dialog->hide();
+#endif
 
         plan_search_dialog_was_visible = mw.plan_search_dialog->isVisible();
         if (plan_search_dialog_was_visible)

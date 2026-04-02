@@ -17,7 +17,11 @@
 #include <QMessageBox>
 #include <QPushButton>
 #include <QVBoxLayout>
+
+#ifndef PLANNER_NO_BROWSER
+#include "WebViewDialog.h"
 #include <QWebEngineView>
+#endif
 
 namespace planner {
 
@@ -55,12 +59,17 @@ RequestEditDialog::RequestEditDialog(MainWindow& mw)
     paste_button = new QPushButton{tr("Paste")};
     connect(paste_button, &QPushButton::clicked, this, &RequestEditDialog::checkQuery);
     query_layout->addWidget(paste_button);
+    paste_button->setAutoDefault(false);
 
+#ifndef PLANNER_NO_BROWSER
     load_button = new QPushButton{tr("Load")};
     connect(load_button, &QPushButton::clicked, this, &RequestEditDialog::loadQuery);
     load_button->setToolTip(tr("If you are adding a lot of searches, load one every 5+ seconds to "
                                "not exceed rate limits."));
     query_layout->addWidget(load_button);
+    load_button->setAutoDefault(false);
+#endif
+
     query_layout->addStretch(1);
 
     regex_edit = new QLineEdit{};
@@ -88,9 +97,7 @@ RequestEditDialog::RequestEditDialog(MainWindow& mw)
 
     main_layout->addStretch();
 
-    paste_button->setAutoDefault(false);
-    load_button->setAutoDefault(false);
-    ok_button->setAutoDefault(false);
+    ok_button->setAutoDefault(true);
     save_button->setAutoDefault(false);
     cancel_button->setAutoDefault(false);
 
@@ -103,6 +110,13 @@ RequestEditDialog::RequestEditDialog(MainWindow& mw)
         resize(size.value<QSize>());
     else
         resize(620, 200);
+}
+
+void RequestEditDialog::setLoadEnabled([[maybe_unused]] bool enabled)
+{
+#ifndef PLANNER_NO_BROWSER
+    load_button->setEnabled(enabled);
+#endif
 }
 
 void RequestEditDialog::openGame(Game game_, bool need_clear)
@@ -140,7 +154,7 @@ void RequestEditDialog::openRequest(Game game, const TradeRequestKey& request)
             regex_edit->setText(it->second.regex());
             description_edit->setText(it->second.description().text);
 
-            load_button->setEnabled(!is_query_valid);
+            setLoadEnabled(!is_query_valid);
         }
     }
 
@@ -205,7 +219,7 @@ void RequestEditDialog::checkLink()
         msg.exec();
 
         is_link_valid = false;
-        load_button->setEnabled(false);
+        setLoadEnabled(false);
         enableSave(false);
         return;
     }
@@ -213,7 +227,7 @@ void RequestEditDialog::checkLink()
     auto& new_request = res.assume_value();
     edit_request = new_request;
     is_link_valid = true;
-    load_button->setEnabled(true);
+    setLoadEnabled(true);
 
     if (auto it = cache->requestData(edit_request); it != cache->cache.end()) {
         edit_query = it->second.query();
@@ -222,42 +236,6 @@ void RequestEditDialog::checkLink()
 
     if (is_name_valid && is_query_valid)
         enableSave(true);
-}
-
-void RequestEditDialog::loadQuery()
-{
-    if (!edit_request.isValid())
-        return;
-    if (!is_query_valid) {
-        if (auto it = cache->requestData(edit_request);
-            it != cache->cache.end() && !it->second.query().isEmpty()) {
-            setQueryValid(true);
-            edit_query = it->second.query();
-
-            if (is_name_valid)
-                enableSave(true);
-            return;
-        }
-    }
-
-    load_button->setEnabled(false);
-    link_edit->setEnabled(false);
-
-    auto web_view = mw()->web_view;
-    web_view->load(edit_request.toUrl(game));
-    connect(
-        web_view,
-        &QWebEngineView::loadFinished,
-        this,
-        [this, web_view, request = edit_request] {
-            web_view->page()->toHtml([this, request](const QString& html) {
-                if (request == edit_request)
-                    findQuery(html);
-                else
-                    link_edit->setEnabled(true);
-            });
-        },
-        Qt::SingleShotConnection);
 }
 
 void RequestEditDialog::checkQuery()
@@ -299,8 +277,45 @@ void RequestEditDialog::selectRequest(const QModelIndex& proxy_idx)
     regex_edit->setText(it->second.regex());
     description_edit->setText(it->second.description().text);
 
-    load_button->setEnabled(!is_query_valid);
+    setLoadEnabled(!is_query_valid);
     enableSave(false);
+}
+
+#ifndef PLANNER_NO_BROWSER
+void RequestEditDialog::loadQuery()
+{
+    if (!edit_request.isValid())
+        return;
+    if (!is_query_valid) {
+        if (auto it = cache->requestData(edit_request);
+            it != cache->cache.end() && !it->second.query().isEmpty()) {
+            setQueryValid(true);
+            edit_query = it->second.query();
+
+            if (is_name_valid)
+                enableSave(true);
+            return;
+        }
+    }
+
+    setLoadEnabled(false);
+    link_edit->setEnabled(false);
+
+    auto web_view = mw()->web_view_dialog->web_view;
+    web_view->load(edit_request.toUrl(game));
+    connect(
+        web_view,
+        &QWebEngineView::loadFinished,
+        this,
+        [this, web_view, request = edit_request] {
+            web_view->page()->toHtml([this, request](const QString& html) {
+                if (request == edit_request)
+                    findQuery(html);
+                else
+                    link_edit->setEnabled(true);
+            });
+        },
+        Qt::SingleShotConnection);
 }
 
 void RequestEditDialog::findQuery(const QString& html)
@@ -350,12 +365,26 @@ void RequestEditDialog::findQuery(const QString& html)
     setQueryValid(true);
     edit_query = json;
 
-    load_button->setEnabled(false);
+    setLoadEnabled(false);
     link_edit->setEnabled(true);
 
     if (is_name_valid && is_link_valid)
         enableSave(true);
 }
+
+void RequestEditDialog::queryLoadFailed()
+{
+    QMessageBox msg;
+    msg.setWindowTitle(tr("Query Loading Failed"));
+    msg.addButton(QMessageBox::Ok);
+    msg.setText(tr("Failed to load query. Trade website don't load query without logging in. "
+                   "Consider input query manually."));
+    msg.exec();
+
+    setLoadEnabled(true);
+    link_edit->setEnabled(true);
+}
+#endif
 
 void RequestEditDialog::saveRequest()
 {
@@ -378,22 +407,9 @@ void RequestEditDialog::cleanup()
                &RequestEditDialog::selectRequest);
 }
 
-void RequestEditDialog::queryLoadFailed()
-{
-    QMessageBox msg;
-    msg.setWindowTitle(tr("Query Loading Failed"));
-    msg.addButton(QMessageBox::Ok);
-    msg.setText(tr("Failed to load query. Trade website don't load query without logging in. "
-                   "Consider input query manually."));
-    msg.exec();
-
-    load_button->setEnabled(true);
-    link_edit->setEnabled(true);
-}
-
 void RequestEditDialog::clear()
 {
-    load_button->setEnabled(false);
+    setLoadEnabled(false);
     enableSave(false);
     is_name_valid = false;
     is_link_valid = false;

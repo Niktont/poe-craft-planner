@@ -33,13 +33,16 @@ protected:
 private slots:
     void checkName();
     void checkLink();
-    void loadQuery();
     void checkQuery();
     void checkChange();
 
     void selectRequest(const QModelIndex& proxy_idx);
     void saveRequest();
     void cleanup();
+
+#ifndef PLANNER_NO_BROWSER
+    void loadQuery();
+#endif
 
 private:
     QLineEdit* name_edit;
@@ -49,7 +52,6 @@ private:
 
     QCheckBox* query_cb;
     QPushButton* paste_button;
-    QPushButton* load_button;
 
     QPushButton* ok_button;
     QPushButton* save_button;
@@ -69,9 +71,15 @@ private:
     void enableSave(bool enable);
 
     void setGame(planner::Game game);
+    void clear();
+
+    void setLoadEnabled(bool enabled);
+#ifndef PLANNER_NO_BROWSER
+    QPushButton* load_button;
+
     void findQuery(const QString& html);
     void queryLoadFailed();
-    void clear();
+#endif
 };
 
 } // namespace planner

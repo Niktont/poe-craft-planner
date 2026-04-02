@@ -7,18 +7,15 @@
 #include <QJsonObject>
 #include <QNetworkReply>
 #include <QRestAccessManager>
-#include <QWebEnginePage>
-#include <QWebEngineProfile>
-#include <QWebEngineView>
 
 namespace planner {
 
 TradeRequestManager::TradeRequestManager(QRestAccessManager& manager,
-                                         QWebEngineView& web_view,
+                                         const QString& user_agent,
                                          QObject* parent)
     : QObject{parent}
     , manager{&manager}
-    , web_view{&web_view}
+    , user_agent{user_agent}
 {
 }
 
@@ -30,7 +27,7 @@ QNetworkReply* TradeRequestManager::postSearchRequest(Game game,
 
     request.setUrl(key.toSearchUrl(game));
 
-    request.setHeader(QNetworkRequest::UserAgentHeader, userAgent());
+    request.setHeader(QNetworkRequest::UserAgentHeader, user_agent);
 
     request.setRawHeader("accept", "application/json");
     request.setRawHeader("content-type", "application/json");
@@ -50,7 +47,7 @@ QNetworkReply* TradeRequestManager::fetchItems(Game game,
 
     request.setUrl(key.toFetchUrl(game, items));
 
-    request.setHeader(QNetworkRequest::UserAgentHeader, userAgent());
+    request.setHeader(QNetworkRequest::UserAgentHeader, user_agent);
 
     request.setRawHeader("accept", "*/*");
     request.setRawHeader("priority", "u=4, i");
@@ -178,8 +175,4 @@ std::chrono::milliseconds TradeRequestManager::findDelay(QNetworkReply* reply, s
     return std::chrono::milliseconds{static_cast<long long>(std::ceil(delay * 1000))};
 }
 
-QString TradeRequestManager::userAgent() const
-{
-    return web_view->page()->profile()->httpUserAgent();
-}
 } // namespace planner

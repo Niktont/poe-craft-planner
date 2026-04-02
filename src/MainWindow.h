@@ -2,19 +2,16 @@
 #define MAINWINDOW_H
 
 #include "PlanModel.h"
-#include <memory>
+
 #include <QMainWindow>
 #include <QMessageBox>
-#include <QWebEngineProfile>
 
-class QWebEngineView;
 class QLineEdit;
 class QNetworkAccessManager;
 class QDockWidget;
 class QTreeView;
 class QToolBar;
 class QDialog;
-class QWebEngineProfile;
 class QRestAccessManager;
 class QAction;
 
@@ -33,6 +30,9 @@ class ShoppingDialog;
 class ShoppingSetupDialog;
 class SearchesDialog;
 class PlanSearchDialog;
+#ifndef PLANNER_NO_BROWSER
+class WebViewDialog;
+#endif
 
 class MainWindow : public QMainWindow
 {
@@ -46,10 +46,9 @@ public:
     QDockWidget* plans_widget_poe2;
     PlanTreeView* plan_view_poe2;
 
-    QDialog* web_view_dialog;
-    QWebEngineView* web_view;
-    QLineEdit* url_edit;
-    std::unique_ptr<QWebEngineProfile> web_profile;
+#ifndef PLANNER_NO_BROWSER
+    WebViewDialog* web_view_dialog;
+#endif
 
     QNetworkAccessManager* network_manager;
     QRestAccessManager* rest_manager;
@@ -102,7 +101,9 @@ public:
     QAction* save_all_action;
     QAction* plan_search_action;
 
+#ifndef PLANNER_NO_BROWSER
     QAction* open_web_page_action;
+#endif
     QAction* always_on_top_action;
     QAction* hide_descriptions_action;
     QAction* hide_empty_resources_action;
@@ -138,7 +139,6 @@ private slots:
 private:
     void setupDockWidgets();
     void setupNetwork();
-    void setupWebViewDialog();
     void setupAboutDialog();
     void setupActions();
 

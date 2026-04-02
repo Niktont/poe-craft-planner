@@ -9,19 +9,17 @@
 #include <QRestAccessManager>
 #include <QRestReply>
 #include <QUrlQuery>
-#include <QWebEnginePage>
-#include <QWebEngineView>
 
 using namespace Qt::StringLiterals;
 
 namespace planner {
 
 ExchangeRequestManager::ExchangeRequestManager(QRestAccessManager& manager,
-                                               QWebEngineView& web_view,
+                                               const QString& user_agent,
                                                MainWindow& parent)
     : QObject{&parent}
     , manager{&manager}
-    , web_view{&web_view}
+    , user_agent{user_agent}
 {}
 
 QNetworkReply* ExchangeRequestManager::getLeagues(Game game)
@@ -32,7 +30,7 @@ QNetworkReply* ExchangeRequestManager::getLeagues(Game game)
     else
         request.setUrl(QUrl::fromEncoded("https://poe.ninja/poe2/api/data/index-state"));
 
-    request.setHeader(QNetworkRequest::UserAgentHeader, userAgent());
+    request.setHeader(QNetworkRequest::UserAgentHeader, user_agent);
 
     request.setRawHeader("accept", "*/*");
     request.setRawHeader("priority", "u=4, i");
@@ -54,7 +52,7 @@ QNetworkReply* ExchangeRequestManager::getOverview(Game game, const QString& typ
     url.setQuery(query);
 
     QNetworkRequest request{url};
-    request.setHeader(QNetworkRequest::UserAgentHeader, userAgent());
+    request.setHeader(QNetworkRequest::UserAgentHeader, user_agent);
 
     request.setRawHeader("accept", "*/*");
     request.setRawHeader("priority", "u=4, i");
@@ -202,7 +200,7 @@ void ExchangeRequestManager::downloadIcon(const QString& link_path, const QStrin
     QNetworkRequest request;
     request.setUrl("https://web.poecdn.com" + link_path);
 
-    request.setHeader(QNetworkRequest::UserAgentHeader, userAgent());
+    request.setHeader(QNetworkRequest::UserAgentHeader, user_agent);
 
     request.setRawHeader("accept",
                          "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8");
@@ -221,11 +219,6 @@ void ExchangeRequestManager::downloadIcon(const QString& link_path, const QStrin
         if (file.open(QFile::NewOnly))
             file.write(reply->readAll());
     });
-}
-
-QString ExchangeRequestManager::userAgent()
-{
-    return web_view->page()->profile()->httpUserAgent();
 }
 
 } // namespace planner

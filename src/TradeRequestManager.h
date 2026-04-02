@@ -1,24 +1,25 @@
 #ifndef TRADEREQUESTMANAGER_H
 #define TRADEREQUESTMANAGER_H
 
-#include "CurrencyCost.h"
 #include "Game.h"
+#include <QDateTime>
 #include <QObject>
 
 class QRestAccessManager;
 class QNetworkReply;
-class QWebEngineView;
+class QJsonObject;
 
 namespace planner {
 class TradeRequestKey;
 class TradeRequestCache;
+class ExchangeRequestCache;
 
 class TradeRequestManager : public QObject
 {
     Q_OBJECT
 public:
     explicit TradeRequestManager(QRestAccessManager& manager,
-                                 QWebEngineView& web_view,
+                                 const QString& user_agent,
                                  QObject* parent = nullptr);
 
     QNetworkReply* postSearchRequest(Game game,
@@ -44,8 +45,7 @@ public:
 
 private:
     QRestAccessManager* manager;
-    QWebEngineView* web_view;
-    QString userAgent() const;
+    QString user_agent;
 
     QDateTime trade_search_finished_time;
     std::chrono::milliseconds trade_search_delay{2000};

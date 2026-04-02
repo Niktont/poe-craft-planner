@@ -5,7 +5,13 @@ project(CraftPlanner VERSION 0.2.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Widgets WebEngineWidgets Sql)
+option(PLANNER_NO_BROWSER "Build without browser" OFF)
+
+if (PLANNER_NO_BROWSER)
+    find_package(Qt6 REQUIRED COMPONENTS Widgets Network Sql)
+else()
+    find_package(Qt6 REQUIRED COMPONENTS Widgets WebEngineWidgets Sql)
+endif()
 
 find_package(Boost REQUIRED)
 
@@ -16,7 +22,7 @@ add_subdirectory(DataUpdater EXCLUDE_FROM_ALL)
 set(KEYBOARD_AUTO_TYPE_NO_EXCEPTIONS TRUE)
 add_subdirectory(libs/keyboard-auto-type)
 
-set(QHOTKEY_INSTALL FALSE)
+option(QHOTKEY_INSTALL "Enable install rule" OFF)
 add_subdirectory(libs/QHotkey)
 
 qt_add_executable(${PROJECT_NAME}
@@ -37,7 +43,6 @@ qt_add_executable(${PROJECT_NAME}
     src/StepItemView.h src/StepItemView.cpp
     src/Settings.h src/Settings.cpp
     src/TradeRequestManager.h src/TradeRequestManager.cpp
-    src/WebPage.h src/WebPage.cpp
     src/TradeRequestKey.h src/TradeRequestKey.cpp
     src/TradeRequestCache.h src/TradeRequestCache.cpp
     src/TradeRequestData.h src/TradeRequestData.cpp
@@ -87,11 +92,27 @@ qt_add_executable(${PROJECT_NAME}
     src/CustomEditDialog.h src/CustomEditDialog.cpp
 )
 
-target_link_libraries(${PROJECT_NAME}
-    PRIVATE Qt6::Widgets Qt6::WebEngineWidgets Qt6::Sql Boost::headers keyboard-auto-type qhotkey
-)
-
 target_compile_definitions(${PROJECT_NAME} PRIVATE APP_VERSION="${PROJECT_VERSION}")
+if (PLANNER_NO_BROWSER)
+    target_link_libraries(${PROJECT_NAME}
+        PRIVATE Qt6::Widgets Qt6::Network Qt6::Sql Boost::headers keyboard-auto-type qhotkey
+    )
+    target_compile_definitions(${PROJECT_NAME} PRIVATE PLANNER_NO_BROWSER)
+    set_property(CACHE CMAKE_INSTALL_PREFIX PROPERTY VALUE ${CMAKE_SOURCE_DIR}/PoE-Craft-Planner-no-browser)
+else()
+    target_link_libraries(${PROJECT_NAME}
+        PRIVATE Qt6::Widgets Qt6::WebEngineWidgets Qt6::Sql Boost::headers keyboard-auto-type qhotkey
+    )
+    target_sources(${PROJECT_NAME} PRIVATE
+        src/WebPage.h src/WebPage.cpp
+        src/WebViewDialog.h src/WebViewDialog.cpp
+    )
+    set_property(CACHE CMAKE_INSTALL_PREFIX PROPERTY VALUE ${CMAKE_SOURCE_DIR}/PoE-Craft-Planner)
+endif()
+
+# if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+#     set_property(CACHE CMAKE_INSTALL_PREFIX PROPERTY VALUE ${CMAKE_SOURCE_DIR}/install)
+# endif()
 
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -103,10 +124,6 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     WIN32_EXECUTABLE ON
     OUTPUT_NAME "PoE Craft Planner"
 )
-
-if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
-    set_property(CACHE CMAKE_INSTALL_PREFIX PROPERTY VALUE ${CMAKE_SOURCE_DIR}/install)
-endif()
 
 if(WIN32)
     set_property(

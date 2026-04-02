@@ -36,7 +36,9 @@ private:
     ShoppingModel* model;
     MainWindow& mw;
 
+#ifndef PLANNER_NO_BROWSER
     bool web_view_dialog_was_visible{false};
+#endif
     bool plan_search_dialog_was_visible{false};
 
     keyboard_auto_type::AutoType auto_type;

@@ -15,7 +15,6 @@
 #include "TradeRequestCache.h"
 #include "TradeRequestManager.h"
 #include "UpdateCostDialog.h"
-#include "WebPage.h"
 #include <QApplication>
 #include <QClipboard>
 #include <QCloseEvent>
@@ -30,16 +29,14 @@
 #include <QMessageBox>
 #include <QMimeData>
 #include <QNetworkAccessManager>
-#include <QNetworkCookieJar>
 #include <QPushButton>
 #include <QRestAccessManager>
 #include <QToolBar>
 #include <QVBoxLayout>
-#include <QWebEngineCookieStore>
-#include <QWebEngineProfile>
-#include <QWebEngineProfileBuilder>
-#include <QWebEngineSettings>
-#include <QtWebEngineWidgets/QWebEngineView>
+
+#ifndef PLANNER_NO_BROWSER
+#include "WebViewDialog.h"
+#endif
 
 using namespace Qt::Literals;
 
@@ -147,7 +144,9 @@ void MainWindow::closeEvent(QCloseEvent* event)
     auto settings = Settings::get();
     settings.setValue(Settings::windows_main_geometry, saveGeometry());
     settings.setValue(Settings::windows_main_state, saveState());
+#ifndef PLANNER_NO_BROWSER
     settings.setValue(Settings::windows_web_view_dialog_geometry, web_view_dialog->saveGeometry());
+#endif
     settings.setValue(Settings::windows_shopping_dialog_geometry, shopping_dialog->saveGeometry());
     searches_dialog->saveState(settings);
     settings.setValue(Settings::windows_request_edit_dialog_size, request_edit_dialog->size());
@@ -213,8 +212,9 @@ void MainWindow::setAlwaysOnTop(bool checked)
 
 void MainWindow::cleanup()
 {
-    web_view->page()->deleteLater();
-    shopping_dialog->deleteLater();
+#ifndef PLANNER_NO_BROWSER
+    web_view_dialog->cleanup();
+#endif
 }
 
 void MainWindow::importItem(bool from_clipboard)
@@ -304,74 +304,20 @@ void MainWindow::setupDockWidgets()
 
 void MainWindow::setupNetwork()
 {
+    QString user_agent{
+        u"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "_s
+        % u"PoeCraftPlanner/"_s % APP_VERSION % u" Chrome/134.0.0.0 Safari/537.36"_s};
+
     network_manager = new QNetworkAccessManager{this};
     network_manager->setAutoDeleteReplies(true);
     rest_manager = new QRestAccessManager{network_manager, this};
 
-    setupWebViewDialog();
+#ifndef PLANNER_NO_BROWSER
+    web_view_dialog = new WebViewDialog{user_agent, this};
+#endif
 
-    trade_manager = new TradeRequestManager{*rest_manager, *web_view, this};
-    exchange_manager = new ExchangeRequestManager{*rest_manager, *web_view, *this};
-}
-
-void MainWindow::setupWebViewDialog()
-{
-    const QString name = u"profile."_s + QLatin1StringView(qWebEngineChromiumVersion());
-    QWebEngineProfileBuilder profileBuilder;
-    web_profile.reset(profileBuilder.createProfile(name));
-    web_profile->settings()->setAttribute(QWebEngineSettings::DnsPrefetchEnabled, true);
-    web_profile->settings()->setAttribute(QWebEngineSettings::LocalContentCanAccessRemoteUrls, true);
-    web_profile->settings()->setAttribute(QWebEngineSettings::LocalContentCanAccessFileUrls, false);
-    web_profile->setHttpUserAgent(
-        u"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "_s
-        % u"PoeCraftPlanner/"_s % APP_VERSION % u" Chrome/134.0.0.0 Safari/537.36"_s);
-
-    web_view = new QWebEngineView{};
-    web_view->setPage(new WebPage{web_profile.get(), web_view});
-    web_view->setSizePolicy(
-        QSizePolicy{QSizePolicy::MinimumExpanding, QSizePolicy::MinimumExpanding});
-
-    url_edit = new QLineEdit{};
-
-    connect(url_edit, &QLineEdit::returnPressed, this, [this] {
-        web_view->setUrl(QUrl::fromUserInput(url_edit->text()));
-    });
-    connect(web_view, &QWebEngineView::urlChanged, this, [this](const QUrl& url) {
-        url_edit->setText(url.toDisplayString());
-    });
-
-    auto button = new QPushButton{tr("Clear cookies")};
-    connect(button, &QPushButton::clicked, this, [this] {
-        web_profile->cookieStore()->deleteAllCookies();
-    });
-
-    web_view_dialog = new QDialog{this};
-    web_view_dialog->setWindowTitle(tr("Web Page"));
-    auto settings = Settings::get();
-    auto geometry = settings.value(Settings::windows_web_view_dialog_geometry);
-    if (!geometry.isValid())
-        web_view_dialog->resize(900, 800);
-    else
-        web_view_dialog->restoreGeometry(geometry.toByteArray());
-
-    auto dialog_layout = new QVBoxLayout{};
-    web_view_dialog->setLayout(dialog_layout);
-
-    connect(web_view->page(),
-            &QWebEnginePage::titleChanged,
-            web_view_dialog,
-            &QDialog::setWindowTitle);
-
-    auto url_layout = new QHBoxLayout{};
-    url_layout->addWidget(url_edit, 1);
-    url_layout->addWidget(button);
-
-    dialog_layout->addLayout(url_layout);
-    dialog_layout->addWidget(web_view);
-
-    button->setAutoDefault(false);
-
-    web_view->load({""});
+    trade_manager = new TradeRequestManager{*rest_manager, user_agent, this};
+    exchange_manager = new ExchangeRequestManager{*rest_manager, user_agent, *this};
 }
 
 void MainWindow::setupAboutDialog()
@@ -418,8 +364,10 @@ void MainWindow::setupActions()
         plan_search_dialog->openGame(planWidget()->game());
     });
 
+#ifndef PLANNER_NO_BROWSER
     open_web_page_action = new QAction{tr("Open Web Page"), this};
     connect(open_web_page_action, &QAction::triggered, web_view_dialog, &QDialog::show);
+#endif
 
     always_on_top_action = new QAction{tr("Always On Top"), this};
     always_on_top_action->setCheckable(true);
@@ -504,7 +452,9 @@ void MainWindow::setupActions()
     edit_menu->addAction(plan_search_action);
 
     auto view_menu = menuBar()->addMenu(tr("View"));
+#ifndef PLANNER_NO_BROWSER
     view_menu->addAction(open_web_page_action);
+#endif
     view_menu->addAction(always_on_top_action);
     view_menu->addSeparator();
     view_menu->addAction(hide_descriptions_action);

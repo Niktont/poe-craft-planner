@@ -6,8 +6,6 @@
 
 class QRestAccessManager;
 class QNetworkReply;
-class QWebEngineView;
-class QNetworkReply;
 class QJsonObject;
 
 namespace planner {
@@ -18,7 +16,7 @@ class ExchangeRequestManager : public QObject
     Q_OBJECT
 public:
     explicit ExchangeRequestManager(QRestAccessManager& manager,
-                                    QWebEngineView& web_view,
+                                    const QString& user_agent,
                                     MainWindow& parent);
 
     QNetworkReply* getLeagues(Game game);
@@ -37,8 +35,7 @@ public slots:
 
 private:
     QRestAccessManager* manager;
-    QWebEngineView* web_view;
-    QString userAgent();
+    QString user_agent;
 };
 
 } // namespace planner
