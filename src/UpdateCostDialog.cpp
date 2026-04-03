@@ -26,6 +26,7 @@ UpdateCostDialog::UpdateCostDialog(MainWindow& mw)
     setWindowTitle(tr("Update Costs"));
 
     auto main_layout = new QVBoxLayout{};
+    main_layout->setVerticalSizeConstraint(QLayout::SetFixedSize);
     setLayout(main_layout);
 
     setMinimumWidth(300);
@@ -43,8 +44,6 @@ UpdateCostDialog::UpdateCostDialog(MainWindow& mw)
     empty_results_view->setModel(new QStringListModel{this});
     empty_results_view->setEditTriggers(QAbstractItemView::NoEditTriggers);
     empty_results_view->hide();
-
-    main_layout->addStretch();
 }
 
 void UpdateCostDialog::updatePlan(Plan* plan, bool send_requests)

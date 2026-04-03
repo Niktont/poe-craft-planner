@@ -19,6 +19,7 @@ StepItemsWidget::StepItemsWidget(CustomEditDialog& custom_edit_dialog,
     , custom_edit_dialog{custom_edit_dialog}
 {
     auto main_layout = new QVBoxLayout{};
+    main_layout->setVerticalSizeConstraint(QLayout::SetFixedSize);
     main_layout->setContentsMargins(0, 0, 0, 0);
     setLayout(main_layout);
 
@@ -34,11 +35,14 @@ StepItemsWidget::StepItemsWidget(CustomEditDialog& custom_edit_dialog,
     title_layout->addWidget(method_combo);
 
     custom_button = new QPushButton{tr("Edit")};
+    auto sp = custom_button->sizePolicy();
+    sp.setRetainSizeWhenHidden(true);
+    custom_button->setSizePolicy(sp);
+    custom_button->hide();
     connect(custom_button, &QPushButton::clicked, this, [this] {
         this->custom_edit_dialog.openCustomEdit(plan, step_pos, this);
     });
     title_layout->addWidget(custom_button);
-    custom_button->hide();
 
     title_layout->addStretch(1);
 

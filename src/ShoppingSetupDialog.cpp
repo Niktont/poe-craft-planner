@@ -16,6 +16,7 @@ ShoppingSetupDialog::ShoppingSetupDialog(MainWindow& mw)
     setWindowTitle(tr("Shopping Setup"));
 
     auto main_layout = new QVBoxLayout{};
+    main_layout->setVerticalSizeConstraint(QLayout::SetFixedSize);
     setLayout(main_layout);
     auto form = new QFormLayout{};
     main_layout->addLayout(form);

@@ -40,7 +40,6 @@ RequestEditDialog::RequestEditDialog(MainWindow& mw)
 
     name_edit = new QLineEdit{};
     name_edit->setMaxLength(40);
-    name_edit->setPlaceholderText(tr("Search requests are unique, names aren't"));
     connect(name_edit, &QLineEdit::editingFinished, this, &RequestEditDialog::checkName);
     form->addRow(tr("Name:"), name_edit);
 
@@ -94,8 +93,6 @@ RequestEditDialog::RequestEditDialog(MainWindow& mw)
     connect(cancel_button, &QPushButton::clicked, this, &RequestEditDialog::reject);
 
     main_layout->addWidget(buttons);
-
-    main_layout->addStretch();
 
     ok_button->setAutoDefault(true);
     save_button->setAutoDefault(false);

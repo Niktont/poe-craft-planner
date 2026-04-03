@@ -28,6 +28,7 @@ StepWidget::StepWidget(PlanWidget* plan_widget, QWidget* parent)
     setFrameStyle(QFrame::Panel | QFrame::Raised);
 
     auto layout = new QVBoxLayout{};
+    layout->setVerticalSizeConstraint(QLayout::SetFixedSize);
     setLayout(layout);
 
     auto title_layout = new QHBoxLayout{};
@@ -87,6 +88,7 @@ StepWidget::StepWidget(PlanWidget* plan_widget, QWidget* parent)
 
     edit_widget = new QWidget{};
     auto step_layout = new QVBoxLayout{};
+    step_layout->setVerticalSizeConstraint(QLayout::SetFixedSize);
     edit_widget->setLayout(step_layout);
     layout->addWidget(edit_widget);
     step_layout->setContentsMargins(0, 0, 0, 0);
@@ -100,6 +102,7 @@ StepWidget::StepWidget(PlanWidget* plan_widget, QWidget* parent)
     step_layout->addWidget(description);
 
     auto table_layout = new QVBoxLayout{};
+    table_layout->setVerticalSizeConstraint(QLayout::SetFixedSize);
     step_layout->addLayout(table_layout);
     table_layout->setContentsMargins(5, 0, 0, 0);
 

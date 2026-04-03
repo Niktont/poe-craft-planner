@@ -16,6 +16,7 @@ CustomEditDialog::CustomEditDialog(QWidget* parent)
     setWindowTitle(tr("Custom Expression"));
 
     auto layout = new QVBoxLayout{};
+    layout->setVerticalSizeConstraint(QLayout::SetFixedSize);
     setLayout(layout);
 
     custom_edit = new QLineEdit{};

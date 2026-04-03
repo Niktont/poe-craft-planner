@@ -32,6 +32,7 @@ InitializationDialog::InitializationDialog(MainWindow& mw)
     , mw{&mw}
 {
     auto main_layout = new QVBoxLayout{};
+    main_layout->setVerticalSizeConstraint(QLayout::SetFixedSize);
     setLayout(main_layout);
     setMinimumWidth(300);
 

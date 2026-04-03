@@ -37,7 +37,7 @@ PlanWidget::PlanWidget(MainWindow& mw)
     cost_widget = new CostWidget(mw);
     title_layout->addWidget(cost_widget);
 
-    title_layout->addStretch();
+    title_layout->addStretch(1);
 
     steps_scroll = new QScrollArea{};
     steps_scroll->setWidgetResizable(true);
@@ -50,6 +50,7 @@ PlanWidget::PlanWidget(MainWindow& mw)
     steps_widget = new QWidget{};
 
     auto steps_layout = new QVBoxLayout{};
+    steps_layout->setVerticalSizeConstraint(QLayout::SetFixedSize);
     steps_widget->setLayout(steps_layout);
     steps_layout->setContentsMargins(0, 0, 0, 0);
     steps_layout->addStretch(1);
