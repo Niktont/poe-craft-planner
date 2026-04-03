@@ -30,6 +30,8 @@ enum Tab {
     Hotkeys,
 };
 
+using enum settings::SettingsKey;
+
 static long long msFromMinutes(int val)
 {
     return duration_cast<milliseconds>(minutes{val}).count();
@@ -258,11 +260,11 @@ void SettingsDialog::setupRequestsTab()
 void SettingsDialog::resetRequests()
 {
     trade_min_update_time->setValue(minutesFromMs(Settings::tradeCostExpirationTime()));
-    trade_default_time->setValue(Settings::defaultTradeTime().count());
+    trade_default_time->setValue(Settings::get<step_items_default_trade_time>());
 
     exchange_min_update_time->setValue(minutesFromMs(Settings::exchangeCostExpirationTime()));
     exchange_delay->setValue(Settings::exchangeRequestDelay().count());
-    exchange_default_time->setValue(Settings::defaultExchangeTime().count());
+    exchange_default_time->setValue(Settings::get<step_items_default_exchange_time>());
 
     reload_data_poe1->setChecked(Settings::initNeeded(Game::Poe1));
     reload_data_poe2->setChecked(Settings::initNeeded(Game::Poe2));
@@ -272,29 +274,29 @@ void SettingsDialog::resetRequests()
 
 void SettingsDialog::saveRequests(QSettings& settings)
 {
-    settings.setValue(Settings::trade_cost_expiration_time,
-                      msFromMinutes(trade_min_update_time->value()));
+    Settings::set<trade_cost_expiration_time>(msFromMinutes(trade_min_update_time->value()),
+                                              settings);
 
-    auto prev_trade_time = settings.value(Settings::step_items_default_trade_time).toDouble();
+    auto prev_trade_time = Settings::get<step_items_default_trade_time>();
     auto new_trade_time = trade_default_time->value();
     if (prev_trade_time != new_trade_time) {
-        settings.setValue(Settings::step_items_default_trade_time, new_trade_time);
+        Settings::set<step_items_default_trade_time>(new_trade_time, settings);
         emit tradeTimeChanged();
     }
 
-    settings.setValue(Settings::exchange_cost_expiration_time,
-                      msFromMinutes(exchange_min_update_time->value()));
-    settings.setValue(Settings::exchange_request_delay, exchange_delay->value());
+    Settings::set<exchange_cost_expiration_time>(msFromMinutes(exchange_min_update_time->value()),
+                                                 settings);
+    Settings::set<exchange_request_delay>(exchange_delay->value(), settings);
 
-    auto prev_exchange_time = settings.value(Settings::step_items_default_exchange_time).toDouble();
+    auto prev_exchange_time = Settings::get<step_items_default_exchange_time>();
     auto new_exchange_time = exchange_default_time->value();
     if (prev_exchange_time != new_exchange_time) {
-        settings.setValue(Settings::step_items_default_exchange_time, new_exchange_time);
+        Settings::set<step_items_default_exchange_time>(new_exchange_time, settings);
         emit exchangeTimeChanged();
     }
 
-    settings.setValue(Settings::poe1_init_needed, reload_data_poe1->isChecked());
-    settings.setValue(Settings::poe2_init_needed, reload_data_poe2->isChecked());
+    Settings::set<poe1_init_needed>(reload_data_poe1->isChecked(), settings);
+    Settings::set<poe2_init_needed>(reload_data_poe2->isChecked(), settings);
 }
 
 void SettingsDialog::setupLeagueTab()
@@ -335,8 +337,8 @@ void SettingsDialog::resetLeague()
 
 void SettingsDialog::saveLeague(QSettings& settings)
 {
-    settings.setValue(Settings::poe1_league, league_poe1->currentText());
-    settings.setValue(Settings::poe2_league, league_poe2->currentText());
+    Settings::set<poe1_league>(league_poe1->currentText(), settings);
+    Settings::set<poe2_league>(league_poe2->currentText(), settings);
 }
 
 void SettingsDialog::setupImportTab()
@@ -365,18 +367,18 @@ void SettingsDialog::setupImportTab()
 
 void SettingsDialog::resetImport()
 {
-    overwrite_names->setChecked(Settings::overwriteNames());
-    add_prefix->setChecked(Settings::addImportPrefix());
-    add_prefix_requests->setChecked(Settings::addImportPrefixRequests());
+    overwrite_names->setChecked(Settings::get<import_overwrite_names>());
+    add_prefix->setChecked(Settings::get<import_add_prefix>());
+    add_prefix_requests->setChecked(Settings::get<import_add_prefix_requests>());
 
     is_changed[Import] = false;
 }
 
 void SettingsDialog::saveImport(QSettings& settings)
 {
-    settings.setValue(Settings::import_overwrite_names, overwrite_names->isChecked());
-    settings.setValue(Settings::import_add_prefix, add_prefix->isChecked());
-    settings.setValue(Settings::import_add_prefix_requests, add_prefix_requests->isChecked());
+    Settings::set<import_overwrite_names>(overwrite_names->isChecked(), settings);
+    Settings::set<import_add_prefix>(add_prefix->isChecked(), settings);
+    Settings::set<import_add_prefix_requests>(add_prefix_requests->isChecked(), settings);
 }
 
 void SettingsDialog::setupLanguageTab()
@@ -404,7 +406,7 @@ void SettingsDialog::setupLanguageTab()
 
 void SettingsDialog::resetLanguage()
 {
-    auto it = std::ranges::find(exchange_languages, Settings::exchangeLanguage());
+    auto it = std::ranges::find(exchange_languages, Settings::get<language_exchange_items>());
     auto pos = it != exchange_languages.end() ? std::distance(exchange_languages.begin(), it) : 0;
     exchange_language->setCurrentIndex(pos);
 
@@ -413,10 +415,10 @@ void SettingsDialog::resetLanguage()
 
 void SettingsDialog::saveLanguage(QSettings& settings)
 {
-    auto prev_lang = Settings::exchangeLanguage();
+    auto prev_lang = Settings::get<language_exchange_items>();
     auto lang = exchange_languages.at(exchange_language->currentIndex());
     if (prev_lang != lang) {
-        settings.setValue(Settings::language_exchange_items, lang);
+        Settings::set<language_exchange_items>(lang, settings);
         QMessageBox::information(this,
                                  tr("Language changed"),
                                  tr("The language change will take effect after restart."));
@@ -462,27 +464,24 @@ void SettingsDialog::setupHotkeysTab()
 
 void SettingsDialog::resetHotkeys()
 {
-    auto settings = Settings::get();
-    next_item->setKeySequence(settings.value(Settings::hotkeys_next_item).value<QKeySequence>());
-    paste_want->setKeySequence(settings.value(Settings::hotkeys_paste_want).value<QKeySequence>());
-    paste_want_amount->setKeySequence(
-        settings.value(Settings::hotkeys_paste_want_amount).value<QKeySequence>());
-    paste_have->setKeySequence(settings.value(Settings::hotkeys_paste_have).value<QKeySequence>());
-    paste_have_amount->setKeySequence(
-        settings.value(Settings::hotkeys_paste_have_amount).value<QKeySequence>());
-    open_link->setKeySequence(settings.value(Settings::hotkeys_open_link).value<QKeySequence>());
+    next_item->setKeySequence(Settings::get<hotkeys_next_item>());
+    paste_want->setKeySequence(Settings::get<hotkeys_paste_want>());
+    paste_want_amount->setKeySequence(Settings::get<hotkeys_paste_want_amount>());
+    paste_have->setKeySequence(Settings::get<hotkeys_paste_have>());
+    paste_have_amount->setKeySequence(Settings::get<hotkeys_paste_have_amount>());
+    open_link->setKeySequence(Settings::get<hotkeys_open_link>());
 
     is_changed[Hotkeys] = false;
 }
 
 void SettingsDialog::saveHotkeys(QSettings& settings)
 {
-    settings.setValue(Settings::hotkeys_next_item, next_item->keySequence());
-    settings.setValue(Settings::hotkeys_paste_want, paste_want->keySequence());
-    settings.setValue(Settings::hotkeys_paste_want_amount, paste_want_amount->keySequence());
-    settings.setValue(Settings::hotkeys_paste_have, paste_have->keySequence());
-    settings.setValue(Settings::hotkeys_paste_have_amount, paste_have_amount->keySequence());
-    settings.setValue(Settings::hotkeys_open_link, open_link->keySequence());
+    Settings::set<hotkeys_next_item>(next_item->keySequence(), settings);
+    Settings::set<hotkeys_paste_want>(paste_want->keySequence(), settings);
+    Settings::set<hotkeys_paste_want_amount>(paste_want_amount->keySequence(), settings);
+    Settings::set<hotkeys_paste_have>(paste_have->keySequence(), settings);
+    Settings::set<hotkeys_paste_have_amount>(paste_have_amount->keySequence(), settings);
+    Settings::set<hotkeys_open_link>(open_link->keySequence(), settings);
 }
 
 MainWindow* SettingsDialog::mw() const

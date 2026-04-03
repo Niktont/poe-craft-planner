@@ -333,7 +333,8 @@ bool ExchangeRequestCache::readDatabase()
 
 bool ExchangeRequestCache::readAdditionalData()
 {
-    auto select = Database::selectAdditionalData(game, Settings::exchangeLanguage());
+    auto select = Database::selectAdditionalData(game,
+                                                 Settings::get<Settings::language_exchange_items>());
     bool result = select.exec();
     if (!result)
         return result;

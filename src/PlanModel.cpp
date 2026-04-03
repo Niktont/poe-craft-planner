@@ -421,7 +421,7 @@ bool PlanModel::importItem(const QJsonObject& export_o)
         trade_cache->mergeImportRequests(std::move(import_requests));
 
         if (!import_plans.empty()) {
-            if (Settings::addImportPrefix()) {
+            if (Settings::get<Settings::import_add_prefix>()) {
                 auto root_name = import_root->name();
                 if (!root_name.startsWith("(I) "))
                     root_name.prepend("(I) ");
@@ -511,7 +511,7 @@ bool PlanModel::handleOverwrite()
             auto import_parent = import_item->parent();
 
             PlanItem* new_item;
-            if (Settings::overwriteNames()) {
+            if (Settings::get<Settings::import_overwrite_names>()) {
                 new_item = parent->replacePlan(old_item->row(), std::move(import_it->second));
                 saveName(*new_item);
                 search_model->updatePath(*new_item->plan());

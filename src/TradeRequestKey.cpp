@@ -69,16 +69,14 @@ QString TradeRequestKey::toUrl(Game game) const
     if (!isValid())
         return {};
 
-    auto settings = Settings::get();
-
     QString league;
     QString realm;
     if (game == Game::Poe1) {
-        realm = settings.value(Settings::poe1_realm).toString();
-        league = settings.value(Settings::poe1_league).toString();
+        realm = Settings::get<Settings::poe1_realm>();
+        league = Settings::get<Settings::poe1_league>();
     } else {
         realm = u"poe2"_s;
-        league = settings.value(Settings::poe2_league).toString();
+        league = Settings::get<Settings::poe2_league>();
     }
 
     QString domain_url = domainUrl(domain);
@@ -95,16 +93,14 @@ QString TradeRequestKey::toSearchUrl(Game game) const
     if (!isValid())
         return {};
 
-    auto settings = Settings::get();
-
     QString league;
     QString realm;
     if (game == Game::Poe1) {
-        realm = settings.value(Settings::poe1_realm).toString();
-        league = settings.value(Settings::poe1_league).toString();
+        realm = Settings::get<Settings::poe1_realm>();
+        league = Settings::get<Settings::poe1_league>();
     } else {
         realm = u"poe2"_s;
-        league = settings.value(Settings::poe2_league).toString();
+        league = Settings::get<Settings::poe2_league>();
     }
 
     QString domain_url = domainUrl(domain);
@@ -121,15 +117,11 @@ QUrl TradeRequestKey::toFetchUrl(Game game, const std::span<QString>& items) con
     if (!isValid() || items.empty())
         return {};
 
-    auto settings = Settings::get();
-
-    QString league;
     QString realm;
-    if (game == Game::Poe1) {
-        realm = settings.value(Settings::poe1_realm).toString();
-    } else {
+    if (game == Game::Poe1)
+        realm = Settings::get<Settings::poe1_realm>();
+    else
         realm = u"poe2"_s;
-    }
 
     QString domain_url = domainUrl(domain);
     QString game_url = gameUrl(game);

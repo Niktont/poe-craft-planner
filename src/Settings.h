@@ -3,6 +3,7 @@
 
 #include "Game.h"
 #include "ItemTime.h"
+#include "SettingsKey.h"
 #include <QSettings>
 
 namespace planner {
@@ -10,25 +11,52 @@ namespace planner {
 class Settings
 {
 public:
-    static QSettings get();
+    using enum settings::SettingsKey;
 
     static bool offline_mode;
 
-    static QString currentLeague(Game game);
-    static bool initNeeded(Game game);
+    static QSettings get();
 
-    static ItemTime defaultTradeTime();
-    static ItemTime defaultExchangeTime();
+    static void initCache();
+
+    template<settings::SettingsKey key>
+    static settings::KeyType<key> get()
+    {
+        return cache[key].value<settings::KeyType<key>>();
+    }
+
+    template<settings::SettingsKey key>
+    static void set(const settings::KeyType<key>& value, QSettings& settings)
+    {
+        cache[key] = value;
+        settings.setValue(settings::KeyTraits<key>::key, value);
+    }
+    template<settings::SettingsKey key>
+    static void set(const settings::KeyType<key>& value)
+    {
+        cache[key] = value;
+        get().setValue(settings::KeyTraits<key>::key, value);
+    }
+
+    static QString currentLeague(Game game)
+    {
+        return game == Game::Poe1 ? get<poe1_league>() : get<poe2_league>();
+    }
+
+    static bool initNeeded(Game game)
+    {
+        return game == Game::Poe1 ? get<poe1_init_needed>() : get<poe2_init_needed>();
+    }
+
+    static ItemTime defaultTradeTime() { return ItemTime{get<step_items_default_trade_time>()}; }
+    static ItemTime defaultExchangeTime()
+    {
+        return ItemTime{get<step_items_default_exchange_time>()};
+    }
 
     static std::chrono::milliseconds tradeCostExpirationTime();
     static std::chrono::milliseconds exchangeCostExpirationTime();
     static std::chrono::milliseconds exchangeRequestDelay();
-
-    static bool overwriteNames();
-    static bool addImportPrefix();
-    static bool addImportPrefixRequests();
-
-    static QString exchangeLanguage();
 
     static const QLatin1StringView windows_main_geometry;
     static const QLatin1StringView windows_main_state;
@@ -44,33 +72,8 @@ public:
     static const QLatin1StringView windows_shopping_dialog_geometry;
     static const QLatin1StringView windows_plan_search_dialog_size;
 
-    static const QLatin1StringView poe1_realm;
-    static const QLatin1StringView poe1_league;
-
-    static const QLatin1StringView poe2_league;
-
-    static const QLatin1StringView poe1_init_needed;
-    static const QLatin1StringView poe2_init_needed;
-
-    static const QLatin1StringView trade_cost_expiration_time;
-    static const QLatin1StringView exchange_cost_expiration_time;
-    static const QLatin1StringView exchange_request_delay;
-
-    static const QLatin1StringView step_items_default_trade_time;
-    static const QLatin1StringView step_items_default_exchange_time;
-
-    static const QLatin1StringView import_overwrite_names;
-    static const QLatin1StringView import_add_prefix;
-    static const QLatin1StringView import_add_prefix_requests;
-
-    static const QLatin1StringView language_exchange_items;
-
-    static const QLatin1StringView hotkeys_next_item;
-    static const QLatin1StringView hotkeys_paste_want;
-    static const QLatin1StringView hotkeys_paste_want_amount;
-    static const QLatin1StringView hotkeys_paste_have;
-    static const QLatin1StringView hotkeys_paste_have_amount;
-    static const QLatin1StringView hotkeys_open_link;
+private:
+    static std::array<QVariant, last + 1> cache;
 };
 
 } // namespace planner

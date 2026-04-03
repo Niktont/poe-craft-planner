@@ -5,6 +5,13 @@ using namespace std::chrono;
 using namespace Qt::StringLiterals;
 
 namespace planner {
+using namespace settings;
+
+static constexpr milliseconds min_trade_expiration_time{minutes{10}};
+static constexpr milliseconds min_exchange_expiration_time{minutes{60}};
+static constexpr milliseconds min_exchange_delay{seconds{3}};
+
+bool Settings::offline_mode{false};
 
 QSettings Settings::get()
 {
@@ -12,77 +19,62 @@ QSettings Settings::get()
     return QSettings{file, QSettings::Format::IniFormat};
 }
 
-bool Settings::offline_mode{false};
-
-QString Settings::currentLeague(Game game)
+void Settings::initCache()
 {
     auto settings = get();
-    return game == Game::Poe1 ? settings.value(poe1_league).toString()
-                              : settings.value(poe2_league).toString();
-}
 
-bool Settings::initNeeded(Game game)
-{
-    auto settings = get();
-    return game == Game::Poe1 ? settings.value(poe1_init_needed, true).toBool()
-                              : settings.value(poe2_init_needed, true).toBool();
-}
+    cache[poe1_realm] = settings.value(KeyTraits<poe1_realm>::key);
 
-ItemTime Settings::defaultTradeTime()
-{
-    return ItemTime{get().value(step_items_default_trade_time, 7.0).toDouble()};
-}
+    cache[poe1_league] = settings.value(KeyTraits<poe1_league>::key);
+    cache[poe2_league] = settings.value(KeyTraits<poe2_league>::key);
 
-ItemTime Settings::defaultExchangeTime()
-{
-    return ItemTime{get().value(step_items_default_exchange_time, 2.0).toDouble()};
+    cache[poe1_init_needed] = settings.value(KeyTraits<poe1_init_needed>::key, true);
+    cache[poe2_init_needed] = settings.value(KeyTraits<poe2_init_needed>::key, true);
+
+    cache[trade_cost_expiration_time] = settings.value(KeyTraits<trade_cost_expiration_time>::key,
+                                                       min_trade_expiration_time.count() * 3);
+    cache[exchange_cost_expiration_time] = settings
+                                               .value(KeyTraits<exchange_cost_expiration_time>::key,
+                                                      min_exchange_expiration_time.count() * 2);
+    cache[exchange_request_delay] = settings.value(KeyTraits<exchange_request_delay>::key, 5000);
+
+    cache[step_items_default_trade_time] = settings.value(
+        KeyTraits<step_items_default_trade_time>::key);
+    cache[step_items_default_exchange_time] = settings.value(
+        KeyTraits<step_items_default_exchange_time>::key);
+
+    cache[import_overwrite_names] = settings.value(KeyTraits<import_overwrite_names>::key, true);
+    cache[import_add_prefix] = settings.value(KeyTraits<import_add_prefix>::key, true);
+    cache[import_add_prefix_requests] = settings.value(KeyTraits<import_add_prefix_requests>::key,
+                                                       true);
+
+    cache[language_exchange_items] = settings.value(KeyTraits<language_exchange_items>::key,
+                                                    u"en"_s);
+
+    cache[hotkeys_next_item] = settings.value(KeyTraits<hotkeys_next_item>::key);
+    cache[hotkeys_paste_want] = settings.value(KeyTraits<hotkeys_paste_want>::key);
+    cache[hotkeys_paste_want_amount] = settings.value(KeyTraits<hotkeys_paste_want_amount>::key);
+    cache[hotkeys_paste_have] = settings.value(KeyTraits<hotkeys_paste_have>::key);
+    cache[hotkeys_paste_have_amount] = settings.value(KeyTraits<hotkeys_paste_have_amount>::key);
+    cache[hotkeys_open_link] = settings.value(KeyTraits<hotkeys_open_link>::key);
 }
 
 milliseconds Settings::tradeCostExpirationTime()
 {
-    static constexpr milliseconds min_time{minutes{10}};
-    auto time = milliseconds{
-        get().value(trade_cost_expiration_time, min_time.count() * 3).toLongLong()};
-    return std::max(time, min_time);
+    auto time = milliseconds{get<trade_cost_expiration_time>()};
+    return std::max(time, min_trade_expiration_time);
 }
 
 milliseconds Settings::exchangeCostExpirationTime()
 {
-    static constexpr milliseconds min_time{minutes{60}};
-    auto time = milliseconds{
-        get().value(exchange_cost_expiration_time, min_time.count() * 2).toLongLong()};
-    return std::max(time, min_time);
+    auto time = milliseconds{get<exchange_cost_expiration_time>()};
+    return std::max(time, min_exchange_expiration_time);
 }
 
 milliseconds Settings::exchangeRequestDelay()
 {
-    static constexpr milliseconds min_time{seconds{3}};
-    auto time = milliseconds{get().value(exchange_request_delay, 5000).toLongLong()};
-    return std::max(time, min_time);
-}
-
-bool Settings::overwriteNames()
-{
-    auto settings = get();
-    return settings.value(import_overwrite_names, true).toBool();
-}
-
-bool Settings::addImportPrefix()
-{
-    auto settings = get();
-    return settings.value(import_add_prefix, true).toBool();
-}
-
-bool Settings::addImportPrefixRequests()
-{
-    auto settings = get();
-    return settings.value(import_add_prefix_requests, true).toBool();
-}
-
-QString Settings::exchangeLanguage()
-{
-    auto settings = get();
-    return settings.value(language_exchange_items, u"en"_s).toString();
+    auto time = milliseconds{get<exchange_request_delay>()};
+    return std::max(time, min_exchange_delay);
 }
 
 const QLatin1StringView Settings::windows_main_geometry{"windows/main_geometry"};
@@ -107,33 +99,6 @@ const QLatin1StringView Settings::windows_main_hide_not_used_items{
     "windows/main_hide_not_used_items"};
 const QLatin1StringView Settings::windows_main_last_plan{"windows/main_last_plan"};
 
-const QLatin1StringView Settings::poe1_realm{"poe1/realm"};
-const QLatin1StringView Settings::poe1_league{"poe1/league"};
-
-const QLatin1StringView Settings::poe2_league{"poe2/league"};
-
-const QLatin1StringView Settings::poe1_init_needed{"poe1/init_needed"};
-const QLatin1StringView Settings::poe2_init_needed{"poe2/init_needed"};
-
-const QLatin1StringView Settings::trade_cost_expiration_time{"trade/cost_expiration_time"};
-const QLatin1StringView Settings::exchange_cost_expiration_time{"exchange/cost_expiration_time"};
-const QLatin1StringView Settings::exchange_request_delay{"exchange/request_delay"};
-
-const QLatin1StringView Settings::step_items_default_exchange_time{
-    "step_items/default_exchange_time"};
-const QLatin1StringView Settings::step_items_default_trade_time{"step_items/default_trade_time"};
-
-const QLatin1StringView Settings::import_overwrite_names{"import/overwrite_names"};
-const QLatin1StringView Settings::import_add_prefix{"import/add_prefix"};
-const QLatin1StringView Settings::import_add_prefix_requests{"import/add_prefix_requests"};
-
-const QLatin1StringView Settings::language_exchange_items{"language/exchange_items"};
-
-const QLatin1StringView Settings::hotkeys_next_item{"hotkeys/next_item"};
-const QLatin1StringView Settings::hotkeys_paste_want{"hotkeys/paste_want"};
-const QLatin1StringView Settings::hotkeys_paste_want_amount{"hotkeys/paste_want_amount"};
-const QLatin1StringView Settings::hotkeys_paste_have{"hotkeys/paste_have"};
-const QLatin1StringView Settings::hotkeys_paste_have_amount{"hotkeys/paste_have_amount"};
-const QLatin1StringView Settings::hotkeys_open_link{"hotkeys/open_link"};
+std::array<QVariant, Settings::last + 1> Settings::cache{};
 
 } // namespace planner

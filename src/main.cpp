@@ -28,7 +28,9 @@ int main(int argc, char* argv[])
     parser.addOption(offline_o);
 
     parser.process(app);
+
     Settings::offline_mode = parser.isSet(offline_o);
+    Settings::initCache();
 
     MainWindow mw;
 

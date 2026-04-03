@@ -98,9 +98,7 @@ MainWindow::MainWindow(QWidget* parent)
 
     auto state = settings.value(Settings::windows_main_state, {});
     if (!state.isValid()) {
-        plans_widget_poe1->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
         plans_widget_poe1->setDockLocation(Qt::LeftDockWidgetArea);
-        plans_widget_poe2->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
         plans_widget_poe2->setDockLocation(Qt::LeftDockWidgetArea);
 
         tabifyDockWidget(plans_widget_poe1, plans_widget_poe2);
@@ -282,20 +280,20 @@ void MainWindow::setupDockWidgets()
     plans_widget_poe1 = new QDockWidget{this};
     plans_widget_poe1->setObjectName("poe1_dock");
     plans_widget_poe1->setFeatures(QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetClosable);
+    plans_widget_poe1->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
     plans_widget_poe1->setWindowTitle(tr("PoE 1"));
 
     plan_model_poe1 = new PlanModel{Game::Poe1, *this};
-
     plan_view_poe1 = new PlanTreeView{*plan_model_poe1, this};
     plans_widget_poe1->setWidget(plan_view_poe1);
 
     plans_widget_poe2 = new QDockWidget{this};
     plans_widget_poe2->setObjectName("poe2_dock");
     plans_widget_poe2->setFeatures(QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetClosable);
+    plans_widget_poe2->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
     plans_widget_poe2->setWindowTitle(tr("PoE 2"));
 
     plan_model_poe2 = new PlanModel{Game::Poe2, *this};
-
     plan_view_poe2 = new PlanTreeView{*plan_model_poe2, this};
     plans_widget_poe2->setWidget(plan_view_poe2);
 

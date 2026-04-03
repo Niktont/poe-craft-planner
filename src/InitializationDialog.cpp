@@ -241,9 +241,8 @@ void InitializationDialog::updateCacheData()
 {
     continue_button->setEnabled(false);
 
-    auto settings = Settings::get();
     if (league_combo_poe1->isEnabled()) {
-        settings.setValue(Settings::poe1_league, league_combo_poe1->currentText());
+        Settings::set<Settings::poe1_league>(league_combo_poe1->currentText());
 
         QStringList leagues;
         for (int i = 0; i < league_combo_poe1->count(); ++i)
@@ -280,7 +279,7 @@ void InitializationDialog::updateCacheData()
         league_combo_poe1->setEnabled(false);
     }
     if (league_combo_poe2->isEnabled()) {
-        settings.setValue(Settings::poe2_league, league_combo_poe2->currentText());
+        Settings::set<Settings::poe2_league>(league_combo_poe2->currentText());
 
         QStringList leagues;
         for (int i = 0; i < league_combo_poe2->count(); ++i)
@@ -404,16 +403,15 @@ void InitializationDialog::parseOverviewData(Game game, QString type, QNetworkRe
 
 void InitializationDialog::finishInitialization()
 {
-    auto settings = Settings::get();
     if (is_data_needed_poe1) {
-        settings.setValue(Settings::poe1_init_needed, false);
+        Settings::set<Settings::poe1_init_needed>(false);
         for (auto& [id, data] : mw->exchange_cache_poe1->cache) {
             if (data.icon.isNull())
                 data.icon = QIcon{ExchangeRequestCache::iconFileName(Game::Poe1, id)};
         }
     }
     if (is_data_needed_poe2) {
-        settings.setValue(Settings::poe2_init_needed, false);
+        Settings::set<Settings::poe2_init_needed>(false);
         for (auto& [id, data] : mw->exchange_cache_poe2->cache) {
             if (data.icon.isNull())
                 data.icon = QIcon{ExchangeRequestCache::iconFileName(Game::Poe2, id)};

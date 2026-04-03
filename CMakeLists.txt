@@ -90,6 +90,7 @@ qt_add_executable(${PROJECT_NAME}
     src/CustomResult.h src/CustomResult.cpp
     src/CustomVisitor.h src/CustomVisitor.cpp
     src/CustomEditDialog.h src/CustomEditDialog.cpp
+    src/SettingsKey.h
 )
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE APP_VERSION="${PROJECT_VERSION}")

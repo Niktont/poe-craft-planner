@@ -196,19 +196,12 @@ void ShoppingDialog::openLink()
 
 void ShoppingDialog::registerHotkeys()
 {
-    auto settings = Settings::get();
-    next_item_hk->setShortcut(settings.value(Settings::hotkeys_next_item).value<QKeySequence>(),
-                              true);
-    want_hk->setShortcut(settings.value(Settings::hotkeys_paste_want).value<QKeySequence>(), true);
-    want_amount_hk
-        ->setShortcut(settings.value(Settings::hotkeys_paste_want_amount).value<QKeySequence>(),
-                      true);
-    have_hk->setShortcut(settings.value(Settings::hotkeys_paste_have).value<QKeySequence>(), true);
-    have_amount_hk
-        ->setShortcut(settings.value(Settings::hotkeys_paste_have_amount).value<QKeySequence>(),
-                      true);
-    open_link_hk->setShortcut(settings.value(Settings::hotkeys_open_link).value<QKeySequence>(),
-                              true);
+    next_item_hk->setShortcut(Settings::get<Settings::hotkeys_next_item>(), true);
+    want_hk->setShortcut(Settings::get<Settings::hotkeys_paste_want>(), true);
+    want_amount_hk->setShortcut(Settings::get<Settings::hotkeys_paste_want_amount>(), true);
+    have_hk->setShortcut(Settings::get<Settings::hotkeys_paste_have>(), true);
+    have_amount_hk->setShortcut(Settings::get<Settings::hotkeys_paste_have_amount>(), true);
+    open_link_hk->setShortcut(Settings::get<Settings::hotkeys_open_link>(), true);
 }
 
 void ShoppingDialog::removeHotkeys()
