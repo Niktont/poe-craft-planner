@@ -9,6 +9,7 @@
 #include "StepItem.h"
 #include "StepWidget.h"
 #include "TradeRequestCache.h"
+#include <QCheckBox>
 #include <QContextMenuEvent>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -30,6 +31,28 @@ PlanWidget::PlanWidget(MainWindow& mw)
 
     name_label = new QLabel{};
     title_layout->addWidget(name_label);
+
+    is_auto_final_cb = new QCheckBox{tr("Auto")};
+    is_auto_final_cb->setToolTip(tr("On costs update, set step with max profit as Final."));
+    connect(is_auto_final_cb, &QCheckBox::clicked, this, [this](bool checked) {
+        if (!plan_)
+            return;
+
+        plan_->is_auto_final = checked;
+        plan_->setChanged();
+    });
+    title_layout->addWidget(is_auto_final_cb);
+
+    locked_cb = new QCheckBox{tr("Lock")};
+    locked_cb->setToolTip(tr("Steps costs of locked plan won't be updated."));
+    connect(locked_cb, &QCheckBox::clicked, this, [this](bool checked) {
+        if (!plan_)
+            return;
+
+        plan_->locked = checked;
+        plan_->setChanged();
+    });
+    title_layout->addWidget(locked_cb);
 
     league_label = new QLabel{};
     title_layout->addWidget(league_label);
@@ -187,33 +210,36 @@ void PlanWidget::clear()
     }
 }
 
-void PlanWidget::updateCost(Game game, const std::vector<QUuid>& updated_plans)
+void PlanWidget::updateCost(Game game, const std::vector<std::pair<Plan*, bool>>& updated_plans)
 {
     auto model = mw()->planModel(game);
-    auto updateModelCost = [](const QUuid& id, PlanModel* model) {
-        if (auto it = model->plans.find(id); it != model->plans.end()) {
-            auto idx = it->second.item()->index();
-            model->updateCost(idx);
-        }
+    auto updateModelCost = [](Plan* plan, PlanModel* model) {
+        auto idx = plan->item()->index();
+        model->updateCost(idx);
     };
 
-    bool current_updated = false;
     if (!plan_ || plan_->game != game) {
-        for (auto& id : updated_plans)
-            updateModelCost(id, model);
+        for (auto& p : updated_plans)
+            updateModelCost(p.first, model);
         return;
     }
 
-    for (auto& id : updated_plans) {
-        if (id != plan_->id())
-            updateModelCost(id, model);
-        else
+    bool current_updated = false;
+    bool final_changed = false;
+    for (auto& p : updated_plans) {
+        if (p.first != plan_)
+            updateModelCost(p.first, model);
+        else {
             current_updated = true;
+            final_changed = p.second;
+        }
     }
 
     if (current_updated) {
         league_label->setText(plan_->league);
         updateDisplayedCost();
+        if (final_changed)
+            displayFinalStep();
     }
 
     for (size_t i = 0; i < plan_->steps.size(); ++i)
@@ -715,6 +741,9 @@ void PlanWidget::setPlan(const PlanModel* model, Plan* plan)
     setEnabled(true);
 
     name_label->setText(plan->name);
+    is_auto_final_cb->setChecked(plan->is_auto_final);
+    locked_cb->setChecked(plan->locked);
+
     league_label->setText(plan->league);
 
     size_t i = 0;

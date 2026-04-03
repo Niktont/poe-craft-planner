@@ -36,6 +36,10 @@ public:
 
     Game game;
     QString league;
+
+    bool is_auto_final{false};
+    bool locked{false};
+
     using Steps = std::vector<Step>;
     Steps steps;
 
@@ -49,6 +53,7 @@ public:
     Steps::const_iterator findStepIt(const QUuid& step_id) const;
     const Step* findStep(const QUuid& step_id) const;
 
+    bool autoSelectFinalStep();
     const QUuid& finalStepId() const { return final_step; }
     Steps::const_iterator costStepIt() const;
     const Step* costStep() const;

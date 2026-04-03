@@ -37,8 +37,10 @@ Step::Step(const Step& o)
     , results_cost{o.results_cost}
     , failed_cost{o.failed_cost}
     , resource_calc{o.resource_calc}
+    , custom_resource_data{o.custom_resource_data}
     , resources{o.resources}
     , result_calc{o.result_calc}
+    , custom_result_data{o.custom_result_data}
     , results{o.results}
 {}
 
@@ -52,8 +54,10 @@ Step& Step::operator=(Step o)
     swap(results_cost, o.results_cost);
     swap(failed_cost, o.failed_cost);
     swap(resource_calc, o.resource_calc);
+    swap(custom_resource_data, o.custom_resource_data);
     swap(resources, o.resources);
     swap(result_calc, o.result_calc);
+    swap(custom_result_data, o.custom_result_data);
     swap(results, o.results);
     return *this;
 }

@@ -84,6 +84,8 @@ public:
     double costGold() const { return resources_cost.gold - failed_cost.gold; }
     ItemTime costTime() const { return resources_cost.time - failed_cost.time; }
 
+    ItemCost profit() const { return results_cost - cost(); }
+
     void updateIds(const boost::container::flat_map<QUuid, QUuid>& changed_ids);
     void updatePlanIds(const boost::container::flat_map<QUuid, QUuid>& changed_ids);
 

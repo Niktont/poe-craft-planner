@@ -48,7 +48,7 @@ UpdateCostDialog::UpdateCostDialog(MainWindow& mw)
 
 void UpdateCostDialog::updatePlan(Plan* plan, bool send_requests)
 {
-    if (!plan)
+    if (!plan || plan->locked)
         return;
 
     this->plan = plan;
@@ -73,7 +73,7 @@ void UpdateCostDialog::updatePlan(Plan* plan, bool send_requests)
     auto now = QDateTime::currentDateTimeUtc();
     for (auto& id : dependencies) {
         auto it = plan_model->plans.find(id);
-        if (it == plan_model->plans.end())
+        if (it == plan_model->plans.end() || it->second.locked)
             continue;
 
         for (auto& step : it->second.steps) {
@@ -354,17 +354,18 @@ void UpdateCostDialog::updateProgress()
 
 void UpdateCostDialog::calculateCost()
 {
-    if (!plan || !trade_finished || !exchange_finished)
+    if (!plan || !trade_finished || !exchange_finished || plan->locked)
         return;
 
     auto plan_model = mw()->planModel(plan->game);
 
-    std::vector<Plan*> plans;
+    std::vector<std::pair<Plan*, bool>> plans;
     for (auto& id : std::views::reverse(dependencies)) {
         auto it = plan_model->plans.find(id);
-        if (it == plan_model->plans.end())
+        if (it == plan_model->plans.end() || it->second.locked)
             continue;
-        auto plan = plans.emplace_back(&it->second);
+
+        auto plan = plans.emplace_back(&it->second, false).first;
         for (auto& step : plan->steps) {
             step.resources_cost = {};
             step.results_cost = {};
@@ -373,7 +374,7 @@ void UpdateCostDialog::calculateCost()
     }
 
     bool parse_failed = false;
-    for (auto plan : plans) {
+    for (auto& [plan, final_changed] : plans) {
         if (!parse_failed) {
             for (auto& step : plan->steps) {
                 if (!calculateStepCost(*plan, step)) {
@@ -381,12 +382,13 @@ void UpdateCostDialog::calculateCost()
                     break;
                 }
             }
+            final_changed = plan->autoSelectFinalStep();
         }
 
         plan->league = Settings::currentLeague(plan->game);
         plan->setChanged();
     }
-    emit costUpdated(plan->game, dependencies);
+    emit costUpdated(plan->game, plans);
 
     if (empty_search_results.empty()) {
         if (parse_failed)

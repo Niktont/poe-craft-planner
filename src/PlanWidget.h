@@ -9,6 +9,7 @@
 class QLabel;
 class QScrollArea;
 class QAction;
+class QCheckBox;
 
 namespace planner {
 class PlanModel;
@@ -60,7 +61,7 @@ public:
 
 public slots:
     void addStep();
-    void updateCost(planner::Game game, const std::vector<QUuid>& updated_plans);
+    void updateCost(planner::Game game, const std::vector<std::pair<Plan*, bool>>& updated_plans);
 
     void hideDescriptions(bool hide);
     void hideEmptyResources(bool hide);
@@ -90,6 +91,8 @@ private:
     QLabel* name_label;
     QLabel* league_label;
     CostWidget* cost_widget;
+    QCheckBox* locked_cb;
+    QCheckBox* is_auto_final_cb;
 
     QScrollArea* steps_scroll;
     QWidget* steps_widget;

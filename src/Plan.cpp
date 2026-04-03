@@ -12,13 +12,14 @@ Plan::Plan(QUuid id, QString name)
 {}
 
 Plan::Plan(QUuid id, const QJsonObject& plan_o, const ExchangeRequestCache& cache)
-    : is_changed{false}
+    : game{cache.game}
+    , league{plan_o["league"].toString()}
+    , is_auto_final{plan_o["is_auto_final"].toBool()}
+    , locked{plan_o["locked"].toBool()}
+    , is_changed{false}
     , id_{id}
+    , final_step{plan_o["final_step"].toString()}
 {
-    game = cache.game;
-    league = plan_o["league"].toString();
-    final_step = QUuid{plan_o["final_step"].toString()};
-
     const auto steps_a = plan_o["steps"].toArray();
     steps.reserve(steps_a.size());
     for (auto step_v : steps_a)
@@ -29,6 +30,8 @@ Plan::Plan(QUuid id, const Plan& o)
     : name{o.name}
     , game{o.game}
     , league{o.league}
+    , is_auto_final{o.is_auto_final}
+    , locked{o.locked}
     , steps{o.steps}
     , id_{id}
     , final_step{o.final_step}
@@ -49,6 +52,8 @@ QJsonObject Plan::saveJson() const
 {
     QJsonObject plan_o;
     plan_o["league"] = league;
+    plan_o["is_auto_final"] = is_auto_final;
+    plan_o["locked"] = locked;
     plan_o["final_step"] = final_step.toString();
 
     QJsonArray steps_a;
@@ -75,6 +80,8 @@ QJsonObject Plan::exportJson(const ExchangeRequestCache& cache, TradeRequestCach
     plan_o["name"] = name;
 
     plan_o["league"] = league;
+    plan_o["is_auto_final"] = is_auto_final;
+    plan_o["locked"] = locked;
     plan_o["final_step"] = final_step.toString();
 
     QJsonArray steps_a;
@@ -122,6 +129,28 @@ const Step* Plan::findStep(const QUuid& step_id) const
 {
     auto it = findStepIt(step_id);
     return it != steps.end() ? &(*it) : nullptr;
+}
+
+bool Plan::autoSelectFinalStep()
+{
+    if (!is_auto_final || steps.empty())
+        return false;
+
+    auto max_profit = steps.front().profit();
+    size_t max_pos = 0;
+    for (size_t i = 1; i < steps.size(); ++i) {
+        auto profit = steps[i].profit();
+        if (profit.cost_in_primary.currency.isValid() && max_profit < profit) {
+            max_profit = profit;
+            max_pos = i;
+        }
+    }
+
+    if (max_profit.cost_in_primary.currency.isValid() && costStep() != &steps[max_pos]) {
+        setFinalStep(steps[max_pos].id);
+        return true;
+    }
+    return false;
 }
 
 Plan::Steps::const_iterator Plan::costStepIt() const

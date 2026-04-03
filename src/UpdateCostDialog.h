@@ -26,7 +26,7 @@ public:
     UpdateCostDialog(MainWindow& mw);
 
 signals:
-    void costUpdated(planner::Game game, const std::vector<QUuid>& updated_plans);
+    void costUpdated(planner::Game game, const std::vector<std::pair<Plan*, bool>>& updated_plans);
 
 public slots:
     void updatePlan(planner::Plan* plan, bool send_requests);
