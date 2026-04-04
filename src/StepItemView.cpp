@@ -1,5 +1,6 @@
 #include "StepItemView.h"
 #include "PlanWidget.h"
+#include "Settings.h"
 #include "StepItemModel.h"
 #include <QApplication>
 #include <QContextMenuEvent>
@@ -232,7 +233,7 @@ QSize StepItemView::sizeHint() const
                 + lineWidth() * 2};
 }
 
-void StepItemView::hideNotUsedItems(bool hide)
+void StepItemView::hideNotUsedItems()
 {
     auto step = stepModel()->step();
     auto& items = stepModel()->is_resource_model ? step->resources : step->results;
@@ -240,7 +241,7 @@ void StepItemView::hideNotUsedItems(bool hide)
         return;
 
     bool rows_changed = false;
-    if (hide) {
+    if (Settings::get<Settings::windows_main_hide_not_used_items>()) {
         for (size_t i = 0; i < items.size(); ++i) {
             if (isRowHidden(i) != items[i].not_used) {
                 setRowHidden(i, items[i].not_used);

@@ -38,6 +38,33 @@ public:
         get().setValue(settings::KeyTraits<key>::key, value);
     }
 
+    template<settings::SettingsKey key>
+    static void read(const QSettings& settings)
+    {
+        cache[key] = settings.value(settings::KeyTraits<key>::key);
+    }
+    template<settings::SettingsKey key>
+    static void read(const QSettings& settings, settings::KeyType<key>&& default_value)
+    {
+        cache[key] = settings.value(settings::KeyTraits<key>::key, std::move(default_value));
+    }
+
+    template<settings::SettingsKey key>
+    static void setCache(const settings::KeyType<key>& value)
+    {
+        cache[key] = value;
+    }
+    template<settings::SettingsKey key>
+    static void save(QSettings& settings)
+    {
+        settings.setValue(settings::KeyTraits<key>::key, cache[key]);
+    }
+    template<settings::SettingsKey key>
+    static void save()
+    {
+        get().setValue(settings::KeyTraits<key>::key, cache[key]);
+    }
+
     static QString currentLeague(Game game)
     {
         return game == Game::Poe1 ? get<poe1_league>() : get<poe2_league>();
@@ -60,10 +87,6 @@ public:
 
     static const QLatin1StringView windows_main_geometry;
     static const QLatin1StringView windows_main_state;
-    static const QLatin1StringView windows_main_hide_descriptions;
-    static const QLatin1StringView windows_main_hide_empty_resources;
-    static const QLatin1StringView windows_main_hide_empty_results;
-    static const QLatin1StringView windows_main_hide_not_used_items;
     static const QLatin1StringView windows_main_last_plan;
     static const QLatin1StringView windows_web_view_dialog_geometry;
     static const QLatin1StringView windows_searches_dialog_geometry;

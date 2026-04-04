@@ -55,10 +55,6 @@ public:
         return step_item_copy_state.first == game && game != Game::Unknown;
     }
 
-    bool isEmptyResourcesHidden() const { return is_empty_resources_hidden; }
-    bool isEmptyResultsHidden() const { return is_empty_results_hidden; }
-    bool isNotUsedItemsHidden() const { return is_not_used_items_hidden; }
-
 public slots:
     void addStep();
     void updateCost(planner::Game game, const std::vector<std::pair<Plan*, bool>>& updated_plans);
@@ -67,6 +63,7 @@ public slots:
     void hideEmptyResources(bool hide);
     void hideEmptyResults(bool hide);
     void hideNotUsedItems(bool hide);
+    void hideTitleCurrencyName(bool hide);
 
 protected:
     void contextMenuEvent(QContextMenuEvent* event) override;
@@ -104,11 +101,6 @@ private:
 
     void setPlan(const planner::PlanModel* model, planner::Plan* plan);
     void clear();
-
-    bool is_descriptions_hidden{false};
-    bool is_empty_resources_hidden{false};
-    bool is_empty_results_hidden{false};
-    bool is_not_used_items_hidden{false};
 
     std::vector<StepWidget*> step_widgets;
     void emplaceStepWidget(size_t i);

@@ -17,7 +17,7 @@ public:
 
     QSize sizeHint() const override;
 
-    void hideNotUsedItems(bool hide);
+    void hideNotUsedItems();
 
 public slots:
     void syncColumns();

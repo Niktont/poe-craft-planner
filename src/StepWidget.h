@@ -40,10 +40,11 @@ public:
     void setFinal(bool checked);
 
     void setDescription();
-    void hideDescription(bool hide);
-    void hideEmptyResources(bool hide);
-    void hideEmptyResults(bool hide);
-    void hideNotUsedItems(bool hide);
+    void hideDescription();
+    void hideEmptyResources();
+    void hideEmptyResults();
+    void hideNotUsedItems();
+    void hideTitleCurrencyName();
 
 protected:
     void contextMenuEvent(QContextMenuEvent* event) override;

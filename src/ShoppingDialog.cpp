@@ -40,14 +40,14 @@ ShoppingDialog::ShoppingDialog(MainWindow& mw)
         this->mw.show();
 
 #ifndef PLANNER_NO_BROWSER
-        if (web_view_dialog_was_visible)
+        if (web_view_dialog_was_shown)
             this->mw.web_view_dialog->show();
-        web_view_dialog_was_visible = false;
+        web_view_dialog_was_shown = false;
 #endif
 
-        if (plan_search_dialog_was_visible)
+        if (plan_search_dialog_was_shown)
             this->mw.plan_search_dialog->show();
-        plan_search_dialog_was_visible = false;
+        plan_search_dialog_was_shown = false;
 
         removeHotkeys();
     });
@@ -81,13 +81,13 @@ void ShoppingDialog::openPlan(Plan& plan, size_t step_pos, double amount, bool i
     auto res = model->setPlan(plan, step_pos, amount, include_dependencies);
     if (res) {
 #ifndef PLANNER_NO_BROWSER
-        web_view_dialog_was_visible = mw.web_view_dialog->isVisible();
-        if (web_view_dialog_was_visible)
+        web_view_dialog_was_shown = !mw.web_view_dialog->isHidden();
+        if (web_view_dialog_was_shown)
             mw.web_view_dialog->hide();
 #endif
 
-        plan_search_dialog_was_visible = mw.plan_search_dialog->isVisible();
-        if (plan_search_dialog_was_visible)
+        plan_search_dialog_was_shown = !mw.plan_search_dialog->isHidden();
+        if (plan_search_dialog_was_shown)
             mw.plan_search_dialog->hide();
 
         mw.hide();

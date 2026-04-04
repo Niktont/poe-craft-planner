@@ -7,6 +7,12 @@
 namespace planner {
 namespace settings {
 enum SettingsKey {
+    windows_main_hide_descriptions,
+    windows_main_hide_empty_resources,
+    windows_main_hide_empty_results,
+    windows_main_hide_not_used_items,
+    windows_main_hide_title_currency_name,
+
     poe1_realm,
     poe1_league,
 
@@ -63,6 +69,32 @@ struct LongLongValue
 struct KeySequenceValue
 {
     using type = QKeySequence;
+};
+
+template<>
+struct KeyTraits<windows_main_hide_descriptions> : BoolValue
+{
+    static inline const std::string key{"windows/main_hide_descriptions"};
+};
+template<>
+struct KeyTraits<windows_main_hide_empty_resources> : BoolValue
+{
+    static inline const std::string key{"windows/main_hide_empty_resources"};
+};
+template<>
+struct KeyTraits<windows_main_hide_empty_results> : BoolValue
+{
+    static inline const std::string key{"windows/main_hide_empty_results"};
+};
+template<>
+struct KeyTraits<windows_main_hide_not_used_items> : BoolValue
+{
+    static inline const std::string key{"windows/main_hide_not_used_items"};
+};
+template<>
+struct KeyTraits<windows_main_hide_title_currency_name> : BoolValue
+{
+    static inline const std::string key{"windows/main_hide_title_currency_name"};
 };
 
 template<>

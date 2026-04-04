@@ -23,40 +23,39 @@ void Settings::initCache()
 {
     auto settings = get();
 
-    cache[poe1_realm] = settings.value(KeyTraits<poe1_realm>::key);
+    read<windows_main_hide_descriptions>(settings);
+    read<windows_main_hide_empty_resources>(settings);
+    read<windows_main_hide_empty_results>(settings);
+    read<windows_main_hide_not_used_items>(settings);
+    read<windows_main_hide_title_currency_name>(settings);
 
-    cache[poe1_league] = settings.value(KeyTraits<poe1_league>::key);
-    cache[poe2_league] = settings.value(KeyTraits<poe2_league>::key);
+    read<poe1_realm>(settings);
+    read<poe1_league>(settings);
 
-    cache[poe1_init_needed] = settings.value(KeyTraits<poe1_init_needed>::key, true);
-    cache[poe2_init_needed] = settings.value(KeyTraits<poe2_init_needed>::key, true);
+    read<poe2_league>(settings);
 
-    cache[trade_cost_expiration_time] = settings.value(KeyTraits<trade_cost_expiration_time>::key,
-                                                       min_trade_expiration_time.count() * 3);
-    cache[exchange_cost_expiration_time] = settings
-                                               .value(KeyTraits<exchange_cost_expiration_time>::key,
-                                                      min_exchange_expiration_time.count() * 2);
-    cache[exchange_request_delay] = settings.value(KeyTraits<exchange_request_delay>::key, 5000);
+    read<poe1_init_needed>(settings, true);
+    read<poe2_init_needed>(settings, true);
 
-    cache[step_items_default_trade_time] = settings.value(
-        KeyTraits<step_items_default_trade_time>::key);
-    cache[step_items_default_exchange_time] = settings.value(
-        KeyTraits<step_items_default_exchange_time>::key);
+    read<trade_cost_expiration_time>(settings, min_trade_expiration_time.count() * 3);
+    read<exchange_cost_expiration_time>(settings, min_exchange_expiration_time.count() * 2);
+    read<exchange_request_delay>(settings, 5000);
 
-    cache[import_overwrite_names] = settings.value(KeyTraits<import_overwrite_names>::key, true);
-    cache[import_add_prefix] = settings.value(KeyTraits<import_add_prefix>::key, true);
-    cache[import_add_prefix_requests] = settings.value(KeyTraits<import_add_prefix_requests>::key,
-                                                       true);
+    read<step_items_default_trade_time>(settings);
+    read<step_items_default_exchange_time>(settings);
 
-    cache[language_exchange_items] = settings.value(KeyTraits<language_exchange_items>::key,
-                                                    u"en"_s);
+    read<import_overwrite_names>(settings, true);
+    read<import_add_prefix>(settings, true);
+    read<import_add_prefix_requests>(settings, true);
 
-    cache[hotkeys_next_item] = settings.value(KeyTraits<hotkeys_next_item>::key);
-    cache[hotkeys_paste_want] = settings.value(KeyTraits<hotkeys_paste_want>::key);
-    cache[hotkeys_paste_want_amount] = settings.value(KeyTraits<hotkeys_paste_want_amount>::key);
-    cache[hotkeys_paste_have] = settings.value(KeyTraits<hotkeys_paste_have>::key);
-    cache[hotkeys_paste_have_amount] = settings.value(KeyTraits<hotkeys_paste_have_amount>::key);
-    cache[hotkeys_open_link] = settings.value(KeyTraits<hotkeys_open_link>::key);
+    read<language_exchange_items>(settings, u"en"_s);
+
+    read<hotkeys_next_item>(settings);
+    read<hotkeys_paste_want>(settings);
+    read<hotkeys_paste_want_amount>(settings);
+    read<hotkeys_paste_have>(settings);
+    read<hotkeys_paste_have_amount>(settings);
+    read<hotkeys_open_link>(settings);
 }
 
 milliseconds Settings::tradeCostExpirationTime()
@@ -90,13 +89,6 @@ const QLatin1StringView Settings::windows_shopping_dialog_geometry{
     "windows/shopping_dialog_geometry"};
 const QLatin1StringView Settings::windows_plan_search_dialog_size{
     "windows/plan_search_dialog_size"};
-const QLatin1StringView Settings::windows_main_hide_descriptions{"windows/main_hide_descriptions"};
-const QLatin1StringView Settings::windows_main_hide_empty_resources{
-    "windows/main_hide_empty_resources"};
-const QLatin1StringView Settings::windows_main_hide_empty_results{
-    "windows/main_hide_empty_results"};
-const QLatin1StringView Settings::windows_main_hide_not_used_items{
-    "windows/main_hide_not_used_items"};
 const QLatin1StringView Settings::windows_main_last_plan{"windows/main_last_plan"};
 
 std::array<QVariant, Settings::last + 1> Settings::cache{};

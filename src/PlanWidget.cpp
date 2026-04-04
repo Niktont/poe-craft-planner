@@ -5,6 +5,7 @@
 #include "Plan.h"
 #include "PlanModel.h"
 #include "PlanTreeView.h"
+#include "Settings.h"
 #include "SettingsDialog.h"
 #include "StepItem.h"
 #include "StepWidget.h"
@@ -187,7 +188,7 @@ void PlanWidget::addStep()
 void PlanWidget::emplaceStepWidget(size_t i)
 {
     auto step_widget = *step_widgets.emplace(step_widgets.begin() + i, new StepWidget{this});
-    step_widget->hideDescription(is_descriptions_hidden);
+    step_widget->hideDescription();
     static_cast<QVBoxLayout*>(steps_widget->layout())->insertWidget(i, step_widget);
     step_widget->setStep(plan_, i);
 }
@@ -613,39 +614,50 @@ void PlanWidget::updateExchangeDefaultTime()
 
 void PlanWidget::hideDescriptions(bool hide)
 {
-    is_descriptions_hidden = hide;
+    Settings::setCache<Settings::windows_main_hide_descriptions>(hide);
     for (auto step : step_widgets)
-        step->hideDescription(hide);
+        step->hideDescription();
 }
 
 void PlanWidget::hideEmptyResources(bool hide)
 {
-    is_empty_resources_hidden = hide;
+    Settings::setCache<Settings::windows_main_hide_empty_resources>(hide);
     if (!plan_)
         return;
 
     for (size_t i = 0; i < plan_->steps.size(); ++i)
-        step_widgets[i]->hideEmptyResources(hide);
+        step_widgets[i]->hideEmptyResources();
 }
 
 void PlanWidget::hideEmptyResults(bool hide)
 {
-    is_empty_results_hidden = hide;
+    Settings::setCache<Settings::windows_main_hide_empty_results>(hide);
     if (!plan_)
         return;
 
     for (size_t i = 0; i < plan_->steps.size(); ++i)
-        step_widgets[i]->hideEmptyResults(hide);
+        step_widgets[i]->hideEmptyResults();
 }
 
 void PlanWidget::hideNotUsedItems(bool hide)
 {
-    is_not_used_items_hidden = hide;
+    Settings::setCache<Settings::windows_main_hide_not_used_items>(hide);
     if (!plan_)
         return;
 
     for (size_t i = 0; i < plan_->steps.size(); ++i)
-        step_widgets[i]->hideNotUsedItems(hide);
+        step_widgets[i]->hideNotUsedItems();
+}
+
+void PlanWidget::hideTitleCurrencyName(bool hide)
+{
+    Settings::setCache<Settings::windows_main_hide_title_currency_name>(hide);
+    if (!plan_)
+        return;
+
+    cost_widget->hideCurrencyName();
+    for (size_t i = 0; i < plan_->steps.size(); ++i)
+        step_widgets[i]->hideTitleCurrencyName();
 }
 
 void PlanWidget::contextMenuEvent(QContextMenuEvent* event)

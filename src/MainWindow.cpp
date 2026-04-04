@@ -87,14 +87,15 @@ MainWindow::MainWindow(QWidget* parent)
 
     connect(qApp, &QCoreApplication::aboutToQuit, this, &MainWindow::cleanup);
 
-    hide_descriptions_action->setChecked(
-        settings.value(Settings::windows_main_hide_descriptions, false).toBool());
+    hide_descriptions_action->setChecked(Settings::get<Settings::windows_main_hide_descriptions>());
     hide_empty_resources_action->setChecked(
-        settings.value(Settings::windows_main_hide_empty_resources, false).toBool());
+        Settings::get<Settings::windows_main_hide_empty_resources>());
     hide_empty_results_action->setChecked(
-        settings.value(Settings::windows_main_hide_empty_results, false).toBool());
+        Settings::get<Settings::windows_main_hide_empty_results>());
     hide_not_used_items_action->setChecked(
-        settings.value(Settings::windows_main_hide_not_used_items, false).toBool());
+        Settings::get<Settings::windows_main_hide_not_used_items>());
+    hide_title_currency_name_action->setChecked(
+        Settings::get<settings::windows_main_hide_title_currency_name>());
 
     auto state = settings.value(Settings::windows_main_state, {});
     if (!state.isValid()) {
@@ -150,14 +151,11 @@ void MainWindow::closeEvent(QCloseEvent* event)
     settings.setValue(Settings::windows_request_edit_dialog_size, request_edit_dialog->size());
     settings.setValue(Settings::windows_plan_search_dialog_size, plan_search_dialog->size());
 
-    settings.setValue(Settings::windows_main_hide_descriptions,
-                      hide_descriptions_action->isChecked());
-    settings.setValue(Settings::windows_main_hide_empty_resources,
-                      hide_empty_resources_action->isChecked());
-    settings.setValue(Settings::windows_main_hide_empty_results,
-                      hide_empty_results_action->isChecked());
-    settings.setValue(Settings::windows_main_hide_not_used_items,
-                      hide_not_used_items_action->isChecked());
+    Settings::save<settings::windows_main_hide_descriptions>(settings);
+    Settings::save<settings::windows_main_hide_empty_resources>(settings);
+    Settings::save<settings::windows_main_hide_empty_results>(settings);
+    Settings::save<settings::windows_main_hide_not_used_items>(settings);
+    Settings::save<settings::windows_main_hide_title_currency_name>(settings);
 
     if (planWidget()->plan())
         settings.setValue(Settings::windows_main_last_plan, planWidget()->plan()->id().toString());
@@ -199,9 +197,9 @@ void MainWindow::dropEvent(QDropEvent* event)
 void MainWindow::setAlwaysOnTop(bool checked)
 {
     auto setStaysOnTop = [](bool checked, QWidget* window) {
-        bool was_visible = window->isVisible();
+        bool shown = !window->isHidden();
         window->setWindowFlag(Qt::WindowStaysOnTopHint, checked);
-        if (was_visible)
+        if (shown)
             window->show();
     };
     setStaysOnTop(checked, this);
@@ -401,6 +399,13 @@ void MainWindow::setupActions()
             planWidget(),
             &PlanWidget::hideNotUsedItems);
 
+    hide_title_currency_name_action = new QAction{tr("Hide Currency Name In Titles"), this};
+    hide_title_currency_name_action->setCheckable(true);
+    connect(hide_title_currency_name_action,
+            &QAction::toggled,
+            planWidget(),
+            &PlanWidget::hideTitleCurrencyName);
+
     add_step_action = new QAction{tr("Add Step"), this};
     connect(add_step_action, &QAction::triggered, planWidget(), &PlanWidget::addStep);
 
@@ -459,6 +464,7 @@ void MainWindow::setupActions()
     view_menu->addAction(hide_empty_resources_action);
     view_menu->addAction(hide_empty_results_action);
     view_menu->addAction(hide_not_used_items_action);
+    view_menu->addAction(hide_title_currency_name_action);
 
     settings_action = menuBar()->addAction(tr("Settings"));
     connect(settings_action, &QAction::triggered, settings_dialog, &SettingsDialog::openSettings);

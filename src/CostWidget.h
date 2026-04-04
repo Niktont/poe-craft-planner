@@ -17,6 +17,8 @@ class CostWidget : public QWidget
 public:
     explicit CostWidget(MainWindow& mw, QWidget* parent = nullptr);
 
+    void hideCurrencyName();
+
 public slots:
     void setCost(planner::Game game, const planner::Step* step);
 

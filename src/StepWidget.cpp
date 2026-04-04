@@ -4,6 +4,7 @@
 #include "MainWindow.h"
 #include "Plan.h"
 #include "PlanWidget.h"
+#include "Settings.h"
 #include "StepItemDelegate.h"
 #include "StepItemView.h"
 #include "StepItemsWidget.h"
@@ -143,14 +144,13 @@ void StepWidget::setStep(Plan* plan, size_t step_pos)
     if (!plan)
         return;
 
-    hideEmptyResources(plan_widget->isEmptyResourcesHidden());
-    hideEmptyResults(plan_widget->isEmptyResultsHidden());
+    hideEmptyResources();
+    hideEmptyResults();
 
     resources_widget->view->verticalHeader()->reset();
     results_widget->view->verticalHeader()->reset();
 
-    if (plan_widget->isNotUsedItemsHidden())
-        hideNotUsedItems(true);
+    hideNotUsedItems();
 
     resources_widget->view->syncColumns();
 
@@ -193,8 +193,7 @@ void StepWidget::updateCost(bool current_updated)
 
     if (current_updated) {
         displayCost();
-        if (plan_widget->isNotUsedItemsHidden())
-            hideNotUsedItems(true);
+        hideNotUsedItems();
     }
 
     resources_model->updateCosts();
@@ -222,43 +221,47 @@ void StepWidget::setDescription()
     step->description = description->edit->toPlainText();
 }
 
-void StepWidget::hideDescription(bool hide)
+void StepWidget::hideDescription()
 {
-    description->setHidden(hide);
+    description->setHidden(Settings::get<Settings::windows_main_hide_descriptions>());
 }
 
-void StepWidget::hideEmptyResources(bool hide)
+void StepWidget::hideEmptyResources()
 {
     auto step = currentStep();
     if (!step)
         return;
 
     if (step->resources.empty())
-        resources_widget->setHidden(hide);
+        resources_widget->setHidden(Settings::get<Settings::windows_main_hide_empty_resources>());
     else
         resources_widget->setHidden(false);
 }
 
-void StepWidget::hideEmptyResults(bool hide)
+void StepWidget::hideEmptyResults()
 {
     auto step = currentStep();
     if (!step)
         return;
 
     if (step->results.empty())
-        results_widget->setHidden(hide);
+        results_widget->setHidden(Settings::get<Settings::windows_main_hide_empty_results>());
     else
         results_widget->setHidden(false);
 }
 
-void StepWidget::hideNotUsedItems(bool hide)
+void StepWidget::hideNotUsedItems()
 {
-    auto step = currentStep();
-    if (!step)
+    if (!currentStep())
         return;
 
-    resources_widget->view->hideNotUsedItems(hide);
-    results_widget->view->hideNotUsedItems(hide);
+    resources_widget->view->hideNotUsedItems();
+    results_widget->view->hideNotUsedItems();
+}
+
+void StepWidget::hideTitleCurrencyName()
+{
+    cost_widget->hideCurrencyName();
 }
 
 void StepWidget::deleteStep()

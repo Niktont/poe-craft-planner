@@ -1,6 +1,7 @@
 #include "CostWidget.h"
 #include "ExchangeRequestCache.h"
 #include "MainWindow.h"
+#include "Settings.h"
 #include "Step.h"
 #include <QHBoxLayout>
 #include <QLabel>
@@ -16,6 +17,8 @@ CostWidget::CostWidget(MainWindow& mw, QWidget* parent)
     , mw{&mw}
 {
     auto main_layout = new QHBoxLayout{};
+    main_layout->setHorizontalSizeConstraint(QLayout::SetFixedSize);
+    main_layout->setContentsMargins(0, 0, 0, 0);
     setLayout(main_layout);
 
     cost_label = new QLabel{};
@@ -36,8 +39,13 @@ CostWidget::CostWidget(MainWindow& mw, QWidget* parent)
     time_label = new QLabel{};
     layout()->addWidget(time_label);
 
-    main_layout->setContentsMargins(5, 0, 0, 0);
     hide();
+}
+
+void CostWidget::hideCurrencyName()
+{
+    if (!currency_label->text().isEmpty())
+        currency_label->setHidden(Settings::get<settings::windows_main_hide_title_currency_name>());
 }
 
 void CostWidget::setCost(Game game, const Step* step)
@@ -70,9 +78,13 @@ void CostWidget::setCost(Game game, const Step* step)
         currency_label->setText(exchange_cache->name(it));
 
         currency_icon_label->show();
-        currency_label->show();
+        if (Settings::get<settings::windows_main_hide_title_currency_name>())
+            currency_label->hide();
+        else
+            currency_label->show();
     } else {
         currency_icon_label->hide();
+        currency_label->clear();
         currency_label->hide();
     }
 
