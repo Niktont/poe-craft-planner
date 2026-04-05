@@ -56,7 +56,7 @@ private:
     bool context_menu_shown{};
     std::optional<QModelIndex> context_index;
 
-    void syncColumn(int col);
+    void syncColumn(int col, int min_width);
     int widthForItemText(QStyleOptionViewItem& option, const QString& text) const;
     void setupColumns();
 };

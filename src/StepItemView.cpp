@@ -13,6 +13,8 @@
 
 using namespace Qt::StringLiterals;
 
+static constexpr int min_name_width = 120;
+
 namespace planner {
 
 int StepItemView::widthForItemText(QStyleOptionViewItem& option, const QString& text) const
@@ -36,6 +38,7 @@ void StepItemView::setupColumns()
     auto header = horizontalHeader();
     header->setMinimumSectionSize(20);
     header->setSectionResizeMode(QHeaderView::Fixed);
+    header->resizeSection(static_cast<int>(StepItemColumn::Row), 20);
     header->resizeSection(static_cast<int>(StepItemColumn::Type), 20);
 
     auto num_6_width = widthForItemText(option, u"10000.0"_s);
@@ -45,7 +48,7 @@ void StepItemView::setupColumns()
                                  num_6_width);
     header->resizeSection(static_cast<int>(StepItemColumn::Amount), amount_width);
 
-    header->resizeSection(static_cast<int>(StepItemColumn::Name), 120);
+    header->resizeSection(static_cast<int>(StepItemColumn::Name), min_name_width);
 
     auto link_width = header->sectionSizeHint(static_cast<int>(StepItemColumn::Link));
     header->resizeSection(static_cast<int>(StepItemColumn::Link), link_width);
@@ -55,7 +58,7 @@ void StepItemView::setupColumns()
                                cost_num_width);
     header->resizeSection(static_cast<int>(StepItemColumn::Cost), cost_width);
 
-    header->resizeSection(static_cast<int>(StepItemColumn::CostCurrency), 120);
+    header->resizeSection(static_cast<int>(StepItemColumn::CostCurrency), min_name_width);
 
     auto gold_width = std::max(header->sectionSizeHint(static_cast<int>(StepItemColumn::Gold)),
                                num_6_width);
@@ -69,6 +72,7 @@ void StepItemView::setupColumns()
 
     verticalHeader()->setSectionResizeMode(QHeaderView::Fixed);
     verticalHeader()->setDefaultSectionSize(fontMetrics().height());
+    verticalHeader()->hide();
 
     connect(stepModel(), &StepItemModel::rowsInserted, this, &StepItemView::syncColumns);
     connect(stepModel(), &StepItemModel::rowsRemoved, this, &StepItemView::syncColumns);
@@ -228,9 +232,8 @@ void StepItemView::focusOutEvent(QFocusEvent* event)
 
 QSize StepItemView::sizeHint() const
 {
-    return {horizontalHeader()->length() + verticalHeader()->sizeHint().width() + lineWidth() * 2,
-            static_cast<int>(horizontalHeader()->height() * 1.5) + verticalHeader()->length()
-                + lineWidth() * 2};
+    return {horizontalHeader()->length() /* + verticalHeader()->sizeHint().width()*/ + lineWidth() * 2,
+            horizontalHeader()->height() + verticalHeader()->length() + 15 + lineWidth() * 2};
 }
 
 void StepItemView::hideNotUsedItems()
@@ -258,7 +261,7 @@ void StepItemView::hideNotUsedItems()
     }
 
     if (rows_changed)
-        updateGeometry();
+        setFixedSize(sizeHint());
 }
 
 void StepItemView::resizeColumns(const QModelIndex& top_left,
@@ -271,7 +274,7 @@ void StepItemView::resizeColumns(const QModelIndex& top_left,
     if (col_left <= StepItemColumn::Name && StepItemColumn::Name <= col_right) {
         auto col = static_cast<int>(StepItemColumn::Name);
         if (other_view)
-            syncColumn(col);
+            syncColumn(col, min_name_width);
         else
             resizeColumnToContents(col);
         resized = true;
@@ -279,15 +282,15 @@ void StepItemView::resizeColumns(const QModelIndex& top_left,
     if (col_left <= StepItemColumn::CostCurrency && StepItemColumn::CostCurrency <= col_right) {
         auto col = static_cast<int>(StepItemColumn::CostCurrency);
         if (other_view)
-            syncColumn(col);
+            syncColumn(col, min_name_width);
         else
             resizeColumnToContents(col);
         resized = true;
     }
     if (resized) {
-        updateGeometry();
+        setFixedSize(sizeHint());
         if (other_view)
-            other_view->updateGeometry();
+            other_view->setFixedSize(other_view->sizeHint());
     }
 }
 
@@ -328,18 +331,19 @@ void StepItemView::deleteSearch()
 
 void StepItemView::syncColumns()
 {
-    syncColumn(static_cast<int>(StepItemColumn::Name));
-    syncColumn(static_cast<int>(StepItemColumn::CostCurrency));
-    updateGeometry();
+    syncColumn(static_cast<int>(StepItemColumn::Row), 20);
+    syncColumn(static_cast<int>(StepItemColumn::Name), min_name_width);
+    syncColumn(static_cast<int>(StepItemColumn::CostCurrency), min_name_width);
+    setFixedSize(sizeHint());
     if (other_view)
-        other_view->updateGeometry();
+        other_view->setFixedSize(other_view->sizeHint());
 }
 
-void StepItemView::syncColumn(int col)
+void StepItemView::syncColumn(int col, int min_width)
 {
     auto size_hint = sizeHintForColumn(col);
     auto other_size_hint = other_view ? other_view->sizeHintForColumn(col) : 0;
-    auto width = std::max({size_hint, other_size_hint, 120});
+    auto width = std::max({size_hint, other_size_hint, min_width});
     setColumnWidth(col, width);
     if (other_view)
         other_view->setColumnWidth(col, width);

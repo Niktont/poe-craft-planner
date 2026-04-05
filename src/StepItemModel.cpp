@@ -22,20 +22,22 @@ static const QString move_mime{u"application/x-movestepitem"};
 StepItemModel::StepItemModel(bool is_resource_model, PlanWidget& plan_widget)
     : QAbstractTableModel{&plan_widget}
     , is_resource_model{is_resource_model}
-{}
+{
+    connect(this, &QAbstractTableModel::rowsInserted, this, &StepItemModel::updateRowNumbers);
+    connect(this, &QAbstractTableModel::rowsRemoved, this, &StepItemModel::updateRowNumbers);
+}
 
 QVariant StepItemModel::headerData(int section, Qt::Orientation orientation, int role) const
 {
-    if (orientation == Qt::Vertical) {
-        if (role == Qt::DisplayRole)
-            return section + 1;
+    if (orientation == Qt::Vertical)
         return {};
-    }
 
     auto col = static_cast<StepItemColumn>(section);
     switch (role) {
     case Qt::DisplayRole:
         switch (col) {
+        case StepItemColumn::Row:
+            return tr("N");
         case StepItemColumn::Type:
             return tr("T");
         case StepItemColumn::Amount:
@@ -58,6 +60,8 @@ QVariant StepItemModel::headerData(int section, Qt::Orientation orientation, int
         return {};
     case Qt::ToolTipRole:
         switch (col) {
+        case StepItemColumn::Row:
+            return tr("Row");
         case StepItemColumn::Type:
             return tr("Type of item");
         case StepItemColumn::Amount:
@@ -199,6 +203,14 @@ QVariant StepItemModel::data(const QModelIndex& index, int role) const
     auto& item = items[index.row()];
     auto col = static_cast<StepItemColumn>(index.column());
     switch (col) {
+    case planner::StepItemColumn::Row:
+        switch (role) {
+        case Qt::DisplayRole:
+            return index.row() + 1;
+        case Qt::TextAlignmentRole:
+            return QVariant{Qt::AlignCenter};
+        }
+        return {};
     case StepItemColumn::Type:
         switch (role) {
         case Qt::DisplayRole: {
@@ -344,6 +356,8 @@ Qt::ItemFlags StepItemModel::flags(const QModelIndex& index) const
 
     auto col = static_cast<StepItemColumn>(index.column());
     switch (col) {
+    case StepItemColumn::Row:
+        return default_flags;
     case StepItemColumn::Type:
     case StepItemColumn::Amount:
     case StepItemColumn::Name:
@@ -485,6 +499,17 @@ Step* StepItemModel::step()
 {
     assert(plan);
     return &plan->steps[step_pos];
+}
+
+void StepItemModel::updateRowNumbers(const QModelIndex& /*idx*/, int /*first*/, int last)
+{
+    auto last_row = rowCount() - 1;
+    if (last >= last_row)
+        return;
+
+    auto top = index(last + 1, StepItemColumn::Row);
+    auto bottom = index(last_row, StepItemColumn::Row);
+    emit dataChanged(top, bottom, {Qt::DisplayRole});
 }
 
 std::vector<StepItem>& StepItemModel::stepItems()

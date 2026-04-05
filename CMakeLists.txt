@@ -103,7 +103,7 @@ if (PLANNER_NO_BROWSER)
         PRIVATE Qt6::Widgets Qt6::Network Qt6::Sql Boost::headers keyboard-auto-type qhotkey
     )
     target_compile_definitions(${PROJECT_NAME} PRIVATE PLANNER_NO_BROWSER)
-    set_property(CACHE CMAKE_INSTALL_PREFIX PROPERTY VALUE ${CMAKE_SOURCE_DIR}/PoE-Craft-Planner-no-browser)
+    set_property(CACHE CMAKE_INSTALL_PREFIX PROPERTY VALUE ${CMAKE_SOURCE_DIR}/install/PoE-Craft-Planner-no-browser)
 else()
     target_link_libraries(${PROJECT_NAME}
         PRIVATE Qt6::Widgets Qt6::WebEngineWidgets Qt6::Sql Boost::headers keyboard-auto-type qhotkey
@@ -112,7 +112,7 @@ else()
         src/WebPage.h src/WebPage.cpp
         src/WebViewDialog.h src/WebViewDialog.cpp
     )
-    set_property(CACHE CMAKE_INSTALL_PREFIX PROPERTY VALUE ${CMAKE_SOURCE_DIR}/PoE-Craft-Planner)
+    set_property(CACHE CMAKE_INSTALL_PREFIX PROPERTY VALUE ${CMAKE_SOURCE_DIR}/install/PoE-Craft-Planner)
 endif()
 
 # if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)

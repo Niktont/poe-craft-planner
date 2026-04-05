@@ -18,6 +18,7 @@ class Step;
 class StepItem;
 
 enum class StepItemColumn {
+    Row,
     Type,
     Amount,
     Name,
@@ -113,6 +114,9 @@ public:
 
     Step* step();
     const Step* step() const { return const_cast<StepItemModel*>(this)->step(); };
+
+private slots:
+    void updateRowNumbers(const QModelIndex& idx, int first, int last);
 
 private:
     friend class StepItemDelegate;
