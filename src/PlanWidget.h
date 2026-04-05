@@ -55,6 +55,9 @@ public:
         return step_item_copy_state.first == game && game != Game::Unknown;
     }
 
+signals:
+    void gameChanged(Game game);
+
 public slots:
     void addStep();
     void updateCost(planner::Game game, const std::vector<std::pair<Plan*, bool>>& updated_plans);
@@ -108,6 +111,7 @@ private:
     void displayFinalStep();
     void updateDisplayedCost();
     void displayCost();
+    void updateCosts(bool current_updated);
 
     std::pair<QUuid, QUuid> step_copy_state;
     std::pair<Game, StepItem> step_item_copy_state{Game::Unknown, {}};

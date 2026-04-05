@@ -30,6 +30,8 @@ class ShoppingDialog;
 class ShoppingSetupDialog;
 class SearchesDialog;
 class PlanSearchDialog;
+class SnapshotsDialog;
+class SnapshotModel;
 #ifndef PLANNER_NO_BROWSER
 class WebViewDialog;
 #endif
@@ -61,9 +63,15 @@ public:
     ExchangeRequestCache* exchange_cache_poe1;
     ExchangeRequestCache* exchange_cache_poe2;
 
+    SnapshotModel* snapshots_poe1;
+    SnapshotModel* snapshots_poe2;
+    QLineEdit* snapshot_edit;
+    SnapshotModel* current_snapshot_model{};
+
     SettingsDialog* settings_dialog;
     SearchesDialog* searches_dialog;
     RequestEditDialog* request_edit_dialog;
+    SnapshotsDialog* snapshots_dialog;
     UpdateCostDialog* update_cost_dialog;
     ShoppingDialog* shopping_dialog;
     ShoppingSetupDialog* shopping_setup;
@@ -78,7 +86,7 @@ public:
 
     PlanWidget* planWidget();
 
-    void restoreLastPlan();
+    void restoreSession();
 
     PlanTreeView* planView(Game game) const
     {
@@ -95,6 +103,10 @@ public:
     ExchangeRequestCache* exchangeCache(Game game) const
     {
         return game == Game::Poe1 ? exchange_cache_poe1 : exchange_cache_poe2;
+    }
+    SnapshotModel* snapshots(Game game) const
+    {
+        return game == Game::Poe1 ? snapshots_poe1 : snapshots_poe2;
     }
 
     QAction* save_action;
@@ -116,6 +128,8 @@ public:
     QAction* searches_action;
     QAction* searches_poe1_action;
     QAction* searches_poe2_action;
+    QAction* snapshots_poe1_action;
+    QAction* snapshots_poe2_action;
     QAction* update_cost_action;
     QAction* shopping_mode_action;
 

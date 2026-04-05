@@ -12,10 +12,7 @@ std::pair<bool, std::string::const_iterator> CustomCalculation::parseString(cons
         return {false, text.cend()};
     }
 
-    if (!custom.tree)
-        custom.tree.emplace();
-    else
-        *custom.tree = {};
+    custom.tree.emplace();
 
     auto first = text.cbegin();
     auto last = text.cend();

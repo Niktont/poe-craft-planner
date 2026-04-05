@@ -54,6 +54,7 @@ private:
     QWidget* league_tab;
     QComboBox* league_poe1;
     QComboBox* league_poe2;
+    QCheckBox* snapshot_use_current_data;
 
     QWidget* import_tab;
     QCheckBox* overwrite_names;

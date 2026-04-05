@@ -24,7 +24,7 @@ PlanTreeView::PlanTreeView(PlanModel& model, QWidget* parent)
 
     add_plan_action = addAction(tr("New Plan"), this, [this] {
         auto current = context_index ? *context_index : selectionModel()->currentIndex();
-        planModel()->insertPlan(current);
+        setCurrentIndex(planModel()->insertPlan(current));
         context_index.reset();
     });
     add_folder_action = addAction(tr("New Folder"), this, [this] {
@@ -40,9 +40,7 @@ PlanTreeView::PlanTreeView(PlanModel& model, QWidget* parent)
     save_action = addAction(tr("Save"), this, [this] {
         planModel()->savePlan(selectionModel()->currentIndex());
     });
-    restore_action = addAction(tr("Restore"), this, [this] {
-        planModel()->restorePlan(selectionModel()->currentIndex());
-    });
+    restore_action = addAction(tr("Restore"), this, &PlanTreeView::restoreItem);
 
     delete_action = addAction(tr("Delete"),
                               this,
@@ -86,7 +84,7 @@ void PlanTreeView::contextMenuEvent(QContextMenuEvent* event)
         if (!item->isFolder() && item->plan()->is_changed) {
             menu->addSeparator();
             menu->addAction(save_action);
-            if (!planModel()->isNewPlan(*context_index))
+            if (planModel()->canRestorePlan(*context_index))
                 menu->addAction(restore_action);
         }
         menu->addSeparator();
@@ -105,6 +103,29 @@ void PlanTreeView::keyPressEvent(QKeyEvent* event)
         delete_action->trigger();
     } else
         QTreeView::keyPressEvent(event);
+}
+
+void PlanTreeView::restoreItem()
+{
+    auto current = selectionModel()->currentIndex();
+    if (!current.isValid())
+        return;
+    auto item = planModel()->internalPtr(current);
+    if (!planModel()->canRestorePlan(current))
+        return;
+
+    auto modifiers = QGuiApplication::keyboardModifiers();
+    bool restore_item = modifiers.testFlag(Qt::ShiftModifier);
+    if (!restore_item) {
+        QMessageBox msg;
+        msg.setWindowTitle(tr("Restore Plan"));
+        msg.setText(tr("Discard changes to \"%1\"?").arg(item->name()));
+        msg.addButton(QMessageBox::Ok);
+        msg.addButton(QMessageBox::Cancel);
+        restore_item = msg.exec() == QMessageBox::Ok;
+    }
+    if (restore_item)
+        planModel()->restorePlan(current);
 }
 
 void PlanTreeView::deleteItem()

@@ -27,6 +27,8 @@ static constexpr Tables exchange_cache{u"exchange_cache_poe1", u"exchange_cache_
 static constexpr Tables exchange_cost_cache{u"exchange_cost_cache_poe1",
                                             u"exchange_cost_cache_poe2"};
 
+static constexpr Tables snapshots{u"snaphshots_poe1", u"snaphshots_poe2"};
+
 static const QString additional_db{u"additional"_s};
 
 const QString Database::db_version_key{u"db_version"_s};
@@ -471,6 +473,53 @@ bool Database::insertTradeCostCache(QSqlQuery& query,
     QJsonDocument doc{data.toJson()};
     query.addBindValue(doc.toJson(QJsonDocument::Compact));
 
+    return query.exec();
+}
+
+bool Database::createSnapshotTable(Game game)
+{
+    QSqlQuery query;
+    return query.exec(
+        "CREATE TABLE IF NOT EXISTS " % snapshots.forGame(game)
+        % "(id TEXT PRIMARY KEY NOT NULL, name TEXT, league TEXT, exchange TEXT, trade TEXT);");
+}
+
+QSqlQuery Database::selectSnapshots(Game game)
+{
+    QSqlQuery query;
+    query.prepare("SELECT id, name, league FROM " % snapshots.forGame(game) % ";");
+    return query;
+}
+
+QSqlQuery Database::selectSnapshotCosts(Game game, const QUuid& id)
+{
+    QSqlQuery query;
+    query.prepare("SELECT exchange, trade FROM " % snapshots.forGame(game) % " WHERE id = ?;");
+    query.addBindValue(id);
+    return query;
+}
+
+QSqlQuery Database::insertSnapshot(Game game)
+{
+    QSqlQuery query;
+    query.prepare("INSERT INTO " % snapshots.forGame(game)
+                  % "(id, name, league, exchange, trade) VALUES (?, ?, ?, ?, ?);");
+    return query;
+}
+
+QSqlQuery Database::deleteSnapshot(Game game)
+{
+    QSqlQuery query;
+    query.prepare("DELETE FROM " % snapshots.forGame(game) % " WHERE id = ?;");
+    return query;
+}
+
+bool Database::updateSnapshotName(Game game, const QUuid& id, const QString& name)
+{
+    QSqlQuery query;
+    query.prepare("UPDATE " % snapshots.forGame(game) % " SET name = ? WHERE id = ?;");
+    query.addBindValue(name);
+    query.addBindValue(id.toString());
     return query.exec();
 }
 

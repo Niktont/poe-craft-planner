@@ -3,6 +3,7 @@
 #include "ExchangeRequestCache.h"
 #include "ImportException.h"
 #include "Settings.h"
+#include "Snapshot.h"
 #include "TradeItemData.h"
 #include <QCompleter>
 #include <QFont>
@@ -38,6 +39,8 @@ bool TradeRequestCache::readDatabase()
     bool result = select.exec();
     if (!result)
         return result;
+
+    beginResetModel();
     while (select.next()) {
         auto p = Database::tradeCacheFromQuery(select);
         if (!p.first.isValid()) {
@@ -46,6 +49,8 @@ bool TradeRequestCache::readDatabase()
         }
         cache.emplace_hint(cache.end(), std::move(p));
     }
+    endResetModel();
+
     select = Database::selectTradeCostCache(game);
     result = result && select.exec();
     while (select.next()) {
@@ -121,6 +126,11 @@ void TradeRequestCache::deleteRequest(Cache::const_iterator it)
     beginRemoveRows({}, pos, pos);
     cache.erase(it);
     endRemoveRows();
+}
+
+void TradeRequestCache::setSnapshot(Snapshot* snapshot)
+{
+    this->snapshot = snapshot;
 }
 
 void planner::TradeRequestCache::updateCost(const TradeRequestKey& request,
@@ -199,44 +209,41 @@ QString TradeRequestCache::name(const TradeItemData& trade_item) const
 
 double TradeRequestCache::costValue(const TradeRequestKey& request) const
 {
-    auto it = currentLeagueData();
-    if (it == cost_cache.end())
-        return 0.0;
-    auto cost_it = it->second.costs.find(request);
-    return cost_it != it->second.costs.end() ? cost_it->second.cost.value : 0.0;
+    auto data = costData(request);
+    return data ? data->cost.value : 0.0;
 }
 
 const TradeCostData::Data* TradeRequestCache::costData(const TradeRequestKey& request) const
 {
-    auto it = currentLeagueData();
-    if (it == cost_cache.end())
+    if (snapshot) {
+        auto it = snapshot->trade.costs.find(request);
+        if (it != snapshot->trade.costs.end())
+            return &it->second;
+        else if (!Settings::get<settings::snapshots_use_current_if_missing>())
+            return nullptr;
+    }
+    auto league_it = currentLeagueData();
+    if (league_it == cost_cache.end())
         return nullptr;
-    auto cost_it = it->second.costs.find(request);
-    if (cost_it == it->second.costs.end())
-        return nullptr;
-    return &cost_it->second;
+
+    auto cost_it = league_it->second.costs.find(request);
+    return cost_it != league_it->second.costs.end() ? &cost_it->second : nullptr;
 }
 
 const ExchangeData* TradeRequestCache::costCurrency(const TradeRequestKey& request) const
 {
-    auto it = currentLeagueData();
-    if (it == cost_cache.end())
-        return nullptr;
-    auto cost_it = it->second.costs.find(request);
-    if (cost_it == it->second.costs.end())
+    auto data = costData(request);
+    if (!data)
         return nullptr;
 
-    auto exchange_it = exchange_cache->currencyData(cost_it->second.cost.currency);
+    auto exchange_it = exchange_cache->currencyData(data->cost.currency);
     return exchange_it != exchange_cache->cache.end() ? &(exchange_it->second) : nullptr;
 }
 
 double TradeRequestCache::goldFee(const TradeRequestKey& request) const
 {
-    auto it = currentLeagueData();
-    if (it == cost_cache.end())
-        return 0.0;
-    auto cost_it = it->second.costs.find(request);
-    return cost_it != it->second.costs.end() ? cost_it->second.gold_fee : 0.0;
+    auto data = costData(request);
+    return data ? data->gold_fee : 0.0;
 }
 
 ItemTime TradeRequestCache::time(const TradeItemData& trade_item) const

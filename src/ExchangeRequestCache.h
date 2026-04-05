@@ -12,13 +12,14 @@
 class QCompleter;
 
 namespace planner {
+class ExchangeItemData;
+class Snapshot;
+
 enum class ExchangeRequestColumn {
     Name,
 
     last = Name,
 };
-
-class ExchangeItemData;
 
 class ExchangeRequestCache : public QAbstractTableModel
 {
@@ -49,25 +50,24 @@ public:
         return const_cast<ExchangeRequestCache*>(this)->currencyData(currency);
     }
 
-    CostCache::iterator currentLeagueData();
-    CostCache::const_iterator currentLeagueData() const
-    {
-        return const_cast<ExchangeRequestCache*>(this)->currentLeagueData();
-    };
-
     void setDefaultTime(const Currency& currency, std::optional<ItemTime> time);
+
+    void setSnapshot(Snapshot* snapshot);
 
     bool saveCache() const;
     bool saveCostCache() const;
+
+    const ExchangeCostData* costData() const;
 
     bool isOutdated(const Currency& currency, QDateTime now) const;
 
     static QString name(const ExchangeData& data);
     static QString name(Cache::const_iterator it) { return name(it->second); }
+
     bool haveLink(const Currency& currency) const { return currencyData(currency) != cache.end(); }
     QString link(const Currency& currency) const;
     CurrencyCost cost(const Currency& currency) const;
-    std::pair<double, Cache::const_iterator> costData(const Currency& currency) const;
+    std::pair<double, Cache::const_iterator> costCurrency(const Currency& currency) const;
     QIcon icon(Cache::const_iterator it) const;
 
     bool isCore(const Currency& currency) const;
@@ -91,12 +91,24 @@ public:
 
     QVariant data(const QModelIndex& index, int role) const override;
     Qt::ItemFlags flags(const QModelIndex& index) const override;
+
 signals:
     void defaultTimeChanged(const planner::Currency& currency);
 
 private:
     QIcon div_card_icon;
     QString div_card_type;
+    Snapshot* snapshot{};
+
+    std::pair<const ExchangeCostData*, const ExchangeCostData::Data*> costData(
+        const Currency& currency) const;
+    const ExchangeCostData::Data* currencyCostData(const Currency& currency) const;
+
+    CostCache::iterator currentLeagueData();
+    CostCache::const_iterator currentLeagueData() const
+    {
+        return const_cast<ExchangeRequestCache*>(this)->currentLeagueData();
+    };
 };
 } // namespace planner
 #endif // EXCHANGEREQUESTCACHE_H

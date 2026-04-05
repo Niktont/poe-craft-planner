@@ -18,6 +18,8 @@ enum SettingsKey {
 
     poe2_league,
 
+    snapshots_use_current_if_missing,
+
     poe1_init_needed,
     poe2_init_needed,
 
@@ -112,6 +114,12 @@ template<>
 struct KeyTraits<poe2_league> : StringValue
 {
     static inline const std::string key{"poe2/league"};
+};
+
+template<>
+struct KeyTraits<snapshots_use_current_if_missing> : BoolValue
+{
+    static inline const std::string key{"snapshots/use_current_if_missing"};
 };
 
 template<>

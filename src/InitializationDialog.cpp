@@ -5,6 +5,7 @@
 #include "ExchangeRequestManager.h"
 #include "MainWindow.h"
 #include "Settings.h"
+#include "SnapshotModel.h"
 #include "TradeRequestCache.h"
 #include <boost/range/algorithm.hpp>
 #include <QApplication>
@@ -110,6 +111,8 @@ void InitializationDialog::initDatabase()
     result = result && Database::createTradeCostCacheTable(Game::Poe2);
     result = result && Database::createPlansTable(Game::Poe1);
     result = result && Database::createPlansTable(Game::Poe2);
+    result = result && Database::createSnapshotTable(Game::Poe1);
+    result = result && Database::createSnapshotTable(Game::Poe2);
 
     result = result && Database::updateInfo(Database::db_version_key, Database::db_version);
 
@@ -135,8 +138,8 @@ void InitializationDialog::readDatabase()
     result = result && mw->plan_model_poe1->readDatabase();
     result = result && mw->plan_model_poe2->readDatabase();
 
-    result = result && mw->exchange_cache_poe1->readAdditionalData();
-    result = result && mw->exchange_cache_poe2->readAdditionalData();
+    result = result && mw->snapshots_poe1->readDatabase();
+    result = result && mw->snapshots_poe2->readDatabase();
 
     if (!result) {
         progress_label->setText(tr("Reading of database failed."));
@@ -421,7 +424,7 @@ void InitializationDialog::finishInitialization()
 
     accept();
 
-    mw->restoreLastPlan();
+    mw->restoreSession();
     mw->show();
 
     deleteLater();

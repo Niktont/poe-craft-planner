@@ -676,6 +676,16 @@ bool PlanModel::isNewPlan(const QModelIndex& index) const
     return it != changed_plans.end() && it->second;
 }
 
+bool PlanModel::canRestorePlan(const QModelIndex& index) const
+{
+    auto item = internalPtr(index);
+    if (item->isFolder())
+        return false;
+
+    auto it = changed_plans.find(item);
+    return it != changed_plans.end() && !it->second;
+}
+
 void PlanModel::updateCost(const QModelIndex& index)
 {
     if (!index.isValid())

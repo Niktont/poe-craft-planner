@@ -2,6 +2,7 @@
 #include "Database.h"
 #include "ExchangeItemData.h"
 #include "Settings.h"
+#include "Snapshot.h"
 #include <QCompleter>
 #include <QFile>
 #include <QTextStream>
@@ -74,6 +75,47 @@ Qt::ItemFlags ExchangeRequestCache::flags(const QModelIndex& index) const
     return QAbstractTableModel::flags(index);
 }
 
+std::pair<const ExchangeCostData*, const ExchangeCostData::Data*> ExchangeRequestCache::costData(
+    const Currency& currency) const
+{
+    if (snapshot) {
+        auto data = &snapshot->exchange;
+        auto it = data->costs.find(currency.id);
+        if (it != data->costs.end())
+            return {data, &it->second};
+        else if (!Settings::get<settings::snapshots_use_current_if_missing>())
+            return {nullptr, nullptr};
+    }
+
+    auto league_it = currentLeagueData();
+    if (league_it == cost_cache.end())
+        return {nullptr, nullptr};
+
+    auto cost_it = league_it->second.costData(currency.id);
+    if (cost_it == league_it->second.costs.end())
+        return {nullptr, nullptr};
+
+    return {&league_it->second, &cost_it->second};
+}
+
+const ExchangeCostData::Data* ExchangeRequestCache::currencyCostData(const Currency& currency) const
+{
+    if (snapshot) {
+        auto data = &snapshot->exchange;
+        auto it = data->costs.find(currency.id);
+        if (it != data->costs.end())
+            return &it->second;
+        else if (!Settings::get<settings::snapshots_use_current_if_missing>())
+            return nullptr;
+    }
+    auto league_it = currentLeagueData();
+    if (league_it == cost_cache.end())
+        return nullptr;
+
+    auto cost_it = league_it->second.costs.find(currency.id);
+    return cost_it != league_it->second.costs.end() ? &cost_it->second : nullptr;
+}
+
 QString ExchangeRequestCache::iconFileName(Game game, const QString& id)
 {
     return game == Game::Poe1 ? "currency_icons/poe1/" % id % ".png"
@@ -101,26 +143,22 @@ bool ExchangeRequestCache::isCore(const Currency& currency) const
 CurrencyCost ExchangeRequestCache::convertToPrimary(const Currency& currency) const
 {
     CurrencyCost result;
-    auto league_it = currentLeagueData();
-    if (league_it == cost_cache.end())
+    auto [data, currency_data] = costData(currency);
+    if (!data)
         return result;
 
-    auto primary_value = league_it->second.primaryValue(currency.id);
+    auto primary_value = data->primaryValue(currency.id);
     if (!primary_value) {
-        auto cost_it = league_it->second.costData(currency.id);
-        if (cost_it == league_it->second.costs.end())
-            return result;
-
-        primary_value = league_it->second.primaryValue(cost_it->second.popular.currency.id);
+        primary_value = data->primaryValue(currency_data->popular.currency.id);
         if (!primary_value)
             return result;
 
-        result.value = *primary_value * cost_it->second.popular.value;
-        result.currency = league_it->second.primaryCurrency();
+        result.value = *primary_value * currency_data->popular.value;
+        result.currency = data->primaryCurrency();
         return result;
     } else {
         result.value = *primary_value;
-        result.currency = league_it->second.primaryCurrency();
+        result.currency = data->primaryCurrency();
         return result;
     }
 }
@@ -178,16 +216,25 @@ bool ExchangeRequestCache::saveCostCache() const
     return result;
 }
 
+const ExchangeCostData* ExchangeRequestCache::costData() const
+{
+    if (snapshot)
+        return &snapshot->exchange;
+
+    auto league_it = currentLeagueData();
+    return league_it != cost_cache.end() ? &league_it->second : nullptr;
+}
+
 bool ExchangeRequestCache::isOutdated(const Currency& currency, QDateTime now) const
 {
     if (currency.id.isEmpty())
         return false;
 
-    auto it = currentLeagueData();
-    if (it == cost_cache.end())
+    auto league_it = currentLeagueData();
+    if (league_it == cost_cache.end())
         return false;
-    auto cost_it = it->second.costData(currency.id);
-    if (cost_it == it->second.costs.end())
+    auto cost_it = league_it->second.costData(currency.id);
+    if (cost_it == league_it->second.costs.end())
         return true;
 
     return (cost_it->second.updated + Settings::exchangeCostExpirationTime()) <= now;
@@ -257,28 +304,18 @@ QString ExchangeRequestCache::link(const Currency& currency) const
 
 CurrencyCost ExchangeRequestCache::cost(const Currency& currency) const
 {
-    auto it = currentLeagueData();
-    if (it == cost_cache.end())
-        return {};
-
-    auto cost_it = it->second.costData(currency.id);
-    return cost_it != it->second.costs.end() ? cost_it->second.popular : CurrencyCost{};
+    auto data = currencyCostData(currency);
+    return data ? data->popular : CurrencyCost{};
 }
 
-std::pair<double, ExchangeRequestCache::Cache::const_iterator> ExchangeRequestCache::costData(
+std::pair<double, ExchangeRequestCache::Cache::const_iterator> ExchangeRequestCache::costCurrency(
     const Currency& currency) const
 {
-    std::pair<double, ExchangeRequestCache::Cache::const_iterator> result{0.0, cache.end()};
+    auto data = currencyCostData(currency);
+    if (!data)
+        return {0.0, cache.end()};
 
-    auto it = currentLeagueData();
-    if (it == cost_cache.end())
-        return result;
-    auto cost_it = it->second.costData(currency.id);
-    if (cost_it == it->second.costs.end())
-        return result;
-
-    auto& cost = cost_it->second.popular;
-    return {cost.value, currencyData(cost.currency)};
+    return {data->popular.value, currencyData(data->popular.currency)};
 }
 
 ExchangeRequestCache::~ExchangeRequestCache() noexcept
@@ -308,6 +345,8 @@ bool ExchangeRequestCache::readDatabase()
     bool result = select.exec();
     if (!result)
         return result;
+
+    beginResetModel();
     while (select.next()) {
         auto p = Database::exchangeCacheFromQuery(select, game);
         if (p.first.isEmpty()) {
@@ -327,6 +366,8 @@ bool ExchangeRequestCache::readDatabase()
         }
         cost_cache.emplace(std::move(p));
     }
+    result = result && readAdditionalData();
+    endResetModel();
 
     return result;
 }
@@ -361,6 +402,11 @@ void ExchangeRequestCache::setDefaultTime(const Currency& currency, std::optiona
         cache_changed = true;
         emit defaultTimeChanged(currency);
     }
+}
+
+void ExchangeRequestCache::setSnapshot(Snapshot* snapshot)
+{
+    this->snapshot = snapshot;
 }
 
 ExchangeRequestCache::Cache::iterator ExchangeRequestCache::currencyData(const Currency& currency)

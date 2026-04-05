@@ -34,6 +34,8 @@ void Settings::initCache()
 
     read<poe2_league>(settings);
 
+    read<snapshots_use_current_if_missing>(settings);
+
     read<poe1_init_needed>(settings, true);
     read<poe2_init_needed>(settings, true);
 
@@ -83,6 +85,8 @@ const QLatin1StringView Settings::windows_web_view_dialog_geometry{
 const QLatin1StringView Settings::windows_searches_dialog_geometry{
     "windows/searches_dialog_geometry"};
 const QLatin1StringView Settings::windows_searches_view_columns{"windows/searches_view_columns"};
+const QLatin1StringView Settings::windows_snapshots_dialog_size{"windows/snapshots_dialog_size"};
+const QLatin1StringView Settings::windows_snapshots_view_columns{"windows/snapshots_view_columns"};
 const QLatin1StringView Settings::windows_request_edit_dialog_size{
     "windows/request_edit_dialog_size"};
 const QLatin1StringView Settings::windows_shopping_dialog_geometry{
@@ -90,6 +94,8 @@ const QLatin1StringView Settings::windows_shopping_dialog_geometry{
 const QLatin1StringView Settings::windows_plan_search_dialog_size{
     "windows/plan_search_dialog_size"};
 const QLatin1StringView Settings::windows_main_last_plan{"windows/main_last_plan"};
+const QLatin1StringView Settings::windows_main_snapshot_poe1{"windows/main_snapshot_poe1"};
+const QLatin1StringView Settings::windows_main_snapshot_poe2{"windows/main_snapshot_poe2"};
 
 std::array<QVariant, Settings::last + 1> Settings::cache{};
 

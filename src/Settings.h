@@ -88,9 +88,13 @@ public:
     static const QLatin1StringView windows_main_geometry;
     static const QLatin1StringView windows_main_state;
     static const QLatin1StringView windows_main_last_plan;
+    static const QLatin1StringView windows_main_snapshot_poe1;
+    static const QLatin1StringView windows_main_snapshot_poe2;
     static const QLatin1StringView windows_web_view_dialog_geometry;
     static const QLatin1StringView windows_searches_dialog_geometry;
     static const QLatin1StringView windows_searches_view_columns;
+    static const QLatin1StringView windows_snapshots_dialog_size;
+    static const QLatin1StringView windows_snapshots_view_columns;
     static const QLatin1StringView windows_request_edit_dialog_size;
     static const QLatin1StringView windows_shopping_dialog_geometry;
     static const QLatin1StringView windows_plan_search_dialog_size;

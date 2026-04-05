@@ -99,6 +99,16 @@ public:
     static bool insertTradeCostCache(QSqlQuery& query,
                                      const QString& league,
                                      const TradeCostData& data);
+
+    static bool createSnapshotTable(Game game);
+
+    static QSqlQuery selectSnapshots(Game game);
+    static QSqlQuery selectSnapshotCosts(Game game, const QUuid& id);
+
+    static QSqlQuery insertSnapshot(Game game);
+    static QSqlQuery deleteSnapshot(Game game);
+
+    static bool updateSnapshotName(Game game, const QUuid& id, const QString& name);
 };
 
 } // namespace planner

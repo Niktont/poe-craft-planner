@@ -91,6 +91,10 @@ qt_add_executable(${PROJECT_NAME}
     src/CustomVisitor.h src/CustomVisitor.cpp
     src/CustomEditDialog.h src/CustomEditDialog.cpp
     src/SettingsKey.h
+    src/SnapshotModel.h src/SnapshotModel.cpp
+    src/Snapshot.h
+    src/SnapshotsDialog.h src/SnapshotsDialog.cpp
+    src/SnapshotView.h src/SnapshotView.cpp
 )
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE APP_VERSION="${PROJECT_VERSION}")

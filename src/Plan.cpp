@@ -122,7 +122,7 @@ void Plan::setChanged()
 
 Plan::Steps::const_iterator Plan::findStepIt(const QUuid& step_id) const
 {
-    return std::ranges::find_if(steps, [&](const Step& step) { return step.id == step_id; });
+    return std::ranges::find(steps, step_id, &Step::id);
 }
 
 const Step* Plan::findStep(const QUuid& step_id) const

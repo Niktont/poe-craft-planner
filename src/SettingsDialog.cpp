@@ -302,16 +302,26 @@ void SettingsDialog::saveRequests(QSettings& settings)
 void SettingsDialog::setupLeagueTab()
 {
     league_tab = new QWidget{};
-    auto layout = new QFormLayout{};
+    auto layout = new QVBoxLayout{};
     league_tab->setLayout(layout);
+    auto form = new QFormLayout{};
+    layout->addLayout(form);
 
     league_poe1 = new QComboBox{};
     connect(league_poe1, &QComboBox::currentIndexChanged, this, &SettingsDialog::setLeagueChanged);
-    layout->addRow(tr("PoE 1 league:"), league_poe1);
+    form->addRow(tr("PoE 1 league:"), league_poe1);
 
     league_poe2 = new QComboBox{};
     connect(league_poe2, &QComboBox::currentIndexChanged, this, &SettingsDialog::setLeagueChanged);
-    layout->addRow(tr("PoE 2 league:"), league_poe2);
+    form->addRow(tr("PoE 2 league:"), league_poe2);
+
+    snapshot_use_current_data = new QCheckBox{
+        tr("Use cost from league if it's not found in snapshot")};
+    connect(snapshot_use_current_data,
+            &QCheckBox::checkStateChanged,
+            this,
+            &SettingsDialog::setLeagueChanged);
+    layout->addWidget(snapshot_use_current_data);
 }
 
 void SettingsDialog::resetLeague()
@@ -332,6 +342,8 @@ void SettingsDialog::resetLeague()
     }
     league_poe2->setCurrentText(Settings::currentLeague(Game::Poe2));
 
+    snapshot_use_current_data->setChecked(Settings::get<snapshots_use_current_if_missing>());
+
     is_changed[League] = false;
 }
 
@@ -339,6 +351,8 @@ void SettingsDialog::saveLeague(QSettings& settings)
 {
     Settings::set<poe1_league>(league_poe1->currentText(), settings);
     Settings::set<poe2_league>(league_poe2->currentText(), settings);
+    Settings::set<snapshots_use_current_if_missing>(snapshot_use_current_data->isChecked(),
+                                                    settings);
 }
 
 void SettingsDialog::setupImportTab()

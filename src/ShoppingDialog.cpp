@@ -163,7 +163,7 @@ void ShoppingDialog::pasteHave()
 
     auto& item = model->item(idx.row());
     if (auto exchange = item.exchange()) {
-        auto [val, it] = model->exchangeCache()->costData(*exchange);
+        auto [val, it] = model->exchangeCache()->costCurrency(*exchange);
         if (it != model->exchangeCache()->cache.end())
             pasteText(model->exchangeCache()->name(it));
     }

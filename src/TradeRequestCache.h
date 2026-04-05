@@ -15,6 +15,11 @@ class QCompleter;
 class QSortFilterProxyModel;
 
 namespace planner {
+class TradeItemData;
+class ExchangeRequestCache;
+class ExchangeData;
+class Snapshot;
+
 enum class TradeRequestColumn {
     Name,
     Link,
@@ -25,10 +30,6 @@ enum class TradeRequestColumn {
 
     last = Time,
 };
-
-class TradeItemData;
-class ExchangeRequestCache;
-class ExchangeData;
 
 class TradeRequestCache : public QAbstractTableModel
 {
@@ -54,11 +55,6 @@ public:
     {
         return const_cast<TradeRequestCache*>(this)->requestData(request);
     }
-    CostCache::iterator currentLeagueData();
-    CostCache::const_iterator currentLeagueData() const
-    {
-        return const_cast<TradeRequestCache*>(this)->currentLeagueData();
-    };
 
     void saveRequest(const TradeRequestKey& request,
                      const QString& name,
@@ -69,6 +65,8 @@ public:
     void deleteRequests(int top, int bottom);
     void deleteRequest(const TradeRequestKey& request) { deleteRequest(requestData(request)); }
     void deleteRequest(Cache::const_iterator it);
+
+    void setSnapshot(Snapshot* snapshot);
 
     void updateCost(const TradeRequestKey& request, TradeCostData::Data cost_data);
     void setDefaultTime(const TradeRequestKey& request, std::optional<ItemTime> time);
@@ -106,6 +104,14 @@ signals:
 
 private:
     ExchangeRequestCache* exchange_cache;
+
+    Snapshot* snapshot{};
+
+    CostCache::iterator currentLeagueData();
+    CostCache::const_iterator currentLeagueData() const
+    {
+        return const_cast<TradeRequestCache*>(this)->currentLeagueData();
+    };
 };
 
 } // namespace planner

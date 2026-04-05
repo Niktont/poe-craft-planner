@@ -26,8 +26,11 @@ StepItemModel::StepItemModel(bool is_resource_model, PlanWidget& plan_widget)
 
 QVariant StepItemModel::headerData(int section, Qt::Orientation orientation, int role) const
 {
-    if (orientation == Qt::Vertical && role == Qt::DisplayRole)
-        return section + 1;
+    if (orientation == Qt::Vertical) {
+        if (role == Qt::DisplayRole)
+            return section + 1;
+        return {};
+    }
 
     auto col = static_cast<StepItemColumn>(section);
     switch (role) {
@@ -578,11 +581,11 @@ QVariant StepItemModel::exchangeItemData(double amount,
     case StepItemColumn::CostCurrency:
         switch (role) {
         case Qt::DecorationRole:
-            if (auto [val, it] = exchange_cache->costData(exchange.currency); it != cache.end())
+            if (auto [val, it] = exchange_cache->costCurrency(exchange.currency); it != cache.end())
                 return exchange_cache->icon(it);
             return {};
         case Qt::DisplayRole:
-            if (auto [val, it] = exchange_cache->costData(exchange.currency); it != cache.end())
+            if (auto [val, it] = exchange_cache->costCurrency(exchange.currency); it != cache.end())
                 return exchange_cache->name(it);
             return {};
         }

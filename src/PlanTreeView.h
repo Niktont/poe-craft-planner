@@ -23,6 +23,7 @@ protected:
     void keyPressEvent(QKeyEvent* event) override;
 
 private slots:
+    void restoreItem();
     void deleteItem();
 
 private:

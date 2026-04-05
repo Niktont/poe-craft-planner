@@ -5,6 +5,7 @@
 #include "MainWindow.h"
 #include "Plan.h"
 #include "Settings.h"
+#include "SnapshotModel.h"
 #include "TradeRequestManager.h"
 #include <QCloseEvent>
 #include <QLabel>
@@ -58,7 +59,7 @@ void UpdateCostDialog::updatePlan(Plan* plan, bool send_requests)
     auto plan_model = mw()->planModel(plan->game);
     plan->gatherDependencies(*plan_model, dependencies);
 
-    if (!send_requests) {
+    if (!send_requests || mw()->snapshots(plan->game)->current) {
         trade_finished = true;
         exchange_finished = true;
         calculateCost();
@@ -373,6 +374,7 @@ void UpdateCostDialog::calculateCost()
         }
     }
 
+    auto snapshot_name = mw()->snapshots(plan->game)->currentName();
     bool parse_failed = false;
     for (auto& [plan, final_changed] : plans) {
         if (!parse_failed) {
@@ -385,7 +387,11 @@ void UpdateCostDialog::calculateCost()
             final_changed = plan->autoSelectFinalStep();
         }
 
-        plan->league = Settings::currentLeague(plan->game);
+        if (snapshot_name.isEmpty())
+            plan->league = Settings::currentLeague(plan->game);
+        else
+            plan->league = snapshot_name;
+
         plan->setChanged();
     }
     emit costUpdated(plan->game, plans);
@@ -433,9 +439,9 @@ bool UpdateCostDialog::calculateStepCost(const Plan& step_plan, Step& step)
                                  .has_value();
         }
 
-        auto hasValue = [](const std::optional<ItemCost>& opt) { return opt.has_value(); };
         auto value = [](const std::optional<ItemCost>& opt) { return *opt; };
-        auto resources_view = std::views::filter(resources_cost, hasValue);
+        auto resources_view = std::views::filter(resources_cost,
+                                                 &std::optional<ItemCost>::has_value);
         switch (step.resource_calc) {
         case ResourceCalcMethod::Sum:
             for (auto& cost : resources_view)

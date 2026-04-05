@@ -12,6 +12,8 @@
 #include "SettingsDialog.h"
 #include "ShoppingDialog.h"
 #include "ShoppingSetupDialog.h"
+#include "SnapshotModel.h"
+#include "SnapshotsDialog.h"
 #include "TradeRequestCache.h"
 #include "TradeRequestManager.h"
 #include "UpdateCostDialog.h"
@@ -33,7 +35,6 @@
 #include <QRestAccessManager>
 #include <QToolBar>
 #include <QVBoxLayout>
-
 #ifndef PLANNER_NO_BROWSER
 #include "WebViewDialog.h"
 #endif
@@ -62,12 +63,16 @@ MainWindow::MainWindow(QWidget* parent)
     trade_cache_poe1 = new TradeRequestCache{Game::Poe1, *exchange_cache_poe1, this};
     trade_cache_poe2 = new TradeRequestCache{Game::Poe2, *exchange_cache_poe2, this};
 
+    snapshots_poe1 = new SnapshotModel{*exchange_cache_poe1, *trade_cache_poe1, this};
+    snapshots_poe2 = new SnapshotModel{*exchange_cache_poe2, *trade_cache_poe2, this};
+
     setupDockWidgets();
 
     setupNetwork();
 
     settings_dialog = new SettingsDialog{*this};
     searches_dialog = new SearchesDialog{*this};
+    snapshots_dialog = new SnapshotsDialog{*this};
     request_edit_dialog = new RequestEditDialog{*this};
     update_cost_dialog = new UpdateCostDialog{*this};
     connect(update_cost_dialog,
@@ -78,6 +83,29 @@ MainWindow::MainWindow(QWidget* parent)
     shopping_setup = new ShoppingSetupDialog{*this};
     custom_edit_dialog = new CustomEditDialog{this};
     plan_search_dialog = new PlanSearchDialog{*this};
+
+    snapshot_edit = new QLineEdit{this};
+    snapshot_edit->setPlaceholderText(tr("Snapshot"));
+    snapshot_edit->setFixedWidth(80);
+    connect(plan_widget, &PlanWidget::gameChanged, this, [this](Game game) {
+        current_snapshot_model = snapshots(game);
+        snapshot_edit->setText(current_snapshot_model->currentName());
+        snapshot_edit->setCompleter(current_snapshot_model->completer);
+    });
+    connect(snapshot_edit, &QLineEdit::editingFinished, this, [this] {
+        if (!current_snapshot_model)
+            return;
+
+        if (snapshot_edit->text().isEmpty())
+            current_snapshot_model->clearCurrent();
+        else
+            snapshot_edit->setText(current_snapshot_model->currentName());
+    });
+    connect(snapshot_edit, &QLineEdit::textChanged, this, [this](const QString& text) {
+        auto fm = snapshot_edit->fontMetrics();
+        auto width = fm.horizontalAdvance(text) + 15;
+        snapshot_edit->setFixedWidth(std::max(80, width));
+    });
 
     setupAboutDialog();
 
@@ -113,9 +141,14 @@ PlanWidget* MainWindow::planWidget()
     return static_cast<PlanWidget*>(centralWidget());
 }
 
-void MainWindow::restoreLastPlan()
+void MainWindow::restoreSession()
 {
     auto settings = Settings::get();
+    snapshots_poe1->setCurrent(
+        QUuid::fromString(settings.value(Settings::windows_main_snapshot_poe1).toString()));
+    snapshots_poe2->setCurrent(
+        QUuid::fromString(settings.value(Settings::windows_main_snapshot_poe2).toString()));
+
     QUuid id{settings.value(Settings::windows_main_last_plan).toString()};
     if (id.isNull())
         return;
@@ -148,8 +181,16 @@ void MainWindow::closeEvent(QCloseEvent* event)
 #endif
     settings.setValue(Settings::windows_shopping_dialog_geometry, shopping_dialog->saveGeometry());
     searches_dialog->saveState(settings);
+    snapshots_dialog->saveState(settings);
     settings.setValue(Settings::windows_request_edit_dialog_size, request_edit_dialog->size());
     settings.setValue(Settings::windows_plan_search_dialog_size, plan_search_dialog->size());
+
+    if (snapshots_poe1->current)
+        settings.setValue(Settings::windows_main_snapshot_poe1,
+                          snapshots_poe1->current->id.toString());
+    if (snapshots_poe2->current)
+        settings.setValue(Settings::windows_main_snapshot_poe2,
+                          snapshots_poe2->current->id.toString());
 
     Settings::save<settings::windows_main_hide_descriptions>(settings);
     Settings::save<settings::windows_main_hide_empty_resources>(settings);
@@ -423,6 +464,15 @@ void MainWindow::setupActions()
         searches_dialog->openGame(Game::Poe2);
     });
 
+    snapshots_poe1_action = new QAction{tr("Snapshots (PoE 1)"), this};
+    connect(snapshots_poe1_action, &QAction::triggered, this, [this] {
+        snapshots_dialog->openGame(Game::Poe1);
+    });
+    snapshots_poe2_action = new QAction{tr("Snapshots (PoE 2)"), this};
+    connect(snapshots_poe2_action, &QAction::triggered, this, [this] {
+        snapshots_dialog->openGame(Game::Poe2);
+    });
+
     update_cost_action = new QAction{tr("Update Costs"), this};
     update_cost_action->setShortcuts({Qt::Key_F5, Qt::ShiftModifier | Qt::Key_F5});
     connect(update_cost_action, &QAction::triggered, this, [this] {
@@ -450,6 +500,8 @@ void MainWindow::setupActions()
     edit_menu->addAction(searches_poe1_action);
     edit_menu->addAction(searches_poe2_action);
     edit_menu->addSeparator();
+    edit_menu->addAction(snapshots_poe1_action);
+    edit_menu->addAction(snapshots_poe2_action);
     edit_menu->addAction(update_cost_action);
     edit_menu->addSeparator();
     edit_menu->addAction(plan_search_action);
@@ -477,13 +529,12 @@ void MainWindow::setupActions()
     toolbar->addAction(save_action);
     toolbar->addAction(save_all_action);
     toolbar->addSeparator();
-
     toolbar->addAction(add_step_action);
     toolbar->addAction(searches_action);
-    toolbar->addAction(update_cost_action);
     toolbar->addSeparator();
-
+    toolbar->addAction(update_cost_action);
     toolbar->addAction(shopping_mode_action);
+    toolbar->addWidget(snapshot_edit);
 }
 
 bool MainWindow::haveUnsavedPlans()

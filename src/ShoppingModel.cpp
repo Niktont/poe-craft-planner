@@ -147,10 +147,10 @@ bool ShoppingModel::gatherPlanItems(size_t step_pos, double amount)
     if (plan_data.exchange_items.empty() && plan_data.trade_items.empty())
         return false;
 
-    auto league_it = exchange_cache->currentLeagueData();
-    if (league_it == exchange_cache->cost_cache.end())
+    auto data = exchange_cache->costData();
+    if (!data)
         return false;
-    auto& cores = league_it->second.core_currencies;
+    auto& cores = data->core_currencies;
     for (auto& core : std::ranges::reverse_view(cores)) {
         if (auto it = plan_data.exchange_items.find(core.currency);
             it != plan_data.exchange_items.end()) {

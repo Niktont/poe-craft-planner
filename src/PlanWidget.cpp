@@ -7,6 +7,7 @@
 #include "PlanTreeView.h"
 #include "Settings.h"
 #include "SettingsDialog.h"
+#include "SnapshotModel.h"
 #include "StepItem.h"
 #include "StepWidget.h"
 #include "TradeRequestCache.h"
@@ -153,6 +154,15 @@ void PlanWidget::connectSignals()
             &SettingsDialog::exchangeTimeChanged,
             this,
             &PlanWidget::updateExchangeDefaultTime);
+
+    connect(mw()->snapshots_poe1, &SnapshotModel::currentChanged, this, [this](Game game) {
+        if (plan_ && plan_->game == game)
+            updateCosts(false);
+    });
+    connect(mw()->snapshots_poe2, &SnapshotModel::currentChanged, this, [this](Game game) {
+        if (plan_ && plan_->game == game)
+            updateCosts(false);
+    });
 }
 
 MainWindow* PlanWidget::mw() const
@@ -196,6 +206,12 @@ void PlanWidget::emplaceStepWidget(size_t i)
 void PlanWidget::displayCost()
 {
     cost_widget->setCost(plan_->game, plan_->costStep());
+}
+
+void PlanWidget::updateCosts(bool current_updated)
+{
+    for (size_t i = 0; i < plan_->steps.size(); ++i)
+        step_widgets[i]->updateCost(current_updated);
 }
 
 void PlanWidget::clear()
@@ -243,8 +259,7 @@ void PlanWidget::updateCost(Game game, const std::vector<std::pair<Plan*, bool>>
             displayFinalStep();
     }
 
-    for (size_t i = 0; i < plan_->steps.size(); ++i)
-        step_widgets[i]->updateCost(current_updated);
+    updateCosts(current_updated);
 }
 
 void PlanWidget::setDescriptions(Plan* plan)
@@ -750,6 +765,9 @@ void PlanWidget::setPlan(const PlanModel* model, Plan* plan)
         clear();
         return;
     }
+
+    emit gameChanged(plan_->game);
+
     setEnabled(true);
 
     name_label->setText(plan->name);
