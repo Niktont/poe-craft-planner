@@ -427,27 +427,19 @@ bool StepItemModel::canDropMimeData(const QMimeData* data,
                                     int /*column*/,
                                     const QModelIndex& /*parent*/) const
 {
-    if (!plan || !data->hasFormat(move_mime))
+    if (!plan)
+        return false;
+
+    auto& plan_mime = plan->game == Game::Poe1 ? PlanModel::move_mime_poe1
+                                               : PlanModel::move_mime_poe2;
+    if (!data->hasFormat(move_mime) && !data->hasFormat(plan_mime))
         return false;
 
     return true;
 }
 
-bool StepItemModel::dropMimeData(
-    const QMimeData* data, Qt::DropAction action, int row, int column, const QModelIndex& parent)
+void planner::StepItemModel::moveItems(int dest_row, const QMimeData* data)
 {
-    if (!canDropMimeData(data, action, row, column, parent))
-        return false;
-
-    if (action == Qt::IgnoreAction)
-        return true;
-
-    int dest_row;
-    if (row != -1)
-        dest_row = row;
-    else
-        dest_row = rowCount();
-
     QByteArray encodedData = data->data(move_mime);
     QDataStream stream{&encodedData, QIODevice::ReadOnly};
 
@@ -466,7 +458,6 @@ bool StepItemModel::dropMimeData(
             moveRows({}, row, 1, {}, dest_row);
             ++dest_row;
         }
-
     } else {
         auto& source_items = source_model->stepItems();
         auto& items = stepItems();
@@ -483,6 +474,57 @@ bool StepItemModel::dropMimeData(
             ++dest_row;
         }
     }
+}
+
+void StepItemModel::addPlanItems(int dest_row, const QMimeData* data)
+{
+    auto plan_items = PlanModel::decodePlansMime(plan->game, data);
+
+    auto& items = stepItems();
+    auto amount = dest_row > 0 ? items[dest_row - 1].amount : 1.0;
+    auto addPlan = [&](const QUuid& plan_id) {
+        beginInsertRows({}, dest_row, dest_row);
+
+        auto it = items.emplace(items.begin() + dest_row);
+        it->amount = amount;
+        auto& plan_data = it->data.emplace<PlanItemData>();
+        plan_data.plan_id = plan_id;
+        plan->setChanged();
+        ++dest_row;
+
+        endInsertRows();
+    };
+
+    for (auto plan_item : plan_items) {
+        if (plan_item->isFolder()) {
+            for (int i = 0; i < plan_item->childCount(); ++i) {
+                if (plan_item->child(i)->plan())
+                    addPlan(plan_item->child(i)->plan()->id());
+            }
+        } else
+            addPlan(plan_item->plan()->id());
+    }
+}
+
+bool StepItemModel::dropMimeData(
+    const QMimeData* data, Qt::DropAction action, int row, int column, const QModelIndex& parent)
+{
+    if (!canDropMimeData(data, action, row, column, parent))
+        return false;
+
+    if (action == Qt::IgnoreAction)
+        return true;
+
+    int dest_row;
+    if (row != -1)
+        dest_row = row;
+    else
+        dest_row = rowCount();
+
+    if (data->hasFormat(move_mime))
+        moveItems(dest_row, data);
+    else
+        addPlanItems(dest_row, data);
 
     return true;
 }

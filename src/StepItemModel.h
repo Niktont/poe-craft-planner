@@ -169,6 +169,9 @@ private:
     static QVariant formatTime(ItemTime time);
 
     MainWindow* mw() const;
+
+    void moveItems(int dest_row, const QMimeData* data);
+    void addPlanItems(int dest_row, const QMimeData* data);
 };
 
 } // namespace planner

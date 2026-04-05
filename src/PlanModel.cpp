@@ -6,6 +6,7 @@
 #include "MainWindow.h"
 #include "Plan.h"
 #include "PlanSearchModel.h"
+#include "PlanTreeView.h"
 #include "PlanWidget.h"
 #include "Settings.h"
 #include <boost/container/flat_set.hpp>
@@ -17,9 +18,6 @@
 #include <QMimeData>
 
 namespace planner {
-
-static const QString move_mime_poe1{u"application/x-moveplanitem1"};
-static const QString move_mime_poe2{u"application/x-moveplanitem2"};
 
 PlanModel::PlanModel(Game game, MainWindow& mw)
     : QAbstractItemModel{&mw}
@@ -225,6 +223,9 @@ bool PlanModel::setData(const QModelIndex& index, const QVariant& value, int rol
     return result;
 }
 
+const QString PlanModel::move_mime_poe1{u"application/x-moveplanitem1"};
+const QString PlanModel::move_mime_poe2{u"application/x-moveplanitem2"};
+
 QStringList PlanModel::mimeTypes() const
 {
     QStringList types;
@@ -256,6 +257,12 @@ QMimeData* PlanModel::mimeData(const QModelIndexList& indexes) const
         mime_data->setData(move_mime_poe1, encodedData);
     else
         mime_data->setData(move_mime_poe2, encodedData);
+
+    if (QGuiApplication::keyboardModifiers().testFlag(Qt::AltModifier)) {
+        auto current_plan = mw()->planWidget()->plan();
+        if (current_plan)
+            mw()->planView(game)->selectPlan(current_plan->id());
+    }
 
     return mime_data;
 }
@@ -293,17 +300,7 @@ bool PlanModel::dropMimeData(
     else
         dest_row = rowCount({});
 
-    QByteArray encodedData = game == Game::Poe1 ? data->data(move_mime_poe1)
-                                                : data->data(move_mime_poe2);
-    QDataStream stream{&encodedData, QIODevice::ReadOnly};
-
-    std::vector<PlanItem*> items;
-    while (!stream.atEnd()) {
-        size_t ptr;
-        stream >> ptr;
-        items.push_back(std::bit_cast<PlanItem*>(ptr));
-    }
-
+    auto items = decodePlansMime(game, data);
     std::erase(items, parent_item);
     if (items.empty())
         return false;
@@ -314,6 +311,20 @@ bool PlanModel::dropMimeData(
         ++dest_row;
     }
     return true;
+}
+
+std::vector<PlanItem*> PlanModel::decodePlansMime(Game game, const QMimeData* data)
+{
+    auto encodedData = game == Game::Poe1 ? data->data(move_mime_poe1) : data->data(move_mime_poe2);
+    QDataStream stream{&encodedData, QIODevice::ReadOnly};
+
+    std::vector<PlanItem*> items;
+    while (!stream.atEnd()) {
+        size_t ptr;
+        stream >> ptr;
+        items.push_back(std::bit_cast<PlanItem*>(ptr));
+    }
+    return items;
 }
 
 QVariant PlanModel::data(const QModelIndex& index, int role) const

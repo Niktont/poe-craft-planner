@@ -59,6 +59,8 @@ public:
                   int dest_row) override;
     bool removeRows(int row, int count, const QModelIndex& parent = {}) override;
 
+    static const QString move_mime_poe1;
+    static const QString move_mime_poe2;
     Qt::DropActions supportedDropActions() const override { return Qt::CopyAction; }
     QStringList mimeTypes() const override;
     QMimeData* mimeData(const QModelIndexList& indexes) const override;
@@ -72,6 +74,8 @@ public:
                       int row,
                       int column,
                       const QModelIndex& parent) override;
+
+    static std::vector<PlanItem*> decodePlansMime(Game game, const QMimeData* data);
 
     QModelIndex index(int row, int column, const QModelIndex& parent = {}) const override;
     QModelIndex parent(const QModelIndex& index) const override;

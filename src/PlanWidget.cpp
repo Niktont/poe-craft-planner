@@ -694,6 +694,9 @@ void PlanWidget::setPlanChanged()
 
 void PlanWidget::setPlanOnClick(const QModelIndex& index)
 {
+    if (QGuiApplication::keyboardModifiers().testFlag(Qt::AltModifier))
+        return;
+
     auto plan_model = static_cast<const PlanModel*>(index.model());
 
     auto item = plan_model->internalPtr(index);
@@ -716,6 +719,9 @@ void PlanWidget::setPlanOnUpdate(Plan* new_plan, const Plan* old_plan)
 
 void PlanWidget::setPlanOnCurrentChange(const QModelIndex& new_current)
 {
+    if (QGuiApplication::keyboardModifiers().testFlag(Qt::AltModifier))
+        return;
+
     if (!new_current.isValid())
         return;
 
