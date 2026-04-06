@@ -105,6 +105,8 @@ private:
     Plan* plan_{};
 
     void setPlan(const planner::PlanModel* model, planner::Plan* plan);
+
+    static bool checkDeletingPlan(PlanItem& parent, int first, int last, const Plan& plan_to_check);
     void clear();
 
     std::vector<StepWidget*> step_widgets;

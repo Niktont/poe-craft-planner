@@ -11,6 +11,7 @@
 #include "StepItem.h"
 #include "StepWidget.h"
 #include "TradeRequestCache.h"
+#include "UpdateCostDialog.h"
 #include <QCheckBox>
 #include <QContextMenuEvent>
 #include <QHBoxLayout>
@@ -682,17 +683,19 @@ void PlanWidget::goBack()
         return;
     }
 
+    auto current_id = history_it != navigation_history.end() ? history_it->first : QUuid{};
+
     auto prev_it = std::prev(history_it);
     auto plan_model = mw()->planModel(prev_it->second);
     auto plan_it = plan_model->plans.find(prev_it->first);
     while (prev_it != navigation_history.begin()
-           && (plan_it == plan_model->plans.end() || plan_it->first == history_it->first)) {
+           && (plan_it == plan_model->plans.end() || plan_it->first == current_id)) {
         prev_it = std::prev(prev_it);
         plan_model = mw()->planModel(prev_it->second);
         plan_it = plan_model->plans.find(prev_it->first);
     }
 
-    if (plan_it == plan_model->plans.end() || plan_it->first == history_it->first) {
+    if (plan_it == plan_model->plans.end() || plan_it->first == current_id) {
         history_it = navigation_history.erase(prev_it, history_it);
         updateBack();
         return;
@@ -810,25 +813,22 @@ void PlanWidget::setPlanOnCurrentChange(const QModelIndex& new_current)
 void PlanWidget::checkDeletingPlans(const QModelIndex& parent, int first, int last)
 {
     auto model = static_cast<PlanModel*>(sender());
-    if (model != current_model || !plan_)
+    auto updating_plan = mw()->update_cost_dialog->plan();
+
+    bool check_current = plan_ && plan_->game == model->game;
+    bool check_updating = updating_plan && updating_plan->game == model->game;
+
+    if (!check_current && !check_updating)
         return;
 
     auto parent_item = model->internalPtr(parent);
-    bool current_is_deleting = false;
-    for (int i = first; i <= last; ++i) {
-        auto deleting_item = parent_item->child(i);
-        if (!deleting_item->isFolder()) {
-            if (deleting_item->plan() == plan_) {
-                current_is_deleting = true;
-                break;
-            }
-        } else if (deleting_item->isDescendant(plan_->item())) {
-            current_is_deleting = true;
-            break;
-        }
-    }
+    check_current = check_current && checkDeletingPlan(*parent_item, first, last, *plan_);
+    check_updating = check_updating && checkDeletingPlan(*parent_item, first, last, *updating_plan);
 
-    if (!current_is_deleting)
+    if (check_updating)
+        mw()->update_cost_dialog->reject();
+
+    if (!check_current)
         return;
 
     history_it = navigation_history.erase(history_it, navigation_history.end());
@@ -885,6 +885,24 @@ void PlanWidget::setPlan(const PlanModel* model, Plan* plan)
 
     displayCost();
     displayFinalStep();
+}
+
+bool PlanWidget::checkDeletingPlan(PlanItem& parent, int first, int last, const Plan& plan)
+{
+    bool plan_is_deleting = false;
+    for (int i = first; i <= last; ++i) {
+        auto deleting_item = parent.child(i);
+        if (deleting_item->isFolder()) {
+            if (deleting_item->isDescendant(plan.item())) {
+                plan_is_deleting = true;
+                break;
+            }
+        } else if (deleting_item->plan() == &plan) {
+            plan_is_deleting = true;
+            break;
+        }
+    }
+    return plan_is_deleting;
 }
 
 } // namespace planner

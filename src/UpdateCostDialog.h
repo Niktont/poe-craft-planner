@@ -2,9 +2,7 @@
 #define UPDATECOSTDIALOG_H
 
 #include "StepItem.h"
-#include "TradeRequestCache.h"
 #include <boost/unordered_set.hpp>
-#include <queue>
 #include <QDialog>
 #include <QListView>
 
@@ -18,12 +16,15 @@ class Plan;
 class ExchangeRequestCache;
 class Currency;
 class Step;
+class TradeRequestCache;
 
 class UpdateCostDialog : public QDialog
 {
     Q_OBJECT
 public:
     UpdateCostDialog(MainWindow& mw);
+
+    Plan* plan() const { return plan_; }
 
 signals:
     void costUpdated(planner::Game game, const std::vector<std::pair<Plan*, bool>>& updated_plans);
@@ -44,7 +45,7 @@ private:
     QPushButton* cancel_button;
     QListView* empty_results_view;
 
-    Plan* plan{};
+    Plan* plan_{};
     std::vector<QUuid> dependencies;
 
     void parseTradeSearch(Game game, const TradeRequestKey& request, QNetworkReply* reply);
@@ -54,7 +55,7 @@ private:
                           QNetworkReply* reply);
     void parseExchangeCostData(Game game, QNetworkReply* reply);
 
-    std::queue<TradeRequestCache::Cache::const_iterator> trade_requests;
+    std::set<TradeRequestKey> trade_requests;
     boost::unordered_set<QString> exchange_requests;
 
     boost::unordered_set<QString> empty_search_results;
@@ -66,8 +67,13 @@ private:
     bool exchange_finished{false};
 
     MainWindow* mw() const;
-    void checkCurrency(const Currency& currency, QDateTime now);
-    void checkItem(const StepItem& item, QDateTime now, const TradeRequestCache& trade_cache);
+    void checkCurrency(const Currency& currency,
+                       QDateTime now,
+                       const ExchangeRequestCache& exchange_cache);
+    void checkItem(const StepItem& item,
+                   QDateTime now,
+                   const ExchangeRequestCache& exchange_cache,
+                   const TradeRequestCache& trade_cache);
     void clearRequests();
     void requestFailed();
     void parseFailed();
