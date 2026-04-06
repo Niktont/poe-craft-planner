@@ -29,11 +29,13 @@ PlanTreeView::PlanTreeView(PlanModel& model, QWidget* parent)
     });
     add_folder_action = addAction(tr("New Folder"), this, [this] {
         auto current = context_index ? *context_index : selectionModel()->currentIndex();
-        planModel()->insertFolder(current);
+        setCurrentIndex(planModel()->insertFolder(current));
         context_index.reset();
     });
     duplicate_action = addAction(tr("Duplicate"), {Qt::ControlModifier | Qt::Key_D}, this, [this] {
-        planModel()->duplicateItem(selectionModel()->currentIndex());
+        auto copy_index = planModel()->duplicateItem(selectionModel()->currentIndex());
+        if (copy_index.isValid())
+            setCurrentIndex(copy_index);
     });
     duplicate_action->setShortcutContext(Qt::WidgetShortcut);
 

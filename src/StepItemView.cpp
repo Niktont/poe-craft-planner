@@ -105,32 +105,44 @@ StepItemView::StepItemView(StepItemModel& model, QWidget* parent)
 
     add_exchange_action = addAction(tr("Add Exchange Item"), this, [this] {
         auto current = context_index ? *context_index : selectionModel()->currentIndex();
-        stepModel()->insertItem(current, StepItemType::Exchange);
+        auto idx = stepModel()->insertItem(current, StepItemType::Exchange);
+        if (idx.isValid())
+            setCurrentIndex(idx);
         context_index.reset();
     });
     add_trade_action = addAction(tr("Add Trade Item"), this, [this] {
         auto current = context_index ? *context_index : selectionModel()->currentIndex();
-        stepModel()->insertItem(current, StepItemType::Trade);
+        auto idx = stepModel()->insertItem(current, StepItemType::Trade);
+        if (idx.isValid())
+            setCurrentIndex(idx);
         context_index.reset();
     });
     add_custom_action = addAction(tr("Add Custom Item"), this, [this] {
         auto current = context_index ? *context_index : selectionModel()->currentIndex();
-        stepModel()->insertItem(current, StepItemType::Custom);
+        auto idx = stepModel()->insertItem(current, StepItemType::Custom);
+        if (idx.isValid())
+            setCurrentIndex(idx);
         context_index.reset();
     });
     add_step_action = addAction(tr("Add Step Item"), this, [this] {
         auto current = context_index ? *context_index : selectionModel()->currentIndex();
-        stepModel()->insertItem(current, StepItemType::Step);
+        auto idx = stepModel()->insertItem(current, StepItemType::Step);
+        if (idx.isValid())
+            setCurrentIndex(idx);
         context_index.reset();
     });
     add_plan_action = addAction(tr("Add Plan Item"), this, [this] {
         auto current = context_index ? *context_index : selectionModel()->currentIndex();
-        stepModel()->insertItem(current, StepItemType::Plan);
+        auto idx = stepModel()->insertItem(current, StepItemType::Plan);
+        if (idx.isValid())
+            setCurrentIndex(idx);
         context_index.reset();
     });
 
     duplicate_action = addAction(tr("Duplicate"), {Qt::ControlModifier | Qt::Key_D}, this, [this] {
-        stepModel()->duplicateItem(selectionModel()->currentIndex());
+        auto idx = stepModel()->duplicateItem(selectionModel()->currentIndex());
+        if (idx.isValid())
+            setCurrentIndex(idx);
     });
     duplicate_action->setShortcutContext(Qt::WidgetShortcut);
 
@@ -139,7 +151,9 @@ StepItemView::StepItemView(StepItemModel& model, QWidget* parent)
     });
     paste_action = addAction(tr("Paste"), this, [this] {
         auto current = context_index ? *context_index : selectionModel()->currentIndex();
-        stepModel()->pasteItem(current);
+        auto idx = stepModel()->pasteItem(current);
+        if (idx.isValid())
+            setCurrentIndex(idx);
         context_index.reset();
     });
 

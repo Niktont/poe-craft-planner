@@ -95,10 +95,10 @@ public:
     void setStep(planner::Plan* plan, size_t step_pos);
     void updateCosts();
 
-    void insertItem(const QModelIndex& idx, planner::StepItemType type);
-    void duplicateItem(const QModelIndex& idx);
+    QModelIndex insertItem(const QModelIndex& idx, planner::StepItemType type);
+    QModelIndex duplicateItem(const QModelIndex& idx);
     void copyItem(const QModelIndex& idx);
-    void pasteItem(const QModelIndex& idx);
+    QModelIndex pasteItem(const QModelIndex& idx);
 
     bool haveRegex(const StepItem& item) const;
     void copyRegex(const QModelIndex& idx);

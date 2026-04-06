@@ -50,7 +50,7 @@ void PlanSearchView::filterName(const QString& filter_str)
 void PlanSearchView::indexClicked(const QModelIndex& idx)
 {
     auto plan_id = search_model->planId(search_model->proxy_model->mapToSource(idx));
-    mw.planWidget()->setPlanFromSearch(plan_id, game);
+    mw.planWidget()->openPlan(plan_id, game);
 }
 
 } // namespace planner

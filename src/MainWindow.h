@@ -138,6 +138,9 @@ public:
     QAction* settings_action;
     QAction* about_action;
 
+    QAction* back_action;
+    QAction* forward_action;
+
 protected:
     void closeEvent(QCloseEvent* event) override;
     void dragEnterEvent(QDragEnterEvent* event) override;

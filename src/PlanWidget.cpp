@@ -35,7 +35,7 @@ PlanWidget::PlanWidget(MainWindow& mw)
     title_layout->addWidget(name_label);
 
     is_auto_final_cb = new QCheckBox{tr("Auto")};
-    is_auto_final_cb->setToolTip(tr("On costs update, set step with max profit as Final."));
+    is_auto_final_cb->setToolTip(tr("On costs update, set step with max profit as Final"));
     connect(is_auto_final_cb, &QCheckBox::clicked, this, [this](bool checked) {
         if (!plan_)
             return;
@@ -46,7 +46,7 @@ PlanWidget::PlanWidget(MainWindow& mw)
     title_layout->addWidget(is_auto_final_cb);
 
     locked_cb = new QCheckBox{tr("Lock")};
-    locked_cb->setToolTip(tr("Steps costs of locked plan won't be updated."));
+    locked_cb->setToolTip(tr("Steps costs of locked plan won't be updated"));
     connect(locked_cb, &QCheckBox::clicked, this, [this](bool checked) {
         if (!plan_)
             return;
@@ -214,11 +214,25 @@ void PlanWidget::updateCosts(bool current_updated)
         step_widgets[i]->updateCost(current_updated);
 }
 
+void PlanWidget::updateBack()
+{
+    mw()->back_action->setEnabled(history_it != navigation_history.begin());
+}
+
+void PlanWidget::updateForward()
+{
+    mw()->forward_action->setEnabled(history_it != navigation_history.end()
+                                     && std::next(history_it) != navigation_history.end());
+}
+
 void PlanWidget::clear()
 {
     setEnabled(false);
+
     name_label->clear();
     league_label->clear();
+    is_auto_final_cb->hide();
+    locked_cb->hide();
     cost_widget->hide();
 
     for (size_t i = 0; i < step_widgets.size(); ++i) {
@@ -280,20 +294,6 @@ void PlanWidget::openPlan(const QUuid& plan_id, Game game)
         return;
 
     mw()->planView(game)->selectPlan(plan_id);
-}
-
-void PlanWidget::setPlanFromSearch(const QUuid& plan_id, Game game)
-{
-    if (plan_ && plan_id == plan_->id())
-        return;
-
-    auto plan_model = mw()->planModel(game);
-    if (auto it = plan_model->plans.find(plan_id); it != plan_model->plans.end()) {
-        setDescriptions(plan_);
-
-        setPlan(plan_model, &it->second);
-        mw()->planView(game)->selectPlan(plan_id);
-    }
 }
 
 void PlanWidget::deleteStep(size_t step_pos)
@@ -675,6 +675,76 @@ void PlanWidget::hideTitleCurrencyName(bool hide)
         step_widgets[i]->hideTitleCurrencyName();
 }
 
+void PlanWidget::goBack()
+{
+    if (history_it == navigation_history.begin()) {
+        updateBack();
+        return;
+    }
+
+    auto prev_it = std::prev(history_it);
+    auto plan_model = mw()->planModel(prev_it->second);
+    auto plan_it = plan_model->plans.find(prev_it->first);
+    while (prev_it != navigation_history.begin()
+           && (plan_it == plan_model->plans.end() || plan_it->first == history_it->first)) {
+        prev_it = std::prev(prev_it);
+        plan_model = mw()->planModel(prev_it->second);
+        plan_it = plan_model->plans.find(prev_it->first);
+    }
+
+    if (plan_it == plan_model->plans.end() || plan_it->first == history_it->first) {
+        history_it = navigation_history.erase(prev_it, history_it);
+        updateBack();
+        return;
+    }
+
+    if (std::distance(prev_it, history_it) > 1)
+        history_it = std::prev(navigation_history.erase(std::next(prev_it), history_it));
+    else
+        history_it = prev_it;
+
+    mw()->planView(plan_model->game)->selectPlan(plan_it->first);
+}
+
+void PlanWidget::goForward()
+{
+    if (history_it == navigation_history.end()) {
+        updateForward();
+        return;
+    }
+
+    auto next_it = std::next(history_it);
+    if (next_it == navigation_history.end()) {
+        updateForward();
+        return;
+    }
+
+    auto back_it = std::prev(navigation_history.end());
+
+    auto plan_model = mw()->planModel(next_it->second);
+    auto plan_it = plan_model->plans.find(next_it->first);
+    while (next_it != back_it
+           && (plan_it == plan_model->plans.end() || plan_it->first == history_it->first)) {
+        next_it = std::next(next_it);
+        plan_model = mw()->planModel(next_it->second);
+        plan_it = plan_model->plans.find(next_it->first);
+    }
+
+    if (plan_it == plan_model->plans.end() || plan_it->first == history_it->first) {
+        history_it = std::prev(
+            navigation_history.erase(std::next(history_it), navigation_history.end()));
+        updateForward();
+        return;
+    }
+
+    if (std::distance(history_it, next_it) > 1)
+        history_it = navigation_history.erase(std::next(history_it), next_it);
+    else
+        history_it = next_it;
+
+    mw()->planView(plan_model->game)->selectPlan(plan_it->first);
+}
+
 void PlanWidget::contextMenuEvent(QContextMenuEvent* event)
 {
     auto menu = new QMenu{this};
@@ -719,7 +789,8 @@ void PlanWidget::setPlanOnUpdate(Plan* new_plan, const Plan* old_plan)
 
 void PlanWidget::setPlanOnCurrentChange(const QModelIndex& new_current)
 {
-    if (QGuiApplication::keyboardModifiers().testFlag(Qt::AltModifier))
+    if (QGuiApplication::keyboardModifiers().testFlag(Qt::AltModifier)
+        && QGuiApplication::mouseButtons().testFlag(Qt::LeftButton))
         return;
 
     if (!new_current.isValid())
@@ -728,7 +799,7 @@ void PlanWidget::setPlanOnCurrentChange(const QModelIndex& new_current)
     auto plan_model = static_cast<const PlanModel*>(new_current.model());
 
     auto item = plan_model->internalPtr(new_current);
-    if (item->isFolder() || item->plan() == plan_ || (current_model && current_model != plan_model))
+    if (item->isFolder() || item->plan() == plan_)
         return;
 
     setDescriptions(plan_);
@@ -760,27 +831,45 @@ void PlanWidget::checkDeletingPlans(const QModelIndex& parent, int first, int la
     if (!current_is_deleting)
         return;
 
+    history_it = navigation_history.erase(history_it, navigation_history.end());
+    updateBack();
+    updateForward();
+
     setPlan(model, nullptr);
 }
 
 void PlanWidget::setPlan(const PlanModel* model, Plan* plan)
 {
     current_model = model;
+    auto prev_game = game();
     plan_ = plan;
     if (!plan) {
         clear();
         return;
     }
 
-    emit gameChanged(plan_->game);
+    if (history_it == navigation_history.end())
+        history_it = navigation_history.emplace(history_it, plan_->id(), plan_->game);
+    else if (history_it->first != plan_->id()) {
+        history_it = navigation_history.emplace(navigation_history.erase(std::next(history_it),
+                                                                         navigation_history.end()),
+                                                plan_->id(),
+                                                plan_->game);
+    }
+    updateBack();
+    updateForward();
+
+    if (prev_game != plan_->game)
+        emit gameChanged(plan_->game);
 
     setEnabled(true);
 
     name_label->setText(plan->name);
     is_auto_final_cb->setChecked(plan->is_auto_final);
     locked_cb->setChecked(plan->locked);
-
     league_label->setText(plan->league);
+    is_auto_final_cb->show();
+    locked_cb->show();
 
     size_t i = 0;
     size_t steps_size = plan->steps.size();

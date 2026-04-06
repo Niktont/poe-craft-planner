@@ -322,6 +322,7 @@ void SettingsDialog::setupLeagueTab()
             this,
             &SettingsDialog::setLeagueChanged);
     layout->addWidget(snapshot_use_current_data);
+    layout->addStretch(1);
 }
 
 void SettingsDialog::resetLeague()

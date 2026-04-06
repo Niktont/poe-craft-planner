@@ -662,19 +662,22 @@ void PlanModel::restorePlan(const QModelIndex& index)
     }
 }
 
-void PlanModel::duplicateItem(const QModelIndex& index)
+QModelIndex PlanModel::duplicateItem(const QModelIndex& idx)
 {
-    if (!index.isValid())
-        return;
+    if (!idx.isValid())
+        return {};
 
-    auto parent = index.parent();
+    auto parent = idx.parent();
     auto parent_item = internalPtr(parent);
-    beginInsertRows(parent, index.row() + 1, index.row() + 1);
-    auto copy_item = parent_item->duplicateChild(index.row());
+    auto copy_row = idx.row() + 1;
+    beginInsertRows(parent, copy_row, copy_row);
+    auto copy_item = parent_item->duplicateChild(idx.row());
     endInsertRows();
 
     if (copy_item->plan())
         search_model->insertPlan(*copy_item->plan());
+
+    return index(copy_row, 0, parent);
 }
 
 bool PlanModel::isNewPlan(const QModelIndex& index) const

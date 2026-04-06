@@ -440,6 +440,16 @@ void MainWindow::setupActions()
             planWidget(),
             &PlanWidget::hideNotUsedItems);
 
+    back_action = new QAction{style()->standardIcon(QStyle::SP_ArrowLeft), tr("Go Back"), this};
+    back_action->setShortcut(Qt::AltModifier | Qt::Key_Left);
+    connect(back_action, &QAction::triggered, planWidget(), &PlanWidget::goBack);
+
+    forward_action = new QAction{style()->standardIcon(QStyle::SP_ArrowRight),
+                                 tr("Go Forward"),
+                                 this};
+    forward_action->setShortcut(Qt::AltModifier | Qt::Key_Right);
+    connect(forward_action, &QAction::triggered, planWidget(), &PlanWidget::goForward);
+
     hide_title_currency_name_action = new QAction{tr("Hide Currency Name In Titles"), this};
     hide_title_currency_name_action->setCheckable(true);
     connect(hide_title_currency_name_action,
@@ -525,7 +535,12 @@ void MainWindow::setupActions()
     connect(about_action, &QAction::triggered, about_dialog, &QDialog::open);
 
     auto toolbar = addToolBar(tr("Toolbar"));
+    toolbar->setIconSize({16, 16});
+
     toolbar->setObjectName("toolbar");
+    toolbar->addAction(back_action);
+    toolbar->addAction(forward_action);
+    toolbar->addSeparator();
     toolbar->addAction(save_action);
     toolbar->addAction(save_all_action);
     toolbar->addSeparator();

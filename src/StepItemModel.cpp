@@ -479,31 +479,51 @@ void planner::StepItemModel::moveItems(int dest_row, const QMimeData* data)
 void StepItemModel::addPlanItems(int dest_row, const QMimeData* data)
 {
     auto plan_items = PlanModel::decodePlansMime(plan->game, data);
+    if (plan_items.empty())
+        return;
 
     auto& items = stepItems();
     auto amount = dest_row > 0 ? items[dest_row - 1].amount : 1.0;
-    auto addPlan = [&](const QUuid& plan_id) {
+
+    StepItem base_item;
+    base_item.amount = amount;
+    base_item.data.emplace<PlanItemData>();
+
+    if (plan_items.size() == 1 && !plan_items.front()->isFolder()) {
         beginInsertRows({}, dest_row, dest_row);
 
-        auto it = items.emplace(items.begin() + dest_row);
-        it->amount = amount;
-        auto& plan_data = it->data.emplace<PlanItemData>();
-        plan_data.plan_id = plan_id;
+        base_item.plan()->plan_id = plan_items.front()->plan()->id();
+        items.insert(items.begin() + dest_row, base_item);
         plan->setChanged();
-        ++dest_row;
 
         endInsertRows();
-    };
+        return;
+    }
 
+    std::vector<Plan*> plans_to_add;
     for (auto plan_item : plan_items) {
         if (plan_item->isFolder()) {
             for (int i = 0; i < plan_item->childCount(); ++i) {
                 if (plan_item->child(i)->plan())
-                    addPlan(plan_item->child(i)->plan()->id());
+                    plans_to_add.push_back(plan_item->child(i)->plan());
             }
         } else
-            addPlan(plan_item->plan()->id());
+            plans_to_add.push_back(plan_item->plan());
     }
+    if (plans_to_add.empty())
+        return;
+
+    beginInsertRows({}, dest_row, dest_row + plans_to_add.size() - 1);
+
+    items.insert(items.begin() + dest_row, plans_to_add.size(), base_item);
+    for (auto plan_to_add : plans_to_add) {
+        items[dest_row].plan()->plan_id = plan_to_add->id();
+        ++dest_row;
+    }
+
+    plan->setChanged();
+
+    endInsertRows();
 }
 
 bool StepItemModel::dropMimeData(
@@ -1113,9 +1133,8 @@ QVariant StepItemModel::planItemData(double amount,
     case StepItemColumn::Name:
         switch (role) {
         case Qt::DisplayRole:
-            return !plan_item.name.isEmpty() ? plan_item.name : plan_it->second.name;
         case Qt::EditRole:
-            return plan_item.name;
+            return !plan_item.name.isEmpty() ? plan_item.name : plan_it->second.name;
         }
         return {};
     case StepItemColumn::Link:
@@ -1316,10 +1335,10 @@ void StepItemModel::updatePlanName(const QUuid& changed_plan)
     }
 }
 
-void StepItemModel::insertItem(const QModelIndex& idx, StepItemType type)
+QModelIndex StepItemModel::insertItem(const QModelIndex& idx, StepItemType type)
 {
     if (!plan)
-        return;
+        return {};
 
     auto& items = stepItems();
     auto row = idx.row() < 0 || idx.row() > std::ssize(items) ? std::ssize(items) : idx.row();
@@ -1336,12 +1355,14 @@ void StepItemModel::insertItem(const QModelIndex& idx, StepItemType type)
     plan->setChanged();
 
     endInsertRows();
+
+    return index(row, StepItemColumn::Amount);
 }
 
-void StepItemModel::duplicateItem(const QModelIndex& idx)
+QModelIndex StepItemModel::duplicateItem(const QModelIndex& idx)
 {
     if (!plan || !idx.isValid())
-        return;
+        return {};
 
     auto& items = stepItems();
 
@@ -1350,6 +1371,8 @@ void StepItemModel::duplicateItem(const QModelIndex& idx)
     items.emplace(items.begin() + pos, items[idx.row()]);
     endInsertRows();
     plan->setChanged();
+
+    return index(pos, StepItemColumn::Amount);
 }
 
 void StepItemModel::copyItem(const QModelIndex& idx)
@@ -1360,10 +1383,10 @@ void StepItemModel::copyItem(const QModelIndex& idx)
     planWidget()->copyItem(plan->game, stepItems()[idx.row()]);
 }
 
-void StepItemModel::pasteItem(const QModelIndex& idx)
+QModelIndex StepItemModel::pasteItem(const QModelIndex& idx)
 {
     if (!plan || !planWidget()->haveCopyItem(plan->game))
-        return;
+        return {};
 
     auto row = idx.isValid() ? idx.row() : rowCount();
     auto& items = stepItems();
@@ -1371,6 +1394,8 @@ void StepItemModel::pasteItem(const QModelIndex& idx)
     items.emplace(items.begin() + row, planWidget()->itemForPaste().second);
     endInsertRows();
     plan->setChanged();
+
+    return index(row, StepItemColumn::Amount);
 }
 
 bool StepItemModel::haveRegex(const StepItem& item) const

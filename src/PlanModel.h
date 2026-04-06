@@ -93,7 +93,7 @@ public:
     void saveAllPlans();
 
     void restorePlan(const QModelIndex& index);
-    void duplicateItem(const QModelIndex& index);
+    QModelIndex duplicateItem(const QModelIndex& index);
     bool isNewPlan(const QModelIndex& index) const;
     bool canRestorePlan(const QModelIndex& index) const;
     bool haveUnsavedPlans() const { return !changed_plans.empty(); }

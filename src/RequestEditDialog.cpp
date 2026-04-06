@@ -375,7 +375,7 @@ void RequestEditDialog::queryLoadFailed()
     msg.setWindowTitle(tr("Query Loading Failed"));
     msg.addButton(QMessageBox::Ok);
     msg.setText(tr("Failed to load query. Trade website don't load query without logging in. "
-                   "Consider input query manually."));
+                   "Consider pasting query manually."));
     msg.exec();
 
     setLoadEnabled(true);

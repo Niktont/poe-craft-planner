@@ -36,7 +36,6 @@ public:
     void setDescriptions(planner::Plan* plan);
 
     void openPlan(const QUuid& plan_id, Game game);
-    void setPlanFromSearch(const QUuid& plan_id, Game game);
 
     void moveStep(size_t step_pos, bool up);
     void deleteStep(size_t step_pos);
@@ -56,7 +55,7 @@ public:
     }
 
 signals:
-    void gameChanged(Game game);
+    void gameChanged(planner::Game game);
 
 public slots:
     void addStep();
@@ -67,6 +66,9 @@ public slots:
     void hideEmptyResults(bool hide);
     void hideNotUsedItems(bool hide);
     void hideTitleCurrencyName(bool hide);
+
+    void goBack();
+    void goForward();
 
 protected:
     void contextMenuEvent(QContextMenuEvent* event) override;
@@ -115,6 +117,13 @@ private:
 
     std::pair<QUuid, QUuid> step_copy_state;
     std::pair<Game, StepItem> step_item_copy_state{Game::Unknown, {}};
+
+    using History = std::vector<std::pair<QUuid, Game>>;
+    History navigation_history;
+    History::const_iterator history_it{navigation_history.end()};
+
+    void updateBack();
+    void updateForward();
 };
 } // namespace planner
 #endif // PLANWIDGET_H
