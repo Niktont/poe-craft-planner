@@ -30,8 +30,12 @@ private:
     QAction* add_plan_action;
     QAction* add_folder_action;
     QAction* duplicate_action;
+    QAction* copy_action;
+    QAction* paste_action;
+
     QAction* save_action;
     QAction* restore_action;
+
     QAction* delete_action;
     QAction* export_clipboard_action;
     QAction* export_file_action;

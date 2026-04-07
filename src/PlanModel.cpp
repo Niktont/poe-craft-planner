@@ -23,7 +23,7 @@ PlanModel::PlanModel(Game game, MainWindow& mw)
     : QAbstractItemModel{&mw}
     , game{game}
     , search_model{new PlanSearchModel{*this}}
-    , root{std::make_unique<PlanItem>(nullptr, this, nullptr)}
+    , root{std::make_unique<PlanItem>(nullptr, *this, nullptr)}
     , base_plan_name{tr("New plan")}
     , base_folder_name{tr("New folder")}
 {}
@@ -398,7 +398,7 @@ bool PlanModel::readDatabase()
         return true;
 
     beginResetModel();
-    root = std::make_unique<PlanItem>(QUuid{}, select, this, nullptr);
+    root = std::make_unique<PlanItem>(QUuid{}, select, *this, nullptr);
     endResetModel();
 
     search_model->reset();
@@ -416,10 +416,10 @@ bool PlanModel::importItem(const QJsonObject& export_o)
         if (is_folder)
             import_root = std::make_unique<PlanItem>(is_folder,
                                                      export_o["folder"].toObject(),
-                                                     this,
+                                                     *this,
                                                      nullptr);
         else
-            import_root = std::make_unique<PlanItem>(is_folder, plan_v.toObject(), this, nullptr);
+            import_root = std::make_unique<PlanItem>(is_folder, plan_v.toObject(), *this, nullptr);
 
         auto trade_cache = mw()->tradeCache(game);
         auto import_requests = trade_cache->requestsFromJson(export_o["trade_requests"].toArray());
@@ -669,15 +669,26 @@ QModelIndex PlanModel::duplicateItem(const QModelIndex& idx)
 
     auto parent = idx.parent();
     auto parent_item = internalPtr(parent);
-    auto copy_row = idx.row() + 1;
-    beginInsertRows(parent, copy_row, copy_row);
-    auto copy_item = parent_item->duplicateChild(idx.row());
-    endInsertRows();
+    return insertCopy(parent, idx.row() + 1, *parent_item->child(idx.row()));
+}
 
-    if (copy_item->plan())
-        search_model->insertPlan(*copy_item->plan());
+void PlanModel::copyItem(const QModelIndex& idx) const
+{
+    if (!idx.isValid())
+        return;
 
-    return index(copy_row, 0, parent);
+    auto item = internalPtr(idx);
+    item_copy_state = item;
+}
+
+QModelIndex PlanModel::pasteItem(const QModelIndex& idx)
+{
+    if (!item_copy_state)
+        return {};
+
+    auto copy_row = idx.isValid() ? idx.row() + 1 : root->childCount();
+    auto parent = idx.parent();
+    return insertCopy(parent, copy_row, *item_copy_state);
 }
 
 bool PlanModel::isNewPlan(const QModelIndex& index) const
@@ -812,6 +823,16 @@ bool PlanModel::gatherDependencies(QJsonObject& export_o,
 MainWindow* PlanModel::mw() const
 {
     return static_cast<MainWindow*>(QObject::parent());
+}
+
+QModelIndex PlanModel::insertCopy(const QModelIndex& parent, int row, const PlanItem& item)
+{
+    auto parent_item = internalPtr(parent);
+    beginInsertRows(parent, row, row);
+    parent_item->insertCopy(row, item);
+    endInsertRows();
+
+    return index(row, 0, parent);
 }
 
 } // namespace planner

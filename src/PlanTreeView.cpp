@@ -39,6 +39,18 @@ PlanTreeView::PlanTreeView(PlanModel& model, QWidget* parent)
     });
     duplicate_action->setShortcutContext(Qt::WidgetShortcut);
 
+    copy_action = addAction(tr("Copy Reference"), this, [this] {
+        planModel()->copyItem(selectionModel()->currentIndex());
+    });
+
+    paste_action = addAction(tr("Paste"), this, [this] {
+        auto current = context_index ? *context_index : selectionModel()->currentIndex();
+        auto copy_index = planModel()->pasteItem(current);
+        if (copy_index.isValid())
+            setCurrentIndex(copy_index);
+        context_index.reset();
+    });
+
     save_action = addAction(tr("Save"), this, [this] {
         planModel()->savePlan(selectionModel()->currentIndex());
     });
@@ -81,6 +93,9 @@ void PlanTreeView::contextMenuEvent(QContextMenuEvent* event)
     context_index = indexAt(event->pos());
     if (context_index->isValid()) {
         menu->addAction(duplicate_action);
+        menu->addAction(copy_action);
+        if (planModel()->haveCopy())
+            menu->addAction(paste_action);
 
         auto item = planModel()->internalPtr(*context_index);
         if (!item->isFolder() && item->plan()->is_changed) {
@@ -91,7 +106,9 @@ void PlanTreeView::contextMenuEvent(QContextMenuEvent* event)
         }
         menu->addSeparator();
         menu->addAction(delete_action);
-    }
+    } else if (planModel()->haveCopy())
+        menu->addAction(paste_action);
+
     menu->addSeparator();
     menu->addAction(export_clipboard_action);
     menu->addAction(export_file_action);

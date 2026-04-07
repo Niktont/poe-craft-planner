@@ -19,11 +19,11 @@ class TradeRequestCache;
 class PlanItem
 {
 public:
-    PlanItem(QString name, PlanModel* model, PlanItem* parent);
-    PlanItem(QUuid id, QSqlQuery& select, PlanModel* model, PlanItem* parent);
-    PlanItem(Plan* plan, PlanModel* model, PlanItem* parent);
+    PlanItem(QString name, PlanModel& model, PlanItem* parent);
+    PlanItem(QUuid id, QSqlQuery& select, PlanModel& model, PlanItem* parent);
+    PlanItem(Plan* plan, PlanModel& model, PlanItem* parent);
     // Import
-    PlanItem(bool is_folder, const QJsonObject& item_o, PlanModel* model, PlanItem* parent);
+    PlanItem(bool is_folder, const QJsonObject& item_o, PlanModel& model, PlanItem* parent);
 
     explicit PlanItem(const PlanItem& item);
     explicit PlanItem(PlanItem&& item) = delete;
@@ -40,7 +40,7 @@ public:
     PlanItem* replacePlan(int row, Plan&& new_plan);
 
     PlanItem* restoreChild(int row);
-    PlanItem* duplicateChild(int row);
+    PlanItem* insertCopy(int row, const PlanItem& copy_item);
 
     QModelIndex index() const;
 
@@ -78,8 +78,8 @@ private:
     QUuid id;
     Plan* plan_{};
     QString name_;
-    PlanModel* model;
-    PlanItem* parent_;
+    PlanModel* model{};
+    PlanItem* parent_{};
     std::vector<std::unique_ptr<PlanItem>> childs;
 
     void setItemChanged(bool new_item);

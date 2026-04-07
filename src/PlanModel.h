@@ -92,10 +92,16 @@ public:
     void savePlan(const QModelIndex& index);
     void saveAllPlans();
 
-    void restorePlan(const QModelIndex& index);
-    QModelIndex duplicateItem(const QModelIndex& index);
     bool isNewPlan(const QModelIndex& index) const;
     bool canRestorePlan(const QModelIndex& index) const;
+    void restorePlan(const QModelIndex& index);
+
+    QModelIndex duplicateItem(const QModelIndex& index);
+
+    void copyItem(const QModelIndex& idx) const;
+    bool haveCopy() const { return item_copy_state != nullptr; }
+    QModelIndex pasteItem(const QModelIndex& idx);
+
     bool haveUnsavedPlans() const { return !changed_plans.empty(); }
 
     void updateCost(const QModelIndex& index);
@@ -114,6 +120,10 @@ private:
 
     boost::unordered::unordered_flat_set<PlanItem*> changed_folders;
     boost::unordered::unordered_flat_map<PlanItem*, bool> changed_plans;
+
+    mutable PlanItem* item_copy_state{};
+
+    QModelIndex insertCopy(const QModelIndex& parent, int row, const PlanItem& item);
 
     void setPlanChanged(PlanItem* item);
 
