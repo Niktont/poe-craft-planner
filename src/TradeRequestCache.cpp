@@ -72,29 +72,36 @@ void TradeRequestCache::saveRequest(const TradeRequestKey& request,
                                     const RequestDescription& description)
 {
     auto it = cache.lower_bound(request);
+    auto pos = cache.index_of(it);
     bool is_changed = false;
     if (it == cache.end() || it->first != request) {
-        beginInsertRows({}, cache.index_of(it), cache.index_of(it));
+        beginInsertRows({}, pos, pos);
         it = cache.try_emplace(it, request, name, query, regex, description);
         endInsertRows();
         is_changed = true;
     } else {
         if (it->second.name() != name) {
             it->second.name_ = name;
-            auto idx = index(cache.index_of(it), static_cast<int>(TradeRequestColumn::Name));
+            auto idx = index(pos, static_cast<int>(TradeRequestColumn::Name));
             emit dataChanged(idx, idx, {Qt::DisplayRole});
             is_changed = true;
         }
         if (it->second.query() != query) {
             it->second.query_ = query;
+            auto idx = index(pos, static_cast<int>(TradeRequestColumn::Query));
+            emit dataChanged(idx, idx, {Qt::CheckStateRole});
             is_changed = true;
         }
         if (it->second.regex_ != regex) {
             it->second.regex_ = regex;
+            auto idx = index(pos, static_cast<int>(TradeRequestColumn::Regex));
+            emit dataChanged(idx, idx, {Qt::DisplayRole});
             is_changed = true;
         }
         if (it->second.description() != description) {
             it->second.description_ = description;
+            auto idx = index(pos, static_cast<int>(TradeRequestColumn::Description));
+            emit dataChanged(idx, idx, {Qt::DisplayRole});
             is_changed = true;
         }
     }
@@ -414,9 +421,9 @@ bool TradeRequestCache::setData(const QModelIndex& index, const QVariant& value,
             emit dataChanged(index, index, {Qt::DisplayRole});
             return true;
         }
-        if (auto val = time_str.toDouble();
-            val >= 0.0 && request->second.default_time->count() != val) {
-            request->second.default_time = ItemTime{val};
+        if (auto val = ItemTime{time_str.toDouble()};
+            val.count() >= 0.0 && request->second.default_time != val) {
+            request->second.default_time = val;
             Database::updateTradeRequestTime(game, request->first, request->second);
             emit dataChanged(index, index, {Qt::DisplayRole});
             return true;

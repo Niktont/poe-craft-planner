@@ -39,7 +39,6 @@ RequestEditDialog::RequestEditDialog(MainWindow& mw)
     main_layout->addLayout(form);
 
     name_edit = new QLineEdit{};
-    name_edit->setMaxLength(40);
     connect(name_edit, &QLineEdit::editingFinished, this, &RequestEditDialog::checkName);
     form->addRow(tr("Name:"), name_edit);
 
