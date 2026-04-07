@@ -146,7 +146,7 @@ bool Plan::autoSelectFinalStep()
         }
     }
 
-    if (max_profit.cost_in_primary.currency.isValid() && costStep() != &steps[max_pos]) {
+    if (max_profit.cost_in_primary.currency.isValid() && final_step != steps[max_pos].id) {
         setFinalStep(steps[max_pos].id);
         return true;
     }
