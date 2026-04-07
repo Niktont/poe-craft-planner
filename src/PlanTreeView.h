@@ -7,6 +7,7 @@ class QAction;
 
 namespace planner {
 class PlanModel;
+class Plan;
 
 class PlanTreeView : public QTreeView
 {
@@ -17,6 +18,10 @@ public:
     PlanModel* planModel();
 
     void selectPlan(const QUuid& plan_id);
+    void selectPlan(Plan& plan);
+
+signals:
+    void planSelected(planner::PlanModel& model, planner::Plan& plan);
 
 protected:
     void contextMenuEvent(QContextMenuEvent* event) override;

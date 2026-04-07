@@ -79,7 +79,16 @@ PlanModel* PlanTreeView::planModel()
 void PlanTreeView::selectPlan(const QUuid& plan_id)
 {
     if (auto it = planModel()->plans.find(plan_id); it != planModel()->plans.end())
-        setCurrentIndex(it->second.item()->index());
+        selectPlan(it->second);
+}
+
+void PlanTreeView::selectPlan(Plan& plan)
+{
+    auto idx = plan.item()->index();
+    if (idx.internalId() != currentIndex().internalId())
+        setCurrentIndex(idx);
+    else
+        emit planSelected(*planModel(), plan);
 }
 
 void PlanTreeView::contextMenuEvent(QContextMenuEvent* event)

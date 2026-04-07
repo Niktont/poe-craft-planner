@@ -33,7 +33,7 @@ public:
 
     void setPlanChanged();
     void updateStepNames(size_t renamed_step);
-    void setDescriptions(planner::Plan* plan);
+    void setDescriptions(planner::Plan* target_plan);
 
     void openPlan(const QUuid& plan_id, Game game);
 
@@ -75,9 +75,12 @@ protected:
 
 private slots:
     void setPlanOnClick(const QModelIndex& index);
-    void setPlanOnUpdate(planner::Plan* new_plan, const planner::Plan* old_plan);
+    void setPlanOnUpdate(planner::Plan& updated_plan);
     void setPlanOnCurrentChange(const QModelIndex& new_current);
+    void selectPlan(planner::PlanModel& model, planner::Plan& plan);
+
     void checkDeletingPlans(const QModelIndex& parent, int first, int last);
+
     void updatePlanName(const planner::Plan& renamed_plan);
 
     void updateTradeRequests(const QModelIndex& top_left, const QModelIndex& bottom_right);

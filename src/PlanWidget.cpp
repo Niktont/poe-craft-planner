@@ -44,6 +44,7 @@ PlanWidget::PlanWidget(MainWindow& mw)
         plan_->is_auto_final = checked;
         plan_->setChanged();
     });
+    is_auto_final_cb->hide();
     title_layout->addWidget(is_auto_final_cb);
 
     locked_cb = new QCheckBox{tr("Lock")};
@@ -55,6 +56,7 @@ PlanWidget::PlanWidget(MainWindow& mw)
         plan_->locked = checked;
         plan_->setChanged();
     });
+    locked_cb->hide();
     title_layout->addWidget(locked_cb);
 
     league_label = new QLabel{};
@@ -119,6 +121,9 @@ void PlanWidget::connectSignals()
             &QItemSelectionModel::currentRowChanged,
             this,
             &PlanWidget::setPlanOnCurrentChange);
+
+    connect(mw()->plan_view_poe1, &PlanTreeView::planSelected, this, &PlanWidget::selectPlan);
+    connect(mw()->plan_view_poe2, &PlanTreeView::planSelected, this, &PlanWidget::selectPlan);
 
     connect(mw()->trade_cache_poe1,
             &TradeRequestCache::rowsAboutToBeRemoved,
@@ -230,8 +235,12 @@ void PlanWidget::clear()
 {
     setEnabled(false);
 
+    plan_ = nullptr;
+    current_model = nullptr;
+
     name_label->clear();
     league_label->clear();
+
     is_auto_final_cb->hide();
     locked_cb->hide();
     cost_widget->hide();
@@ -277,12 +286,12 @@ void PlanWidget::updateCost(Game game, const std::vector<std::pair<Plan*, bool>>
     updateCosts(current_updated);
 }
 
-void PlanWidget::setDescriptions(Plan* plan)
+void PlanWidget::setDescriptions(Plan* target_plan)
 {
     if (!plan_)
         return;
 
-    if (plan && plan_ != plan)
+    if (target_plan && plan_ != target_plan)
         return;
 
     for (size_t i = 0; i < plan_->steps.size(); ++i)
@@ -706,7 +715,7 @@ void PlanWidget::goBack()
     else
         history_it = prev_it;
 
-    mw()->planView(plan_model->game)->selectPlan(plan_it->first);
+    mw()->planView(plan_model->game)->selectPlan(plan_it->second);
 }
 
 void PlanWidget::goForward()
@@ -745,7 +754,7 @@ void PlanWidget::goForward()
     else
         history_it = next_it;
 
-    mw()->planView(plan_model->game)->selectPlan(plan_it->first);
+    mw()->planView(plan_model->game)->selectPlan(plan_it->second);
 }
 
 void PlanWidget::contextMenuEvent(QContextMenuEvent* event)
@@ -757,6 +766,16 @@ void PlanWidget::contextMenuEvent(QContextMenuEvent* event)
         menu->addAction(paste_step_action);
 
     menu->popup(event->globalPos());
+}
+
+void PlanWidget::selectPlan(PlanModel& model, Plan& plan)
+{
+    if (plan_ != &plan) {
+        if (game() != plan.game)
+            mw()->raiseDock(plan.game);
+
+        setPlan(&model, &plan);
+    }
 }
 
 void PlanWidget::setPlanChanged()
@@ -776,18 +795,15 @@ void PlanWidget::setPlanOnClick(const QModelIndex& index)
     if (item->isFolder() || item->plan() == plan_)
         return;
 
-    setDescriptions(plan_);
-
     setPlan(plan_model, item->plan());
 }
 
-void PlanWidget::setPlanOnUpdate(Plan* new_plan, const Plan* old_plan)
+void PlanWidget::setPlanOnUpdate(Plan& updated_plan)
 {
-    if (old_plan != plan_)
+    if (&updated_plan != plan_)
         return;
 
-    auto model = static_cast<PlanModel*>(sender());
-    setPlan(model, new_plan);
+    setPlan(current_model, &updated_plan);
 }
 
 void PlanWidget::setPlanOnCurrentChange(const QModelIndex& new_current)
@@ -804,8 +820,6 @@ void PlanWidget::setPlanOnCurrentChange(const QModelIndex& new_current)
     auto item = plan_model->internalPtr(new_current);
     if (item->isFolder() || item->plan() == plan_)
         return;
-
-    setDescriptions(plan_);
 
     setPlan(plan_model, item->plan());
 }
@@ -840,13 +854,16 @@ void PlanWidget::checkDeletingPlans(const QModelIndex& parent, int first, int la
 
 void PlanWidget::setPlan(const PlanModel* model, Plan* plan)
 {
-    current_model = model;
-    auto prev_game = game();
-    plan_ = plan;
     if (!plan) {
         clear();
         return;
     }
+
+    setDescriptions(plan_);
+
+    auto prev_game = game();
+    plan_ = plan;
+    current_model = model;
 
     if (history_it == navigation_history.end())
         history_it = navigation_history.emplace(history_it, plan_->id(), plan_->game);

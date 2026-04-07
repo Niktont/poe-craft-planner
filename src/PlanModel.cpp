@@ -261,7 +261,7 @@ QMimeData* PlanModel::mimeData(const QModelIndexList& indexes) const
     if (QGuiApplication::keyboardModifiers().testFlag(Qt::AltModifier)) {
         auto current_plan = mw()->planWidget()->plan();
         if (current_plan)
-            mw()->planView(game)->selectPlan(current_plan->id());
+            mw()->planView(game)->selectPlan(*current_plan);
     }
 
     return mime_data;
@@ -531,7 +531,7 @@ bool PlanModel::handleOverwrite()
                 new_item = parent->replacePlan(old_item->row(), std::move(import_it->second));
             }
 
-            emit planUpdated(new_item->plan(), old_plan);
+            emit planUpdated(*new_item->plan());
 
             import_plans.erase(import_it);
             import_item->plan_ = nullptr;
@@ -649,7 +649,6 @@ void PlanModel::restorePlan(const QModelIndex& index)
 
     saveFoldersTransaction();
 
-    auto old_plan = item->plan_;
     auto parent_item = item->parent();
     if (auto new_item = parent_item->restoreChild(index.row())) {
         changed_plans.erase(item);
@@ -658,7 +657,7 @@ void PlanModel::restorePlan(const QModelIndex& index)
         auto cost_idx = index.siblingAtColumn(static_cast<int>(PlanItemColumn::Cost));
         emit dataChanged(index, cost_idx, {Qt::DisplayRole, Qt::DecorationRole});
 
-        emit planUpdated(new_item->plan(), old_plan);
+        emit planUpdated(*new_item->plan());
     }
 }
 

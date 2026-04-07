@@ -110,7 +110,7 @@ public:
 
 signals:
     void planRenamed(const planner::Plan& plan);
-    void planUpdated(planner::Plan* new_plan, const planner::Plan* old_plan);
+    void planUpdated(planner::Plan& updated_plan);
 
 private:
     std::unique_ptr<PlanItem> root;

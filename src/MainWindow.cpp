@@ -150,20 +150,31 @@ void MainWindow::restoreSession()
         QUuid::fromString(settings.value(Settings::windows_main_snapshot_poe2).toString()));
 
     QUuid id{settings.value(Settings::windows_main_last_plan).toString()};
-    if (id.isNull())
+    if (id.isNull()) {
+        plan_view_poe1->setCurrentIndex({});
+        plan_view_poe2->setCurrentIndex({});
         return;
+    }
 
     auto it = plan_model_poe1->plans.find(id);
     if (it == plan_model_poe1->plans.end()) {
         it = plan_model_poe2->plans.find(id);
-        if (it == plan_model_poe2->plans.end())
+        if (it == plan_model_poe2->plans.end()) {
+            plan_view_poe1->setCurrentIndex({});
+            plan_view_poe2->setCurrentIndex({});
             return;
+        }
         plan_view_poe2->setCurrentIndex(it->second.item()->index());
         plans_widget_poe2->raise();
     } else {
         plan_view_poe1->setCurrentIndex(it->second.item()->index());
         plans_widget_poe1->raise();
     }
+}
+
+void MainWindow::raiseDock(Game game)
+{
+    game == Game::Poe1 ? plans_widget_poe1->raise() : plans_widget_poe2->raise();
 }
 
 void MainWindow::closeEvent(QCloseEvent* event)
@@ -198,8 +209,8 @@ void MainWindow::closeEvent(QCloseEvent* event)
     Settings::save<settings::windows_main_hide_not_used_items>(settings);
     Settings::save<settings::windows_main_hide_title_currency_name>(settings);
 
-    if (planWidget()->plan())
-        settings.setValue(Settings::windows_main_last_plan, planWidget()->plan()->id().toString());
+    const auto& last_id = planWidget()->plan() ? planWidget()->plan()->id() : QUuid{};
+    settings.setValue(Settings::windows_main_last_plan, last_id.toString());
 
     event->accept();
 }

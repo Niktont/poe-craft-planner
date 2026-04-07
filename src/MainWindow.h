@@ -109,6 +109,8 @@ public:
         return game == Game::Poe1 ? snapshots_poe1 : snapshots_poe2;
     }
 
+    void raiseDock(Game game);
+
     QAction* save_action;
     QAction* save_all_action;
     QAction* plan_search_action;
