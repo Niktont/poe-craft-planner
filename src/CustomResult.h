@@ -16,8 +16,8 @@ public:
     CustomResult& operator+=(CustomResult&& o);
     CustomResult& operator-=(CustomResult&& o);
 
-    static void min(CustomResult& min, CustomResult&& o, std::set<unsigned>& not_used_items);
-    static void max(CustomResult& max, CustomResult&& o, std::set<unsigned>& not_used_items);
+    static void min(CustomResult& min, CustomResult&& o);
+    static void max(CustomResult& max, CustomResult&& o);
 };
 
 } // namespace planner

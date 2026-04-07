@@ -30,24 +30,22 @@ CustomResult& CustomResult::operator-=(CustomResult&& o)
     return *this;
 }
 
-void CustomResult::min(CustomResult& min, CustomResult&& o, std::set<unsigned>& not_used_items)
+void CustomResult::min(CustomResult& min, CustomResult&& o)
 {
     if (min.cost && o.cost) {
         if (*o.cost < *min.cost) {
             min.cost = o.cost;
-            not_used_items.merge(min.used_items);
             min.used_items = std::move(o.used_items);
         }
     } else if (o.cost)
         min = std::move(o);
 }
 
-void CustomResult::max(CustomResult& max, CustomResult&& o, std::set<unsigned>& not_used_items)
+void CustomResult::max(CustomResult& max, CustomResult&& o)
 {
     if (max.cost && o.cost) {
         if (*max.cost < *o.cost) {
             max.cost = o.cost;
-            not_used_items.merge(max.used_items);
             max.used_items = std::move(o.used_items);
         }
     } else if (o.cost)

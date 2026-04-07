@@ -589,15 +589,8 @@ bool UpdateCostDialog::calculateStepCustomCost(bool is_resource_cost,
     if (result->cost)
         cost = std::move(*result->cost);
 
-    if (result->used_items.empty()) {
-        for (auto& item : items)
-            item.not_used = true;
-    } else {
-        for (auto i : calc.visitor.not_used_items)
-            items[i].not_used = true;
-        for (auto i : result->used_items)
-            items[i].not_used = false;
-    }
+    for (int i = 0; i < std::ssize(items); ++i)
+        items[i].not_used = !result->used_items.contains(i);
 
     return true;
 }

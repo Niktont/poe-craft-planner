@@ -29,8 +29,6 @@ public:
     result_type minN(const std::list<custom_tree::Operand>& operands);
     result_type maxN(const std::list<custom_tree::Operand>& operands);
 
-    std::set<unsigned> not_used_items;
-
     void setPlan(const Plan& plan_) { plan = &plan_; }
     void setItems(const std::vector<StepItem>& items_) { items = &items_; }
     void setModels(const ExchangeRequestCache& exchange_cache_,

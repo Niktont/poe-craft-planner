@@ -32,7 +32,6 @@ std::optional<CustomResult> CustomCalculation::calculate(CustomCalcData& custom)
             return {};
     }
 
-    visitor.not_used_items.clear();
     return visitor(*custom.tree);
 }
 

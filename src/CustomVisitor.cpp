@@ -14,8 +14,6 @@ result_type CustomVisitor::operator()(const custom_tree::Item& item)
     result.cost = (*items)[i].calculateCost(*plan, *exchange_cache, *trade_cache, *model);
     if (result.cost)
         result.used_items.insert(i);
-    else
-        not_used_items.insert(i);
 
     return result;
 }
@@ -50,12 +48,12 @@ void CustomVisitor::sub(result_type& l, result_type&& r)
 
 void CustomVisitor::min(result_type& l, result_type&& r)
 {
-    CustomResult::min(l, std::move(r), not_used_items);
+    CustomResult::min(l, std::move(r));
 }
 
 void CustomVisitor::max(result_type& l, result_type&& r)
 {
-    CustomResult::max(l, std::move(r), not_used_items);
+    CustomResult::max(l, std::move(r));
 }
 
 result_type CustomVisitor::minN(const std::list<custom_tree::Operand>& operands)
