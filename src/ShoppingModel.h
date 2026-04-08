@@ -62,7 +62,7 @@ private:
 
     struct PlanData
     {
-        boost::container::flat_map<const Step*, double> steps;
+        std::vector<std::pair<const Step*, double>> steps;
         ExchangeItems exchange_items;
         TradeItems trade_items;
 

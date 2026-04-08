@@ -171,8 +171,8 @@ void ShoppingModel::gatherItems(const Plan& plan, PlanData& data)
 {
     if (include_dependencies) {
         for (size_t i = 0; i < data.steps.size(); ++i) {
-            auto& step = *data.steps.nth(i)->first;
-            auto step_amount = data.steps.nth(i)->second;
+            auto& step = *data.steps[i].first;
+            auto step_amount = data.steps[i].second;
             for (auto& item : step.resources) {
                 if (item.not_used || item.amount == 0.0)
                     continue;
@@ -210,21 +210,21 @@ void ShoppingModel::gatherItems(const Plan& plan, PlanData& data)
 
 void ShoppingModel::gatherPlanItem(double amount, const PlanItemData& plan_item, PlanData& data)
 {
-    auto it = plan_model->plans.find(plan_item.plan_id);
-    if (it == plan_model->plans.end())
+    auto plan_it = plan_model->plans.find(plan_item.plan_id);
+    if (plan_it == plan_model->plans.end())
         return;
 
-    auto final_step = it->second.costStepIt();
-    if (final_step == it->second.steps.end())
+    auto final_step = plan_it->second.costStepIt();
+    if (final_step == plan_it->second.steps.end())
         return;
 
-    auto [added_it, added] = dependencies.try_emplace(it->first);
+    auto [data_it, added] = dependencies.try_emplace(plan_it->first);
     if (added) {
-        added_it->second.addStep(&(*final_step), 1.0);
-        gatherItems(it->second, added_it->second);
+        data_it->second.addStep(&(*final_step), 1.0);
+        gatherItems(plan_it->second, data_it->second);
     }
 
-    data.mergeItems(amount, added_it->second);
+    data.mergeItems(amount, data_it->second);
 }
 
 void ShoppingModel::gatherCurrency(double amount,
@@ -268,8 +268,10 @@ void ShoppingModel::gatherTradeItem(double amount,
 
 void ShoppingModel::PlanData::addStep(const Step* step, double amount)
 {
-    auto [it, added] = steps.try_emplace(step, amount);
-    if (!added)
+    auto it = std::ranges::find(steps, step, &std::pair<const Step*, double>::first);
+    if (it == steps.end())
+        steps.emplace_back(step, amount);
+    else
         it->second += amount;
 }
 
