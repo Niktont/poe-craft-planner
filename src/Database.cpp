@@ -27,7 +27,7 @@ static constexpr Tables exchange_cache{u"exchange_cache_poe1", u"exchange_cache_
 static constexpr Tables exchange_cost_cache{u"exchange_cost_cache_poe1",
                                             u"exchange_cost_cache_poe2"};
 
-static constexpr Tables snapshots{u"snaphshots_poe1", u"snaphshots_poe2"};
+static constexpr Tables snapshots{u"snapshots_poe1", u"snapshots_poe2"};
 
 static const QString additional_db{u"additional"_s};
 
