@@ -196,12 +196,10 @@ void MainWindow::closeEvent(QCloseEvent* event)
     settings.setValue(Settings::windows_request_edit_dialog_size, request_edit_dialog->size());
     settings.setValue(Settings::windows_plan_search_dialog_size, plan_search_dialog->size());
 
-    if (snapshots_poe1->current)
-        settings.setValue(Settings::windows_main_snapshot_poe1,
-                          snapshots_poe1->current->id.toString());
-    if (snapshots_poe2->current)
-        settings.setValue(Settings::windows_main_snapshot_poe2,
-                          snapshots_poe2->current->id.toString());
+    settings.setValue(Settings::windows_main_snapshot_poe1,
+                      snapshots_poe1->current ? snapshots_poe1->current->id.toString() : QString{});
+    settings.setValue(Settings::windows_main_snapshot_poe2,
+                      snapshots_poe2->current ? snapshots_poe2->current->id.toString() : QString{});
 
     Settings::save<settings::windows_main_hide_descriptions>(settings);
     Settings::save<settings::windows_main_hide_empty_resources>(settings);
@@ -209,8 +207,8 @@ void MainWindow::closeEvent(QCloseEvent* event)
     Settings::save<settings::windows_main_hide_not_used_items>(settings);
     Settings::save<settings::windows_main_hide_title_currency_name>(settings);
 
-    const auto& last_id = planWidget()->plan() ? planWidget()->plan()->id() : QUuid{};
-    settings.setValue(Settings::windows_main_last_plan, last_id.toString());
+    settings.setValue(Settings::windows_main_last_plan,
+                      planWidget()->plan() ? planWidget()->plan()->id().toString() : QString{});
 
     event->accept();
 }
