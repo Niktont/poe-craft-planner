@@ -15,7 +15,7 @@ ExchangeRequestCache::ExchangeRequestCache(Game game, QObject* parent)
     : QAbstractTableModel{parent}
     , completer{new QCompleter{{}, this}}
     , game{game}
-    , div_card_icon{iconFileName(u"div_card"_s)}
+    , div_card_icon{iconFileName(div_card_icon_id)}
 {
     completer->setCompletionColumn(static_cast<int>(ExchangeRequestColumn::Name));
     completer->setCompletionMode(QCompleter::PopupCompletion);
@@ -75,6 +75,8 @@ Qt::ItemFlags ExchangeRequestCache::flags(const QModelIndex& index) const
     return QAbstractTableModel::flags(index);
 }
 
+const QString ExchangeRequestCache::div_card_icon_id{u"div_card"_s};
+
 std::pair<const ExchangeCostData*, const ExchangeCostData::Data*> ExchangeRequestCache::costData(
     const Currency& currency) const
 {
@@ -114,6 +116,14 @@ const ExchangeCostData::Data* ExchangeRequestCache::currencyCostData(const Curre
 
     auto cost_it = league_it->second.costs.find(currency.id);
     return cost_it != league_it->second.costs.end() ? &cost_it->second : nullptr;
+}
+
+QString ExchangeRequestCache::iconFileName(Cache::const_iterator it) const
+{
+    if (it->second.type == div_card_type)
+        return iconFileName(game, div_card_icon_id);
+
+    return iconFileName(game, it->first);
 }
 
 QString ExchangeRequestCache::iconFileName(Game game, const QString& id)

@@ -28,6 +28,7 @@ protected:
 
 private:
     void insertPlanLink(Game game, const QMimeData* source);
+    void insertStepItem(Game game, const QMimeData* source);
 };
 class DescriptionBrowser : public QTextBrowser
 {

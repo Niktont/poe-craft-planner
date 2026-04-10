@@ -394,7 +394,8 @@ void InitializationDialog::parseOverviewData(Game game, QString type, QNetworkRe
         QTimer::singleShot(3000, this, &InitializationDialog::finishInitialization);
 
         auto div_card_link_poe1 = u"/image/Art/2DItems/Divination/InventoryIcon.png"_s;
-        auto div_card_file_poe1 = mw->exchange_cache_poe1->iconFileName(u"div_card"_s);
+        auto div_card_file_poe1 = mw->exchange_cache_poe1->iconFileName(
+            mw->exchange_cache_poe1->div_card_icon_id);
         if (!QFile::exists(div_card_file_poe1))
             mw->exchange_manager->downloadIcon(div_card_link_poe1, div_card_file_poe1);
 

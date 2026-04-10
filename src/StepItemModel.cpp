@@ -17,7 +17,6 @@
 using namespace Qt::StringLiterals;
 
 namespace planner {
-static const QString move_mime{u"application/x-movestepitem"};
 
 StepItemModel::StepItemModel(bool is_resource_model, PlanWidget& plan_widget)
     : QAbstractTableModel{&plan_widget}
@@ -390,16 +389,22 @@ Qt::ItemFlags StepItemModel::flags(const QModelIndex& index) const
     return Qt::NoItemFlags;
 }
 
+const QString StepItemModel::move_mime_poe1{u"application/x-movestepitem1"};
+const QString StepItemModel::move_mime_poe2{u"application/x-movestepitem2"};
+
 QStringList StepItemModel::mimeTypes() const
 {
+    if (!plan)
+        return {};
+
     QStringList types;
-    types << move_mime;
+    types << (plan->game == Game::Poe1 ? move_mime_poe1 : move_mime_poe2);
     return types;
 }
 
 QMimeData* StepItemModel::mimeData(const QModelIndexList& indexes) const
 {
-    if (indexes.empty())
+    if (indexes.empty() || !plan)
         return nullptr;
 
     auto mime_data = new QMimeData{};
@@ -409,15 +414,16 @@ QMimeData* StepItemModel::mimeData(const QModelIndexList& indexes) const
 
     stream << std::bit_cast<size_t>(this);
 
-    boost::container::flat_set<int> rows;
+    auto& items = stepItems();
+    boost::container::flat_set<const StepItem*> item_ptrs;
     for (const QModelIndex& index : indexes) {
         if (index.isValid())
-            rows.insert(index.row());
+            item_ptrs.insert(&items[index.row()]);
     }
-    for (auto row : rows)
-        stream << row;
+    for (auto item : item_ptrs)
+        stream << std::bit_cast<size_t>(item);
 
-    mime_data->setData(move_mime, encodedData);
+    mime_data->setData(plan->game == Game::Poe1 ? move_mime_poe1 : move_mime_poe2, encodedData);
     return mime_data;
 }
 
@@ -430,6 +436,7 @@ bool StepItemModel::canDropMimeData(const QMimeData* data,
     if (!plan)
         return false;
 
+    auto& move_mime = plan->game == Game::Poe1 ? move_mime_poe1 : move_mime_poe2;
     auto& plan_mime = plan->game == Game::Poe1 ? PlanModel::move_mime_poe1
                                                : PlanModel::move_mime_poe2;
     if (!data->hasFormat(move_mime) && !data->hasFormat(plan_mime))
@@ -440,38 +447,30 @@ bool StepItemModel::canDropMimeData(const QMimeData* data,
 
 void planner::StepItemModel::moveItems(int dest_row, const QMimeData* data)
 {
-    QByteArray encodedData = data->data(move_mime);
-    QDataStream stream{&encodedData, QIODevice::ReadOnly};
+    auto [source_model, source_ptrs] = decodeStepItemsMime(plan->game, data);
 
-    size_t source_ptr;
-    stream >> source_ptr;
-    auto source_model = std::bit_cast<StepItemModel*>(source_ptr);
-
-    std::vector<int> source_rows;
-    while (!stream.atEnd()) {
-        int source_row;
-        stream >> source_row;
-        source_rows.push_back(source_row);
-    }
+    auto& items = stepItems();
     if (source_model == this) {
-        for (auto row : source_rows) {
-            moveRows({}, row, 1, {}, dest_row);
+        for (auto item : source_ptrs) {
+            moveRows({}, std::distance(&items.front(), item), 1, {}, dest_row);
             ++dest_row;
         }
     } else {
-        auto& source_items = source_model->stepItems();
-        auto& items = stepItems();
-        for (auto source_row : source_rows) {
+        for (auto source_item : source_ptrs) {
             beginInsertRows({}, dest_row, dest_row);
-            items.insert(items.begin() + dest_row, std::move(source_items[source_row]));
+            items.insert(items.begin() + dest_row, std::move(*source_item));
             endInsertRows();
-
-            source_model->beginRemoveRows({}, source_row, source_row);
-            source_items.erase(source_items.begin() + source_row);
-            source_model->endRemoveRows();
 
             plan->setChanged();
             ++dest_row;
+        }
+
+        auto& source_items = source_model->stepItems();
+        for (auto source_item : std::views::reverse(source_ptrs)) {
+            auto source_row = std::distance(&source_items.front(), source_item);
+            source_model->beginRemoveRows({}, source_row, source_row);
+            source_items.erase(source_items.begin() + source_row);
+            source_model->endRemoveRows();
         }
     }
 }
@@ -517,12 +516,34 @@ bool StepItemModel::dropMimeData(
     else
         dest_row = rowCount();
 
+    auto& move_mime = plan->game == Game::Poe1 ? move_mime_poe1 : move_mime_poe2;
     if (data->hasFormat(move_mime))
         moveItems(dest_row, data);
     else
         addPlanItems(dest_row, data);
 
     return true;
+}
+
+std::pair<StepItemModel*, std::vector<StepItem*>> StepItemModel::decodeStepItemsMime(
+    Game game, const QMimeData* data)
+{
+    auto& move_mime = game == Game::Poe1 ? move_mime_poe1 : move_mime_poe2;
+    QByteArray encodedData = data->data(move_mime);
+    QDataStream stream{&encodedData, QIODevice::ReadOnly};
+
+    size_t source_ptr;
+    stream >> source_ptr;
+    auto source_model = std::bit_cast<StepItemModel*>(source_ptr);
+
+    std::vector<StepItem*> source_items;
+    while (!stream.atEnd()) {
+        size_t source_item;
+        stream >> source_item;
+        source_items.push_back(std::bit_cast<StepItem*>(source_item));
+    }
+
+    return {source_model, std::move(source_items)};
 }
 
 const StepItem* StepItemModel::stepItem(const QModelIndex& idx) const
@@ -1095,7 +1116,7 @@ QVariant StepItemModel::planItemData(double amount,
                                      StepItemColumn col,
                                      int role) const
 {
-    auto& plans = mw()->planModel(plan->game)->plans;
+    auto& plans = plan_model->plans;
     auto plan_it = plans.find(plan_item.plan_id);
     if (plan_it == plans.end()) {
         if (col == StepItemColumn::Name && !plan_item.name.isEmpty()
@@ -1257,9 +1278,11 @@ void StepItemModel::setStep(Plan* plan, size_t step_pos)
         if (plan->game == Game::Poe1) {
             exchange_cache = mw()->exchange_cache_poe1;
             trade_cache = mw()->trade_cache_poe1;
+            plan_model = mw()->plan_model_poe1;
         } else {
             exchange_cache = mw()->exchange_cache_poe2;
             trade_cache = mw()->trade_cache_poe2;
+            plan_model = mw()->plan_model_poe2;
         }
     }
     endResetModel();

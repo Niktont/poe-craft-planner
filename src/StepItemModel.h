@@ -16,6 +16,7 @@ class CustomItemData;
 class Plan;
 class Step;
 class StepItem;
+class PlanModel;
 
 enum class StepItemColumn {
     Row,
@@ -66,6 +67,10 @@ public:
     Qt::ItemFlags flags(const QModelIndex& index) const override;
 
     Qt::DropActions supportedDropActions() const override { return Qt::CopyAction; }
+
+    static const QString move_mime_poe1;
+    static const QString move_mime_poe2;
+
     QStringList mimeTypes() const override;
     QMimeData* mimeData(const QModelIndexList& indexes) const override;
     bool canDropMimeData(const QMimeData* data,
@@ -78,6 +83,9 @@ public:
                       int row,
                       int column,
                       const QModelIndex& parent) override;
+
+    static std::pair<StepItemModel*, std::vector<StepItem*>> decodeStepItemsMime(
+        Game game, const QMimeData* data);
 
     const bool is_resource_model{};
     size_t stepPos() const { return step_pos; }
@@ -115,6 +123,8 @@ public:
     Step* step();
     const Step* step() const { return const_cast<StepItemModel*>(this)->step(); };
 
+    PlanModel* planModel() const { return plan_model; }
+
 private slots:
     void updateRowNumbers(const QModelIndex& idx, int first, int last);
 
@@ -125,6 +135,7 @@ private:
     size_t step_pos{};
     ExchangeRequestCache* exchange_cache{};
     TradeRequestCache* trade_cache{};
+    PlanModel* plan_model{};
 
     std::vector<StepItem>& stepItems();
     const std::vector<StepItem>& stepItems() const;

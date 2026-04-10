@@ -80,6 +80,7 @@ public:
     bool prepareData(ExchangeData& data) const;
 
     QString iconFileName(const QString& id) const { return iconFileName(game, id); }
+    QString iconFileName(Cache::const_iterator it) const;
     static QString iconFileName(Game game, const QString& id);
 
     QVariant headerData(int section,
@@ -91,6 +92,8 @@ public:
 
     QVariant data(const QModelIndex& index, int role) const override;
     Qt::ItemFlags flags(const QModelIndex& index) const override;
+
+    static const QString div_card_icon_id;
 
 signals:
     void defaultTimeChanged(const planner::Currency& currency);
