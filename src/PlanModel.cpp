@@ -213,7 +213,7 @@ bool PlanModel::setData(const QModelIndex& index, const QVariant& value, int rol
         } else {
             for (auto& child : item->childs) {
                 if (child->plan())
-                    search_model->updatePath(*item->plan());
+                    search_model->updatePath(*child->plan());
             }
         }
         saveName(*item);
