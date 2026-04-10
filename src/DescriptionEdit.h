@@ -1,40 +1,67 @@
 #ifndef DESCRIPTIONEDIT_H
 #define DESCRIPTIONEDIT_H
 
+#include "Game.h"
 #include <QPlainTextEdit>
 #include <QTextBrowser>
 #include <QWidget>
+
 class QAction;
 
 namespace planner {
+class PlanModel;
+
 class DescriptionTextEdit : public QPlainTextEdit
 {
     Q_OBJECT
 public:
     explicit DescriptionTextEdit(QWidget* parent = nullptr);
 
-    void contextMenuEvent(QContextMenuEvent* event) override;
     QAction* finish_editing_action;
+
+protected:
+    void contextMenuEvent(QContextMenuEvent* event) override;
+
+    bool canInsertFromMimeData(const QMimeData* source) const override;
+
+    void insertFromMimeData(const QMimeData* source) override;
+
+private:
+    void insertPlanLink(Game game, const QMimeData* source);
 };
 class DescriptionBrowser : public QTextBrowser
 {
     Q_OBJECT
 public:
     explicit DescriptionBrowser(QWidget* parent = nullptr);
-
-    void contextMenuEvent(QContextMenuEvent* event) override;
     QAction* start_editing_action;
+
+protected:
+    void contextMenuEvent(QContextMenuEvent* event) override;
 };
 
 class DescriptionEdit : public QWidget
 {
     Q_OBJECT
 public:
-    DescriptionEdit(QWidget* parent = nullptr);
+    DescriptionEdit(PlanModel& plan_model_poe1,
+                    PlanModel& plan_model_poe2,
+                    QWidget* parent = nullptr);
 
     DescriptionTextEdit* edit;
     DescriptionBrowser* browser;
     void adjustBrowserSize();
+
+signals:
+    void planLinkClicked(const QUuid& id, planner::Game game);
+
+private slots:
+    void displayTooltip(const QUrl& url);
+    void handleAnchorClicked(const QUrl& url);
+
+private:
+    PlanModel& plan_model_poe1;
+    PlanModel& plan_model_poe2;
 };
 
 } // namespace planner

@@ -300,7 +300,7 @@ bool PlanModel::dropMimeData(
     else
         dest_row = rowCount({});
 
-    auto items = decodePlansMime(game, data);
+    auto items = decodePlanItemsMime(game, data);
     std::erase(items, parent_item);
     if (items.empty())
         return false;
@@ -313,7 +313,7 @@ bool PlanModel::dropMimeData(
     return true;
 }
 
-std::vector<PlanItem*> PlanModel::decodePlansMime(Game game, const QMimeData* data)
+std::vector<PlanItem*> PlanModel::decodePlanItemsMime(Game game, const QMimeData* data)
 {
     auto encodedData = game == Game::Poe1 ? data->data(move_mime_poe1) : data->data(move_mime_poe2);
     QDataStream stream{&encodedData, QIODevice::ReadOnly};
@@ -325,6 +325,23 @@ std::vector<PlanItem*> PlanModel::decodePlansMime(Game game, const QMimeData* da
         items.push_back(std::bit_cast<PlanItem*>(ptr));
     }
     return items;
+}
+
+std::vector<Plan*> PlanModel::decodeMimeToPlans(Game game, const QMimeData* data)
+{
+    auto items = decodePlanItemsMime(game, data);
+
+    std::vector<Plan*> plans;
+    for (auto plan_item : items) {
+        if (plan_item->isFolder()) {
+            for (auto& child : plan_item->childs) {
+                if (child->plan())
+                    plans.push_back(child->plan());
+            }
+        } else
+            plans.push_back(plan_item->plan());
+    }
+    return plans;
 }
 
 QVariant PlanModel::data(const QModelIndex& index, int role) const
@@ -503,9 +520,11 @@ bool PlanModel::handleOverwrite()
 
             import_plans.insert(std::move(node));
         }
-        for (auto& p : import_plans) {
-            for (auto& step : p.second.steps)
-                step.updatePlanIds(changed_ids);
+        if (!changed_ids.empty()) {
+            for (auto& p : import_plans) {
+                for (auto& step : p.second.steps)
+                    step.updatePlanIds(changed_ids);
+            }
         }
 
         for (auto& p : overwrite_model.plans_for_overwrite) {

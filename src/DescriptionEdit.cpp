@@ -1,15 +1,32 @@
 #include "DescriptionEdit.h"
+#include "PlanModel.h"
 #include <QAbstractTextDocumentLayout>
 #include <QAction>
 #include <QContextMenuEvent>
 #include <QCoreApplication>
+#include <QDesktopServices>
 #include <QMenu>
+#include <QMimeData>
 #include <QMouseEvent>
 #include <QScrollBar>
 #include <QToolTip>
+#include <QUuid>
 #include <QVBoxLayout>
 
+using namespace Qt::StringLiterals;
+
 namespace planner {
+static constexpr auto plan_link_scheme_poe1{"plan1"_L1};
+static constexpr auto plan_link_scheme_poe2{"plan2"_L1};
+
+static const QString plan_link_poe1{u"[%1](plan1://%2)"_s};
+static const QString plan_link_poe2{u"[%1](plan2://%2)"_s};
+
+static QUuid idFromLink(const QUrl& url)
+{
+    return QUuid::fromString(url.host());
+}
+
 DescriptionTextEdit::DescriptionTextEdit(QWidget* parent)
     : QPlainTextEdit{parent}
 {
@@ -26,6 +43,44 @@ void DescriptionTextEdit::contextMenuEvent(QContextMenuEvent* event)
     menu->addAction(finish_editing_action);
     menu->popup(event->globalPos());
 }
+
+bool DescriptionTextEdit::canInsertFromMimeData(const QMimeData* source) const
+{
+    if (source->hasFormat(PlanModel::move_mime_poe1) || source->hasFormat(PlanModel::move_mime_poe2))
+        return true;
+
+    return QPlainTextEdit::canInsertFromMimeData(source);
+}
+
+void DescriptionTextEdit::insertFromMimeData(const QMimeData* source)
+{
+    if (source->hasFormat(PlanModel::move_mime_poe1))
+        return insertPlanLink(Game::Poe1, source);
+    if (source->hasFormat(PlanModel::move_mime_poe2))
+        return insertPlanLink(Game::Poe2, source);
+
+    QPlainTextEdit::insertFromMimeData(source);
+}
+
+void DescriptionTextEdit::insertPlanLink(Game game, const QMimeData* source)
+{
+    auto plans = PlanModel::decodeMimeToPlans(game, source);
+    if (plans.empty())
+        return;
+
+    auto& link_format = game == Game::Poe1 ? plan_link_poe1 : plan_link_poe2;
+    auto cursor = textCursor();
+    cursor.beginEditBlock();
+
+    cursor.insertText(
+        link_format.arg(plans[0]->name, plans[0]->id().toString(QUuid::WithoutBraces)));
+    for (auto plan : std::views::drop(plans, 1))
+        cursor.insertText(u", "_s
+                          % link_format.arg(plan->name, plan->id().toString(QUuid::WithoutBraces)));
+
+    cursor.endEditBlock();
+}
+
 DescriptionBrowser::DescriptionBrowser(QWidget* parent)
     : QTextBrowser{parent}
 {
@@ -43,8 +98,12 @@ void DescriptionBrowser::contextMenuEvent(QContextMenuEvent* event)
     menu->popup(event->globalPos());
 }
 
-DescriptionEdit::DescriptionEdit(QWidget* parent)
+DescriptionEdit::DescriptionEdit(PlanModel& plan_model_poe1,
+                                 PlanModel& plan_model_poe2,
+                                 QWidget* parent)
     : QWidget{parent}
+    , plan_model_poe1{plan_model_poe1}
+    , plan_model_poe2{plan_model_poe2}
 {
     setLayout(new QVBoxLayout{});
     layout()->setContentsMargins(0, 0, 0, 0);
@@ -56,6 +115,8 @@ DescriptionEdit::DescriptionEdit(QWidget* parent)
     edit->setFixedHeight(400);
 
     browser = new DescriptionBrowser{};
+    browser->setOpenLinks(false);
+    browser->setOpenExternalLinks(false);
     browser->setPlaceholderText(tr("Description"));
     browser->setMaximumSize(edit->maximumSize());
     browser->setFrameShadow(QFrame::Plain);
@@ -64,14 +125,10 @@ DescriptionEdit::DescriptionEdit(QWidget* parent)
     browser->setLineWrapColumnOrWidth(browser->maximumWidth()
                                       - browser->verticalScrollBar()->sizeHint().width()
                                       - 2 * browser->frameWidth());
-    browser->setOpenExternalLinks(true);
 
-    connect(browser, &QTextBrowser::highlighted, this, [this](const QUrl& url) {
-        auto str = url.toDisplayString();
-        browser->setToolTip(str);
-        if (str.isEmpty())
-            QToolTip::hideText();
-    });
+    connect(browser, &QTextBrowser::highlighted, this, &DescriptionEdit::displayTooltip);
+    connect(browser, &QTextBrowser::anchorClicked, this, &DescriptionEdit::handleAnchorClicked);
+
     connect(browser->start_editing_action, &QAction::triggered, this, [this] {
         browser->hide();
         edit->show();
@@ -102,6 +159,49 @@ void DescriptionEdit::adjustBrowserSize()
 
     browser->setFixedWidth(std::min(size.width(), edit->maximumWidth()));
     browser->setFixedHeight(std::min(size.height(), edit->maximumHeight()));
+}
+
+void DescriptionEdit::displayTooltip(const QUrl& url)
+{
+    QString tooltip;
+    if (url.scheme() == plan_link_scheme_poe1) {
+        auto it = plan_model_poe1.plans.find(idFromLink(url));
+        if (it != plan_model_poe1.plans.end())
+            tooltip = it->second.name;
+    } else if (url.scheme() == plan_link_scheme_poe2) {
+        auto it = plan_model_poe2.plans.find(idFromLink(url));
+        if (it != plan_model_poe2.plans.end())
+            tooltip = it->second.name;
+    } else
+        tooltip = url.toDisplayString();
+
+    browser->setToolTip(tooltip);
+    if (tooltip.isEmpty())
+        QToolTip::hideText();
+}
+
+void DescriptionEdit::handleAnchorClicked(const QUrl& url)
+{
+    if (url.scheme() == plan_link_scheme_poe1) {
+        emit planLinkClicked(idFromLink(url), Game::Poe1);
+        return;
+    }
+    if (url.scheme() == plan_link_scheme_poe2) {
+        emit planLinkClicked(idFromLink(url), Game::Poe2);
+        return;
+    }
+    if (url.isRelative()) {
+        if (url.hasFragment())
+            browser->scrollToAnchor(url.fragment());
+        return;
+    }
+
+    bool is_file_scheme = url.scheme() == "file"_L1 || url.scheme() == "qrc"_L1;
+    if (!is_file_scheme) {
+        QDesktopServices::openUrl(url);
+        return;
+    }
+    // browser->setSource(url);
 }
 
 } // namespace planner

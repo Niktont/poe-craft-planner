@@ -478,8 +478,8 @@ void planner::StepItemModel::moveItems(int dest_row, const QMimeData* data)
 
 void StepItemModel::addPlanItems(int dest_row, const QMimeData* data)
 {
-    auto plan_items = PlanModel::decodePlansMime(plan->game, data);
-    if (plan_items.empty())
+    auto plans_to_add = PlanModel::decodeMimeToPlans(plan->game, data);
+    if (plans_to_add.empty())
         return;
 
     auto& items = stepItems();
@@ -488,30 +488,6 @@ void StepItemModel::addPlanItems(int dest_row, const QMimeData* data)
     StepItem base_item;
     base_item.amount = amount;
     base_item.data.emplace<PlanItemData>();
-
-    if (plan_items.size() == 1 && !plan_items.front()->isFolder()) {
-        beginInsertRows({}, dest_row, dest_row);
-
-        base_item.plan()->plan_id = plan_items.front()->plan()->id();
-        items.insert(items.begin() + dest_row, base_item);
-        plan->setChanged();
-
-        endInsertRows();
-        return;
-    }
-
-    std::vector<Plan*> plans_to_add;
-    for (auto plan_item : plan_items) {
-        if (plan_item->isFolder()) {
-            for (int i = 0; i < plan_item->childCount(); ++i) {
-                if (plan_item->child(i)->plan())
-                    plans_to_add.push_back(plan_item->child(i)->plan());
-            }
-        } else
-            plans_to_add.push_back(plan_item->plan());
-    }
-    if (plans_to_add.empty())
-        return;
 
     beginInsertRows({}, dest_row, dest_row + plans_to_add.size() - 1);
 

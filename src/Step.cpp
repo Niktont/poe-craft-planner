@@ -154,6 +154,10 @@ void Step::updateIds(const boost::container::flat_map<QUuid, QUuid>& changed_ids
 
 void Step::updatePlanIds(const boost::container::flat_map<QUuid, QUuid>& changed_ids)
 {
+    for (auto& [old_id, new_id] : changed_ids) {
+        description.replace(old_id.toString(QUuid::WithoutBraces),
+                            new_id.toString(QUuid::WithoutBraces));
+    }
     for (auto& item : resources) {
         if (auto plan = item.plan(); plan && !plan->plan_id.isNull())
             if (auto it = changed_ids.find(plan->plan_id); it != changed_ids.end())

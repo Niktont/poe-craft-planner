@@ -75,7 +75,8 @@ public:
                       int column,
                       const QModelIndex& parent) override;
 
-    static std::vector<PlanItem*> decodePlansMime(Game game, const QMimeData* data);
+    static std::vector<PlanItem*> decodePlanItemsMime(Game game, const QMimeData* data);
+    static std::vector<Plan*> decodeMimeToPlans(Game game, const QMimeData* data);
 
     QModelIndex index(int row, int column, const QModelIndex& parent = {}) const override;
     QModelIndex parent(const QModelIndex& index) const override;

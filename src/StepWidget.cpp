@@ -94,11 +94,14 @@ StepWidget::StepWidget(PlanWidget* plan_widget, QWidget* parent)
     layout->addWidget(edit_widget);
     step_layout->setContentsMargins(0, 0, 0, 0);
 
-    description = new DescriptionEdit{this};
+    description = new DescriptionEdit{*plan_widget->mw()->plan_model_poe1,
+                                      *plan_widget->mw()->plan_model_poe2,
+                                      this};
     connect(description->edit, &QPlainTextEdit::textChanged, this, [this] {
         if (!is_text_reset)
             this->plan_widget->setPlanChanged();
     });
+    connect(description, &DescriptionEdit::planLinkClicked, plan_widget, &PlanWidget::openPlan);
 
     step_layout->addWidget(description);
 
