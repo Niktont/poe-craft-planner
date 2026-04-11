@@ -4,6 +4,7 @@
 #include "Settings.h"
 #include "ShoppingModel.h"
 #include "ShoppingView.h"
+#include "TradeRequestCache.h"
 #include <QClipboard>
 #include <QCloseEvent>
 #include <QDesktopServices>

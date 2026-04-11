@@ -9,6 +9,7 @@
 #include "PlanTreeView.h"
 #include "PlanWidget.h"
 #include "Settings.h"
+#include "TradeRequestCache.h"
 #include <boost/container/flat_set.hpp>
 #include <QApplication>
 #include <QClipboard>

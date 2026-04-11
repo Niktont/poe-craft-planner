@@ -124,6 +124,7 @@ public:
     QAction* hide_empty_results_action;
     QAction* hide_not_used_items_action;
     QAction* hide_title_currency_name_action;
+    QAction* use_query_as_description_action;
 
     QAction* add_step_action;
 

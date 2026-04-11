@@ -36,7 +36,7 @@ qt_add_executable(${PROJECT_NAME}
     src/StepWidget.h src/StepWidget.cpp
     src/PlanWidget.h src/PlanWidget.cpp
     src/ExchangeItemData.h
-    src/TradeItemData.h
+    src/TradeItemData.h src/TradeItemData.cpp
     src/StepItem.h src/StepItem.cpp
     src/StepItemModel.h src/StepItemModel.cpp
     src/CustomItemData.h
@@ -95,6 +95,7 @@ qt_add_executable(${PROJECT_NAME}
     src/Snapshot.h
     src/SnapshotsDialog.h src/SnapshotsDialog.cpp
     src/SnapshotView.h src/SnapshotView.cpp
+    src/QueryParser.h src/QueryParser.cpp
 )
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE APP_VERSION="${PROJECT_VERSION}")
@@ -159,7 +160,12 @@ qt_generate_deploy_app_script(
     TARGET ${PROJECT_NAME}
     OUTPUT_SCRIPT deploy_script
     NO_UNSUPPORTED_PLATFORM_ERROR
-    DEPLOY_TOOL_OPTIONS --libdir "." --no-compiler-runtime
+    DEPLOY_TOOL_OPTIONS
+        --libdir "."
+        --no-compiler-runtime
+        --no-system-d3d-compiler
+        --no-system-dxc-compiler
+        --no-opengl-sw
 )
 
 install(SCRIPT ${deploy_script})

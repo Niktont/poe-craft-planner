@@ -124,6 +124,8 @@ MainWindow::MainWindow(QWidget* parent)
         Settings::get<Settings::windows_main_hide_not_used_items>());
     hide_title_currency_name_action->setChecked(
         Settings::get<settings::windows_main_hide_title_currency_name>());
+    use_query_as_description_action->setChecked(
+        Settings::get<settings::trade_use_query_as_description>());
 
     auto state = settings.value(Settings::windows_main_state, {});
     if (!state.isValid()) {
@@ -206,6 +208,7 @@ void MainWindow::closeEvent(QCloseEvent* event)
     Settings::save<settings::windows_main_hide_empty_results>(settings);
     Settings::save<settings::windows_main_hide_not_used_items>(settings);
     Settings::save<settings::windows_main_hide_title_currency_name>(settings);
+    Settings::save<settings::trade_use_query_as_description>(settings);
 
     settings.setValue(Settings::windows_main_last_plan,
                       planWidget()->plan() ? planWidget()->plan()->id().toString() : QString{});
@@ -449,6 +452,14 @@ void MainWindow::setupActions()
             planWidget(),
             &PlanWidget::hideNotUsedItems);
 
+    use_query_as_description_action = new QAction{tr("Use Search Query As Description"), this};
+    use_query_as_description_action->setToolTip(
+        tr("Parsed search query will be shown in the tooltip of Name cell for Trade items"));
+    use_query_as_description_action->setCheckable(true);
+    connect(use_query_as_description_action, &QAction::triggered, this, [](bool checked) {
+        Settings::setCache<Settings::trade_use_query_as_description>(checked);
+    });
+
     back_action = new QAction{style()->standardIcon(QStyle::SP_ArrowLeft), tr("Go Back"), this};
     back_action->setShortcut(Qt::AltModifier | Qt::Key_Left);
     connect(back_action, &QAction::triggered, planWidget(), &PlanWidget::goBack);
@@ -536,6 +547,8 @@ void MainWindow::setupActions()
     view_menu->addAction(hide_empty_results_action);
     view_menu->addAction(hide_not_used_items_action);
     view_menu->addAction(hide_title_currency_name_action);
+    view_menu->addSeparator();
+    view_menu->addAction(use_query_as_description_action);
 
     settings_action = menuBar()->addAction(tr("Settings"));
     connect(settings_action, &QAction::triggered, settings_dialog, &SettingsDialog::openSettings);

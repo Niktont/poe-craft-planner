@@ -11,8 +11,10 @@
 #include <QComboBox>
 #include <QCompleter>
 #include <QDoubleSpinBox>
+#include <QHelpEvent>
 #include <QLineEdit>
 #include <QListView>
+#include <QToolTip>
 
 namespace planner {
 
@@ -29,6 +31,7 @@ QWidget* StepItemDelegate::createEditor(QWidget* parent,
     auto& items = step_model->stepItems();
 
     switch (col) {
+    case StepItemColumn::Row:
     case StepItemColumn::Cost:
     case StepItemColumn::Gold:
     case StepItemColumn::Time:
@@ -81,6 +84,7 @@ void StepItemDelegate::setEditorData(QWidget* editor, const QModelIndex& index) 
     auto& item = step_model->stepItems()[index.row()];
 
     switch (col) {
+    case StepItemColumn::Row:
     case StepItemColumn::Amount:
     case StepItemColumn::Link:
     case StepItemColumn::Cost:
@@ -115,6 +119,7 @@ void StepItemDelegate::setModelData(QWidget* editor,
     auto& item = step_model->stepItems()[index.row()];
 
     switch (col) {
+    case StepItemColumn::Row:
     case StepItemColumn::Amount:
     case StepItemColumn::Cost:
     case StepItemColumn::Gold:
@@ -196,6 +201,35 @@ void StepItemDelegate::updateEditorGeometry(QWidget* editor,
     rect.setWidth(std::max(rect.width(), editor_width));
 
     editor->setGeometry(rect);
+}
+
+bool StepItemDelegate::helpEvent(QHelpEvent* event,
+                                 QAbstractItemView* view,
+                                 const QStyleOptionViewItem& option,
+                                 const QModelIndex& index)
+{
+    if (!event || !view)
+        return false;
+
+    if (event->type() == QEvent::ToolTip && index.isValid()) {
+        auto col = static_cast<StepItemColumn>(index.column());
+
+        if (col == StepItemColumn::Name) {
+            auto step_model = qobject_cast<const StepItemModel*>(index.model());
+            auto& items = step_model->stepItems();
+            if (items[index.row()].type() == StepItemType::Trade) {
+                const QString tooltip = index.data(Qt::ToolTipRole).toString();
+                QToolTip::showText(event->globalPos(),
+                                   tooltip,
+                                   view->viewport(),
+                                   option.rect,
+                                   1000000);
+                event->setAccepted(!tooltip.isEmpty());
+                return event->isAccepted();
+            }
+        }
+    }
+    return QStyledItemDelegate::helpEvent(event, view, option, index);
 }
 
 void StepItemDelegate::commitAndCloseEditor()

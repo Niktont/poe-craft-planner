@@ -2,6 +2,7 @@
 #include "MainWindow.h"
 #include "Plan.h"
 #include "PlanModel.h"
+#include "TradeRequestCache.h"
 
 namespace planner {
 

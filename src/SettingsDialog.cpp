@@ -41,7 +41,7 @@ static int minutesFromMs(milliseconds val)
     return duration_cast<minutes>(val).count();
 }
 
-static const std::array<QString, 8> exchange_languages{
+static const std::array<QString, 8> trade_languages{
     u"en"_s,
     u"br"_s,
     u"ru"_s,
@@ -401,39 +401,64 @@ void SettingsDialog::setupLanguageTab()
     language_tab = new QWidget{};
     auto layout = new QFormLayout{};
     language_tab->setLayout(layout);
+    QStringList trade_languages;
+    trade_languages.push_back("English");
+    trade_languages.push_back("Português (Brasil)");
+    trade_languages.push_back("Русский");
+    trade_languages.push_back("ไทย");
+    trade_languages.push_back("Deutsch");
+    trade_languages.push_back("Français");
+    trade_languages.push_back("Español");
+    trade_languages.push_back("日本語");
 
-    exchange_language = new QComboBox{};
-    exchange_language->addItem("English");
-    exchange_language->addItem("Português (Brasil)");
-    exchange_language->addItem("Русский");
-    exchange_language->addItem("ไทย");
-    exchange_language->addItem("Deutsch");
-    exchange_language->addItem("Français");
-    exchange_language->addItem("Español");
-    exchange_language->addItem("日本語");
-
-    connect(exchange_language,
+    currency_language = new QComboBox{};
+    currency_language->addItems(trade_languages);
+    connect(currency_language,
             &QComboBox::currentIndexChanged,
             this,
             &SettingsDialog::setLanguageChanged);
-    layout->addRow(tr("Language for names of Exchange items:"), exchange_language);
+    layout->addRow(tr("Language for names of Exchange items:"), currency_language);
+
+    trade_query_language = new QComboBox{};
+    trade_query_language->addItems(trade_languages);
+    connect(trade_query_language,
+            &QComboBox::currentIndexChanged,
+            this,
+            &SettingsDialog::setLanguageChanged);
+    layout->addRow(tr("Language for trade search query tooltip:"), trade_query_language);
 }
 
 void SettingsDialog::resetLanguage()
 {
-    auto it = std::ranges::find(exchange_languages, Settings::get<language_exchange_items>());
-    auto pos = it != exchange_languages.end() ? std::distance(exchange_languages.begin(), it) : 0;
-    exchange_language->setCurrentIndex(pos);
+    auto it = std::ranges::find(trade_languages, Settings::get<language_exchange_items>());
+    auto pos = it != trade_languages.end() ? std::distance(trade_languages.begin(), it) : 0;
+    currency_language->setCurrentIndex(pos);
+
+    it = std::ranges::find(trade_languages, Settings::get<language_trade_query>());
+    pos = it != trade_languages.end() ? std::distance(trade_languages.begin(), it) : 0;
+    trade_query_language->setCurrentIndex(pos);
 
     is_changed[Language] = false;
 }
 
 void SettingsDialog::saveLanguage(QSettings& settings)
 {
+    bool lang_changed = false;
     auto prev_lang = Settings::get<language_exchange_items>();
-    auto lang = exchange_languages.at(exchange_language->currentIndex());
+    auto lang = trade_languages.at(currency_language->currentIndex());
     if (prev_lang != lang) {
         Settings::set<language_exchange_items>(lang, settings);
+        lang_changed = true;
+    }
+
+    prev_lang = Settings::get<language_trade_query>();
+    lang = trade_languages.at(trade_query_language->currentIndex());
+    if (prev_lang != lang) {
+        Settings::set<language_trade_query>(lang, settings);
+        lang_changed = true;
+    }
+
+    if (lang_changed) {
         QMessageBox::information(this,
                                  tr("Language changed"),
                                  tr("The language change will take effect after restart."));

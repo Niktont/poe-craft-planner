@@ -13,10 +13,14 @@ struct Tables
     constexpr QStringView forGame(Game game) const { return arr[static_cast<size_t>(game)]; }
 };
 
-// type TEXT, url TEXT
 static constexpr Tables currency_types{u"currency_types_poe1", u"currency_types_poe2"};
-// id TEXT, fee REAL
+
 static constexpr Tables currency_data{u"currency_data_poe1", u"currency_data_poe2"};
+static constexpr Tables filters{u"filters_poe1", u"filters_poe2"};
+static constexpr Tables filter_options{u"filter_options_poe1", u"filter_options_poe2"};
+static constexpr Tables stats{u"stats_poe1", u"stats_poe2"};
+static constexpr Tables stat_types{u"stat_types_poe1", u"stat_types_poe1"};
+static constexpr Tables stat_groups{u"stat_groups_poe1", u"stat_groups_poe2"};
 
 static constexpr Tables plans{u"plans_poe1", u"plans_poe2"};
 
@@ -48,6 +52,11 @@ bool Database::initAddConnection()
     return db.open();
 }
 
+QSqlDatabase Database::additionalDb()
+{
+    return QSqlDatabase::database(additional_db);
+}
+
 QSqlQuery Database::selectCurrencyType(Game game)
 {
     QSqlQuery query{QSqlDatabase::database(additional_db)};
@@ -55,11 +64,39 @@ QSqlQuery Database::selectCurrencyType(Game game)
     return query;
 }
 
-QSqlQuery Database::selectAdditionalData(Game game, QString lang)
+QSqlQuery Database::selectCurrencyData(Game game, QStringView lang)
 {
     QSqlQuery query{QSqlDatabase::database(additional_db)};
     query.prepare("SELECT id, fee, " % lang % " FROM " % currency_data.forGame(game) % ";");
     return query;
+}
+
+QSqlQuery selectQueryTexts(QStringView table, QStringView lang)
+{
+    QSqlQuery query{QSqlDatabase::database(additional_db)};
+    query.prepare("SELECT id, " % lang % " FROM " % table % ";");
+    return query;
+}
+QSqlQuery Database::selectFilters(Game game, QStringView lang)
+{
+    return selectQueryTexts(filters.forGame(game), lang);
+}
+QSqlQuery Database::selectFilterOptions(Game game, QStringView lang)
+{
+    return selectQueryTexts(filter_options.forGame(game), lang);
+}
+QSqlQuery Database::selectStatTypes(Game game, QStringView lang)
+{
+    return selectQueryTexts(stat_types.forGame(game), lang);
+}
+QSqlQuery Database::selectStats(Game game, QStringView lang)
+{
+    return selectQueryTexts(stats.forGame(game), lang);
+}
+
+QSqlQuery Database::selectStatGroups(Game game, QStringView lang)
+{
+    return selectQueryTexts(stat_groups.forGame(game), lang);
 }
 
 bool Database::createInfoTable()

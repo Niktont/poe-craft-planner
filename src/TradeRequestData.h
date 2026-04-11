@@ -26,6 +26,8 @@ public:
     DescriptionType type{DescriptionType::Text};
     QString text;
 
+    mutable std::optional<QString> query;
+
     QJsonObject toJson() const
     {
         QJsonObject description_o;

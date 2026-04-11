@@ -23,6 +23,7 @@ enum SettingsKey {
     poe1_init_needed,
     poe2_init_needed,
 
+    trade_use_query_as_description,
     trade_cost_expiration_time,
     exchange_cost_expiration_time,
     exchange_request_delay,
@@ -35,6 +36,7 @@ enum SettingsKey {
     import_add_prefix_requests,
 
     language_exchange_items,
+    language_trade_query,
 
     hotkeys_next_item,
     hotkeys_paste_want,
@@ -134,6 +136,12 @@ struct KeyTraits<poe2_init_needed> : BoolValue
 };
 
 template<>
+struct KeyTraits<trade_use_query_as_description> : BoolValue
+{
+    static inline const std::string key{"trade/use_query_as_description"};
+};
+
+template<>
 struct KeyTraits<trade_cost_expiration_time> : LongLongValue
 {
     static inline const std::string key{"trade/cost_expiration_time"};
@@ -180,6 +188,11 @@ template<>
 struct KeyTraits<language_exchange_items> : StringValue
 {
     static inline const std::string key{"language/exchange_items"};
+};
+template<>
+struct KeyTraits<language_trade_query> : StringValue
+{
+    static inline const std::string key{"language/trade_query"};
 };
 
 template<>

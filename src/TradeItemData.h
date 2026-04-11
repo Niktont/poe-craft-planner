@@ -1,12 +1,12 @@
 #ifndef TRADEITEMDATA_H
 #define TRADEITEMDATA_H
 
-#include "TradeRequestCache.h"
 #include "TradeRequestKey.h"
 #include "ItemTime.h"
 #include <QString>
 
 namespace planner {
+class TradeRequestCache;
 
 class TradeItemData
 {
@@ -28,17 +28,7 @@ public:
             item_o["time"] = time->count();
     }
 
-    void exportJson(QJsonObject& item_o, TradeRequestCache& cache) const
-    {
-        toJson(item_o);
-        cache.export_requests.emplace(request_key);
-        if (name.isEmpty()) {
-            if (auto it = cache.requestData(request_key); it != cache.cache.end())
-                item_o["name"] = it->second.name();
-        }
-        if (!time)
-            item_o["time"] = cache.time(*this).count();
-    }
+    void exportJson(QJsonObject& item_o, TradeRequestCache& cache) const;
 
     QString name;
 

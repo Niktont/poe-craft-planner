@@ -1,7 +1,7 @@
 #ifndef REQUESTEDITDIALOG_H
 #define REQUESTEDITDIALOG_H
 
-#include "TradeRequestCache.h"
+#include "TradeRequestKey.h"
 #include <QDialog>
 #include <QJsonDocument>
 
@@ -12,8 +12,8 @@ class QPushButton;
 class QCheckBox;
 
 namespace planner {
-
 class MainWindow;
+class TradeRequestCache;
 
 class RequestEditDialog : public QDialog
 {

@@ -3,6 +3,7 @@
 
 #include "Game.h"
 #include "ItemTime.h"
+#include "QueryParser.h"
 #include "TradeCostData.h"
 #include "TradeRequestData.h"
 #include "TradeRequestKey.h"
@@ -39,6 +40,7 @@ public:
     ~TradeRequestCache() { saveCostCache(); }
 
     bool readDatabase();
+    bool readAdditionalDatabase();
 
     using Cache = boost::container::flat_map<TradeRequestKey, TradeRequestData>;
     Cache cache;
@@ -82,6 +84,8 @@ public:
     double goldFee(const TradeRequestKey& request) const;
     ItemTime time(const TradeItemData& trade_item) const;
 
+    QString description(const TradeRequestKey& request) const;
+
     QVariant headerData(int section,
                         Qt::Orientation orientation,
                         int role = Qt::DisplayRole) const override;
@@ -106,6 +110,10 @@ private:
     ExchangeRequestCache* exchange_cache;
 
     Snapshot* snapshot{};
+
+    QueryParser query_parser;
+
+    QString description(Cache::const_iterator it) const;
 
     CostCache::iterator currentLeagueData();
     CostCache::const_iterator currentLeagueData() const

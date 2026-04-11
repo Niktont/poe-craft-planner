@@ -62,7 +62,8 @@ private:
     QCheckBox* add_prefix_requests;
 
     QWidget* language_tab;
-    QComboBox* exchange_language;
+    QComboBox* currency_language;
+    QComboBox* trade_query_language;
 
     QWidget* hotkeys_tab;
     HotkeyEdit* next_item;

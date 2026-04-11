@@ -20,8 +20,15 @@ public:
     static bool initConnection();
     static bool initAddConnection();
 
+    static QSqlDatabase additionalDb();
+
     static QSqlQuery selectCurrencyType(Game game);
-    static QSqlQuery selectAdditionalData(Game game, QString lang);
+    static QSqlQuery selectCurrencyData(Game game, QStringView lang);
+    static QSqlQuery selectFilters(Game game, QStringView lang);
+    static QSqlQuery selectFilterOptions(Game game, QStringView lang);
+    static QSqlQuery selectStatTypes(Game game, QStringView lang);
+    static QSqlQuery selectStats(Game game, QStringView lang);
+    static QSqlQuery selectStatGroups(Game game, QStringView lang);
 
     static bool createInfoTable();
     static QVariant selectInfo(const QString& key);

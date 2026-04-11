@@ -2,6 +2,7 @@
 #include "Database.h"
 #include "ExchangeRequestCache.h"
 #include "ImportException.h"
+#include "QueryParser.h"
 #include "Settings.h"
 #include "Snapshot.h"
 #include "TradeItemData.h"
@@ -61,6 +62,42 @@ bool TradeRequestCache::readDatabase()
         }
         cost_cache.emplace(std::move(p));
     }
+    result = result && readAdditionalDatabase();
+
+    return result;
+}
+
+bool TradeRequestCache::readAdditionalDatabase()
+{
+    auto lang = Settings::get<Settings::language_trade_query>();
+    auto query = Database::selectFilters(game, lang);
+    bool result = query.exec();
+    if (!result)
+        return result;
+
+    while (query.next())
+        query_parser.filters.try_emplace(query.value(0).toString(), query.value(1).toString());
+
+    query = Database::selectFilterOptions(game, lang);
+    result = result && query.exec();
+    while (query.next())
+        query_parser.filter_options.try_emplace(query.value(0).toString(),
+                                                query.value(1).toString());
+
+    query = Database::selectStatTypes(game, lang);
+    result = result && query.exec();
+    while (query.next())
+        query_parser.stat_types.try_emplace(query.value(0).toString(), query.value(1).toString());
+
+    query = Database::selectStats(game, lang);
+    result = result && query.exec();
+    while (query.next())
+        query_parser.stats.try_emplace(query.value(0).toString(), query.value(1).toString());
+
+    query = Database::selectStatGroups(game, lang);
+    result = result && query.exec();
+    while (query.next())
+        query_parser.stat_groups.try_emplace(query.value(0).toString(), query.value(1).toString());
 
     return result;
 }
@@ -262,6 +299,14 @@ ItemTime TradeRequestCache::time(const TradeItemData& trade_item) const
     return Settings::defaultTradeTime();
 }
 
+QString TradeRequestCache::description(const TradeRequestKey& request) const
+{
+    if (auto it = requestData(request); it != cache.end())
+        return description(it);
+
+    return {};
+}
+
 QVariant TradeRequestCache::headerData(int section, Qt::Orientation orientation, int role) const
 {
     if (role != Qt::DisplayRole || orientation == Qt::Vertical)
@@ -309,6 +354,8 @@ QVariant TradeRequestCache::data(const QModelIndex& index, int role) const
         case Qt::DisplayRole:
         case Qt::EditRole:
             return request->second.name();
+        case Qt::ToolTipRole:
+            return description(request);
         }
         return {};
     case TradeRequestColumn::Link:
@@ -329,8 +376,12 @@ QVariant TradeRequestCache::data(const QModelIndex& index, int role) const
         }
         return {};
     case TradeRequestColumn::Query:
-        if (role == Qt::CheckStateRole)
+        switch (role) {
+        case Qt::CheckStateRole:
             return !request->second.query().isEmpty() ? Qt::Checked : Qt::Unchecked;
+        case Qt::ToolTipRole:
+            return description(request);
+        }
         return {};
     case TradeRequestColumn::Regex:
         switch (role) {
@@ -487,6 +538,18 @@ void TradeRequestCache::mergeImportRequests(Cache&& import_requests)
         }
     }
     db.commit();
+}
+
+QString TradeRequestCache::description(Cache::const_iterator it) const
+{
+    if (Settings::get<Settings::trade_use_query_as_description>() && !it->second.query().isEmpty()) {
+        auto& query = it->second.description().query;
+        if (!query)
+            query = query_parser.parseQuery(it->second.query());
+        return *query;
+    }
+
+    return it->second.description().text;
 }
 
 TradeRequestCache::Cache TradeRequestCache::requestsFromJson(const QJsonArray& requests_a)

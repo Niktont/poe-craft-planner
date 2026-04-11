@@ -39,6 +39,7 @@ void Settings::initCache()
     read<poe1_init_needed>(settings, true);
     read<poe2_init_needed>(settings, true);
 
+    read<trade_use_query_as_description>(settings);
     read<trade_cost_expiration_time>(settings, min_trade_expiration_time.count() * 3);
     read<exchange_cost_expiration_time>(settings, min_exchange_expiration_time.count() * 2);
     read<exchange_request_delay>(settings, 5000);
@@ -51,6 +52,7 @@ void Settings::initCache()
     read<import_add_prefix_requests>(settings, true);
 
     read<language_exchange_items>(settings, u"en"_s);
+    read<language_trade_query>(settings, u"en"_s);
 
     read<hotkeys_next_item>(settings);
     read<hotkeys_paste_want>(settings);

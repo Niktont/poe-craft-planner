@@ -26,13 +26,35 @@ public:
     Game game{Poe1};
     size_t lang{0};
 
+    enum DataType {
+        Static,
+        Filters,
+        Stats,
+    };
+    DataType data_type{Static};
+
     static bool initAddConnection();
+
+    static QSqlQuery insertText(QStringView table, QStringView lang);
+
     static QSqlQuery insertName(Game game, QStringView lang);
     static QSqlQuery insertImageAndName(Game game, QStringView lang);
 
+    static QSqlQuery insertFilter(Game game, QStringView lang);
+
+    static QSqlQuery insertFilterOption(Game game, QStringView lang);
+
+    static QSqlQuery insertStat(Game game, QStringView lang);
+    static QSqlQuery insertStatType(Game game, QStringView lang);
+
+    static const QString user_agent;
+    void nextLang();
+
 public slots:
     void getData();
-    void parseData(QRestReply& reply);
+    void parseStaticData(QRestReply& reply);
+    void parseFiltersData(QRestReply& reply);
+    void parseStatsData(QRestReply& reply);
 };
 
 } // namespace planner
