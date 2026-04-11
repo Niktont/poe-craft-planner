@@ -46,6 +46,7 @@ private:
     QAction* copy_action;
     QAction* paste_action;
 
+    QAction* copy_link_action;
     QAction* copy_regex_action;
     QAction* edit_search_action;
     QAction* delete_search_action;

@@ -110,6 +110,7 @@ public:
 
     bool haveRegex(const StepItem& item) const;
     void copyRegex(const QModelIndex& idx);
+    void copyLink(const QModelIndex& idx);
 
     void openSearch(const QModelIndex& idx);
     void deleteSearch(const QModelIndex& idx);

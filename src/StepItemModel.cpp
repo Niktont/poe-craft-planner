@@ -1416,6 +1416,17 @@ void StepItemModel::copyRegex(const QModelIndex& idx)
     }
 }
 
+void StepItemModel::copyLink(const QModelIndex& idx)
+{
+    if (!plan || !idx.isValid())
+        return;
+
+    if (auto trade = stepItems()[idx.row()].trade()) {
+        if (trade->request_key.isValid())
+            qApp->clipboard()->setText(trade->request_key.toUrl(plan->game));
+    }
+}
+
 void StepItemModel::openSearch(const QModelIndex& idx)
 {
     if (!plan || !idx.isValid())

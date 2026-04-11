@@ -157,6 +157,10 @@ StepItemView::StepItemView(StepItemModel& model, QWidget* parent)
         context_index.reset();
     });
 
+    copy_link_action = addAction(tr("Copy Link"), this, [this] {
+        stepModel()->copyLink(selectionModel()->currentIndex());
+    });
+
     copy_regex_action = addAction(tr("Copy Regex"), {Qt::AltModifier | Qt::Key_C}, this, [this] {
         stepModel()->copyRegex(selectionModel()->currentIndex());
     });
@@ -201,6 +205,7 @@ void StepItemView::contextMenuEvent(QContextMenuEvent* event)
         if (item) {
             switch (item->type()) {
             case StepItemType::Trade:
+                menu->addAction(copy_link_action);
                 if (stepModel()->haveRegex(*item))
                     menu->addAction(copy_regex_action);
                 menu->addAction(edit_search_action);
