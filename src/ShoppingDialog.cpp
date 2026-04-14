@@ -1,5 +1,7 @@
 #include "ShoppingDialog.h"
+#include "AppState.h"
 #include "MainWindow.h"
+#include "Plan.h"
 #include "PlanSearchDialog.h"
 #include "Settings.h"
 #include "ShoppingModel.h"
@@ -18,11 +20,10 @@ using namespace keyboard_auto_type;
 
 namespace planner {
 
-ShoppingDialog::ShoppingDialog(MainWindow& mw)
+ShoppingDialog::ShoppingDialog(QWidget* /*parent*/)
     : QDialog{}
-    , mw{mw}
 {
-    model = new ShoppingModel{mw, this};
+    model = new ShoppingModel{this};
     view = new ShoppingView{*model};
 
     auto main_layout = new QVBoxLayout{};
@@ -38,16 +39,16 @@ ShoppingDialog::ShoppingDialog(MainWindow& mw)
         restoreGeometry(geometry.toByteArray());
 
     connect(this, &QDialog::finished, this, [this] {
-        this->mw.show();
+        AppState::state.mw->show();
 
 #ifndef PLANNER_NO_BROWSER
         if (web_view_dialog_was_shown)
-            this->mw.web_view_dialog->show();
+            AppState::state.web_view_dialog->show();
         web_view_dialog_was_shown = false;
 #endif
 
         if (plan_search_dialog_was_shown)
-            this->mw.plan_search_dialog->show();
+            AppState::state.plan_search_dialog->show();
         plan_search_dialog_was_shown = false;
 
         removeHotkeys();
@@ -68,7 +69,7 @@ ShoppingDialog::ShoppingDialog(MainWindow& mw)
     connect(open_link_hk, &QHotkey::activated, this, &ShoppingDialog::openLink);
 }
 
-void ShoppingDialog::openPlan(Plan& plan)
+void ShoppingDialog::openPlan(const Plan& plan)
 {
     auto it = plan.costStepIt();
     if (it == plan.steps.cend())
@@ -77,21 +78,24 @@ void ShoppingDialog::openPlan(Plan& plan)
     openPlan(plan, std::distance(plan.steps.cbegin(), it), 1.0, true);
 }
 
-void ShoppingDialog::openPlan(Plan& plan, size_t step_pos, double amount, bool include_dependencies)
+void ShoppingDialog::openPlan(const Plan& plan,
+                              size_t step_pos,
+                              double amount,
+                              bool include_dependencies)
 {
     auto res = model->setPlan(plan, step_pos, amount, include_dependencies);
     if (res) {
 #ifndef PLANNER_NO_BROWSER
-        web_view_dialog_was_shown = !mw.web_view_dialog->isHidden();
+        web_view_dialog_was_shown = !AppState::state.web_view_dialog->isHidden();
         if (web_view_dialog_was_shown)
-            mw.web_view_dialog->hide();
+            AppState::state.web_view_dialog->hide();
 #endif
 
-        plan_search_dialog_was_shown = !mw.plan_search_dialog->isHidden();
+        plan_search_dialog_was_shown = !AppState::state.plan_search_dialog->isHidden();
         if (plan_search_dialog_was_shown)
-            mw.plan_search_dialog->hide();
+            AppState::state.plan_search_dialog->hide();
 
-        mw.hide();
+        AppState::state.mw->hide();
 
         view->adjustNameWidth();
         view->updateGeometry();

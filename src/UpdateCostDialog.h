@@ -1,7 +1,8 @@
 #ifndef UPDATECOSTDIALOG_H
 #define UPDATECOSTDIALOG_H
 
-#include "StepItem.h"
+#include "Game.h"
+#include "HashFunctions.h"
 #include <boost/unordered_set.hpp>
 #include <QDialog>
 #include <QListView>
@@ -11,18 +12,19 @@ class QPushButton;
 class QNetworkReply;
 
 namespace planner {
-class MainWindow;
 class Plan;
 class ExchangeRequestCache;
 class Currency;
 class Step;
+class StepItem;
+class TradeRequestKey;
 class TradeRequestCache;
 
 class UpdateCostDialog : public QDialog
 {
     Q_OBJECT
 public:
-    UpdateCostDialog(MainWindow& mw);
+    UpdateCostDialog(QWidget* parent = nullptr);
 
     Plan* plan() const { return plan_; }
 
@@ -66,7 +68,6 @@ private:
     bool trade_finished{false};
     bool exchange_finished{false};
 
-    MainWindow* mw() const;
     void checkCurrency(const Currency& currency,
                        QDateTime now,
                        const ExchangeRequestCache& exchange_cache);

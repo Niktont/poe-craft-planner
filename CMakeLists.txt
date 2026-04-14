@@ -96,7 +96,17 @@ qt_add_executable(${PROJECT_NAME}
     src/SnapshotsDialog.h src/SnapshotsDialog.cpp
     src/SnapshotView.h src/SnapshotView.cpp
     src/QueryParser.h src/QueryParser.cpp
+    src/StepCopyState.h src/StepCopyState.cpp
+    src/StepItemCopyState.h src/StepItemCopyState.cpp
+    src/AppState.h src/AppState.cpp
+    src/PlanTitleWidget.h src/PlanTitleWidget.cpp
 )
+
+if(MSVC)
+    target_compile_options(${PROJECT_NAME} PRIVATE /W4 /wd4267)
+else()
+    # target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic)
+endif()
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE APP_VERSION="${PROJECT_VERSION}")
 if (PLANNER_NO_BROWSER)

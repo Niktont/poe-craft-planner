@@ -43,24 +43,18 @@ bool TradeRequestCache::readDatabase()
 
     beginResetModel();
     while (select.next()) {
-        auto p = Database::tradeCacheFromQuery(select);
-        if (!p.first.isValid()) {
-            result = false;
+        result = Database::tradeCacheFromQuery(select, *this);
+        if (!result)
             break;
-        }
-        cache.emplace_hint(cache.end(), std::move(p));
     }
     endResetModel();
 
     select = Database::selectTradeCostCache(game);
     result = result && select.exec();
     while (select.next()) {
-        auto p = Database::tradeCostCacheFromQuery(select, *exchange_cache);
-        if (p.first.isEmpty()) {
-            result = false;
+        result = Database::tradeCostCacheFromQuery(select, *exchange_cache, *this);
+        if (!result)
             break;
-        }
-        cost_cache.emplace(std::move(p));
     }
     result = result && readAdditionalDatabase();
 
@@ -75,29 +69,31 @@ bool TradeRequestCache::readAdditionalDatabase()
     if (!result)
         return result;
 
+    auto emplaceText = [](const QSqlQuery& query, QueryParser::QueryTexts& texts) {
+        texts.try_emplace(query.value(0).toString(), query.value(1).toString());
+    };
     while (query.next())
-        query_parser.filters.try_emplace(query.value(0).toString(), query.value(1).toString());
+        emplaceText(query, query_parser.filters);
 
     query = Database::selectFilterOptions(game, lang);
     result = result && query.exec();
     while (query.next())
-        query_parser.filter_options.try_emplace(query.value(0).toString(),
-                                                query.value(1).toString());
+        emplaceText(query, query_parser.filter_options);
 
     query = Database::selectStatTypes(game, lang);
     result = result && query.exec();
     while (query.next())
-        query_parser.stat_types.try_emplace(query.value(0).toString(), query.value(1).toString());
+        emplaceText(query, query_parser.stat_types);
 
     query = Database::selectStats(game, lang);
     result = result && query.exec();
     while (query.next())
-        query_parser.stats.try_emplace(query.value(0).toString(), query.value(1).toString());
+        emplaceText(query, query_parser.stats);
 
     query = Database::selectStatGroups(game, lang);
     result = result && query.exec();
     while (query.next())
-        query_parser.stat_groups.try_emplace(query.value(0).toString(), query.value(1).toString());
+        emplaceText(query, query_parser.stat_groups);
 
     return result;
 }
@@ -172,11 +168,6 @@ void TradeRequestCache::deleteRequest(Cache::const_iterator it)
     endRemoveRows();
 }
 
-void TradeRequestCache::setSnapshot(Snapshot* snapshot)
-{
-    this->snapshot = snapshot;
-}
-
 void planner::TradeRequestCache::updateCost(const TradeRequestKey& request,
                                             TradeCostData::Data cost_data)
 {
@@ -201,6 +192,24 @@ void TradeRequestCache::setDefaultTime(const TradeRequestKey& request, std::opti
         auto idx = index(cache.index_of(it), static_cast<int>(TradeRequestColumn::Time));
         emit dataChanged(idx, idx, {Qt::DisplayRole});
     }
+}
+
+void TradeRequestCache::updateLeagues(const QStringList& new_leagues)
+{
+    boost::container::erase_if(cost_cache, [&](const auto& it) {
+        if (!new_leagues.contains(it.first)) {
+            Database::deleteTradeCostCache(game, it.first);
+            return true;
+        }
+        return false;
+    });
+
+    for (int i = 0; i < new_leagues.size(); ++i) {
+        if (auto res = cost_cache.try_emplace(new_leagues[i]); res.second)
+            res.first->second.is_changed = true;
+    }
+
+    saveCostCache();
 }
 
 TradeRequestCache::CostCache::iterator TradeRequestCache::currentLeagueData()
@@ -545,7 +554,7 @@ QString TradeRequestCache::description(Cache::const_iterator it) const
     if (Settings::get<Settings::trade_use_query_as_description>() && !it->second.query().isEmpty()) {
         auto& query = it->second.description().query;
         if (!query)
-            query = query_parser.parseQuery(it->second.query());
+            query = query_parser.printQuery(it->second.query());
         return *query;
     }
 

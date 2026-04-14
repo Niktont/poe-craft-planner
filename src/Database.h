@@ -1,17 +1,17 @@
 #ifndef DATABASE2_H
 #define DATABASE2_H
 
-#include "ExchangeCostData.h"
-#include "ExchangeData.h"
-#include "TradeCostData.h"
-#include "TradeRequestData.h"
-#include "TradeRequestKey.h"
 #include "Game.h"
 #include <QSqlDatabase>
 #include <QSqlQuery>
 
 namespace planner {
-
+class TradeRequestKey;
+class TradeRequestData;
+class TradeCostData;
+class TradeRequestCache;
+class ExchangeData;
+class ExchangeCostData;
 class ExchangeRequestCache;
 
 class Database
@@ -58,15 +58,15 @@ public:
     static bool clearExchangeCache(Game game);
     static bool clearExchangeCostCache(Game game);
 
-    static std::pair<QString, ExchangeData> exchangeCacheFromQuery(const QSqlQuery& query,
-                                                                   Game game);
-    static std::pair<QString, ExchangeCostData> exchangeCostCacheFromQuery(
-        const QSqlQuery& query, const ExchangeRequestCache& cache);
+    static bool exchangeCacheFromQuery(const QSqlQuery& query, ExchangeRequestCache& cache);
+    static bool exchangeCostCacheFromQuery(const QSqlQuery& query, ExchangeRequestCache& cache);
 
     static bool insertExchangeCache(QSqlQuery& query, const QString& id, const ExchangeData& data);
     static bool insertExchangeCostCache(QSqlQuery& query,
                                         const QString& league,
                                         const ExchangeCostData& data);
+
+    static bool updateExchangeTime(Game game, const QString& id, const ExchangeData& data);
 
     static bool createTradeCacheTable(Game game);
     static bool createTradeCostCacheTable(Game game);
@@ -96,9 +96,11 @@ public:
     static bool clearTradeCache(Game game);
     static bool clearTradeCostCache(Game game);
 
-    static std::pair<TradeRequestKey, TradeRequestData> tradeCacheFromQuery(const QSqlQuery& query);
-    static std::pair<QString, TradeCostData> tradeCostCacheFromQuery(
-        const QSqlQuery& query, const ExchangeRequestCache& cache);
+    static bool tradeCacheFromQuery(const QSqlQuery& query, TradeRequestCache& cache);
+
+    static bool tradeCostCacheFromQuery(const QSqlQuery& query,
+                                        const ExchangeRequestCache& exchange,
+                                        TradeRequestCache& trade);
 
     static bool insertTradeRequest(QSqlQuery& query,
                                  const TradeRequestKey& key,

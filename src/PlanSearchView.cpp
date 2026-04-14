@@ -1,18 +1,15 @@
 #include "PlanSearchView.h"
-#include "MainWindow.h"
+#include "AppState.h"
 #include "PlanModel.h"
 #include "PlanSearchModel.h"
-#include "PlanTreeView.h"
-#include "PlanWidget.h"
 #include <QHeaderView>
 #include <QScrollBar>
 #include <QSortFilterProxyModel>
 
 namespace planner {
 
-PlanSearchView::PlanSearchView(MainWindow& mw, QWidget* parent)
+PlanSearchView::PlanSearchView(QWidget* parent)
     : QTableView{parent}
-    , mw{mw}
 {
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
@@ -34,7 +31,7 @@ void PlanSearchView::setGame(Game game_)
 {
     if (game != game_) {
         game = game_;
-        search_model = mw.planModel(game)->search_model;
+        search_model = AppState::planModel(game)->search_model;
         setModel(search_model->proxy_model);
     }
 }
@@ -50,7 +47,7 @@ void PlanSearchView::filterName(const QString& filter_str)
 void PlanSearchView::indexClicked(const QModelIndex& idx)
 {
     auto plan_id = search_model->planId(search_model->proxy_model->mapToSource(idx));
-    mw.planWidget()->openPlan(plan_id, game);
+    emit planClicked(plan_id, game);
 }
 
 } // namespace planner

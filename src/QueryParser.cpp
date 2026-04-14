@@ -9,9 +9,29 @@ namespace planner {
 static const QString min_max_format{u" %1/%2"_s};
 static const QString min_format{u" %1"_s};
 
-QString QueryParser::parseQuery(const QJsonDocument& query_json) const
+static const QString printMinMax(const std::optional<double>& min, const std::optional<double>& max)
 {
-    QString result;
+    if (!min && !max)
+        return {};
+
+    auto min_str = min ? QString::number(*min) : u"-"_s;
+    if (!max)
+        return min_format.arg(min_str);
+
+    return min_max_format.arg(min_str, QString::number(*max));
+}
+
+QString QueryParser::printQuery(const QJsonDocument& query_json) const
+{
+    if (query_json.isEmpty())
+        return {};
+
+    return parseQuery(query_json).toString(*this);
+}
+
+ParsedQuery QueryParser::parseQuery(const QJsonDocument& query_json) const
+{
+    ParsedQuery result;
     if (query_json.isEmpty())
         return result;
 
@@ -20,72 +40,73 @@ QString QueryParser::parseQuery(const QJsonDocument& query_json) const
 
     if (auto type_v = query_o["type"]; !type_v.isUndefined()) {
         if (auto name_v = query_o["name"]; !name_v.isUndefined())
-            result.append(name_v.toString() % u' ');
-        result.append(type_v.toString() % u'\n');
+            result.name = name_v.toString();
+        result.type = type_v.toString();
     }
 
     const auto filters_o = query_o["filters"].toObject();
-    for (auto group_v : filters_o) {
-        auto group_o = group_v.toObject();
+    for (auto [key, value] : filters_o.asKeyValueRange()) {
+        auto group_o = value.toObject();
         if (group_o["disabled"].toBool())
             continue;
 
-        const auto group_filters_o = group_o["filters"].toObject();
-        for (auto [key, value] : group_filters_o.asKeyValueRange())
-            parseFilter(result, key.toString(), value.toObject());
+        parseFilterGroup(result, key.toString(), group_o);
     }
 
     const auto stats_a = query_o["stats"].toArray();
-    bool first = true;
     for (auto stat_group_v : stats_a) {
         const auto stat_group_o = stat_group_v.toObject();
         if (stat_group_o["disabled"].toBool())
             continue;
 
-        parseStatGroup(result, stat_group_o, first);
-        first = false;
+        parseStatGroup(result, stat_group_o);
     }
-
-    if (result.endsWith(u'\n'))
-        result.removeLast();
 
     return result;
 }
 
-void QueryParser::parseFilter(QString& result, QString key, const QJsonObject& filter_o) const
+void QueryParser::parseFilterGroup(ParsedQuery& result,
+                                   QString group_type,
+                                   const QJsonObject& group_o) const
 {
-    auto it = filters.find(key);
-    if (it == filters.end())
-        return;
+    auto& group_filters = result.filter_groups.try_emplace(group_type).first->second;
 
-    result.append(it->second);
+    const auto group_filters_o = group_o["filters"].toObject();
+    for (auto [key, value] : group_filters_o.asKeyValueRange()) {
+        auto it = filters.find(key.toString());
+        if (it == filters.end())
+            continue;
 
-    auto option_v = filter_o["option"];
-    if (!option_v.isUndefined()) {
-        if (auto option_it = filter_options.find(option_v.toString());
-            option_it != filter_options.end())
-            result.append(u": " % option_it->second);
-        else
-            result.append(u':');
-    } else
-        result.append(u':');
+        const auto filter_o = value.toObject();
+        auto& filter = group_filters.emplace_back();
+        filter.translated_name = it->second;
 
-    result.append(parseMinMax(filter_o) % u'\n');
+        if (auto option_v = filter_o["option"]; !option_v.isUndefined())
+            if (auto option_it = filter_options.find(option_v.toString());
+                option_it != filter_options.end())
+                filter.translated_option = option_it->second;
+
+        if (auto min_v = filter_o["min"]; !min_v.isUndefined())
+            filter.min = min_v.toDouble();
+        if (auto max_v = filter_o["max"]; !max_v.isUndefined() && !max_v.isNull())
+            filter.min = max_v.toDouble();
+    }
 }
 
-void QueryParser::parseStatGroup(QString& result, const QJsonObject& stat_group_o, bool first) const
+void QueryParser::parseStatGroup(ParsedQuery& result, const QJsonObject& stat_group_o) const
 {
     const auto stat_filters_a = stat_group_o["filters"].toArray();
     if (stat_filters_a.empty())
         return;
 
-    auto type = stat_group_o["type"].toString();
-    auto type_it = stat_groups.find(type);
-    if (!(first && type == u"and")) {
-        result.append(type_it != stat_groups.end() ? type_it->second : type);
-        auto group_value_o = stat_group_o["value"].toObject();
-        result.append(parseMinMax(group_value_o) % u'\n');
-    }
+    auto& stat_group = result.stat_groups.emplace_back();
+    stat_group.type = stat_group_o["type"].toString();
+
+    const auto group_value_o = stat_group_o["value"].toObject();
+    if (auto min_v = group_value_o["min"]; !min_v.isUndefined())
+        stat_group.min = min_v.toDouble();
+    if (auto max_v = group_value_o["max"]; !max_v.isUndefined())
+        stat_group.max = max_v.toDouble();
 
     for (auto stat_v : stat_filters_a) {
         const auto stat_o = stat_v.toObject();
@@ -97,52 +118,99 @@ void QueryParser::parseStatGroup(QString& result, const QJsonObject& stat_group_
             continue;
 
         const auto value_o = stat_o["value"].toObject();
-        parseStat(result, parts[0], parts[1], value_o);
+        parseStat(stat_group.stats, parts[0], parts[1], value_o);
     }
+
+    if (stat_group.stats.empty())
+        result.stat_groups.pop_back();
 }
 
-void QueryParser::parseStat(QString& result,
+void QueryParser::parseStat(std::vector<ParsedQuery::Stat>& group_stats,
                             const QString& type,
                             const QString& id,
                             const QJsonObject& value_o) const
 {
-    auto type_it = stat_types.find(type);
-    if (type_it == stat_types.end())
-        return;
-
     auto id_it = stats.find(id);
     if (id_it == stats.end())
         return;
 
-    auto min_max_str = parseMinMax(value_o);
-    if (!min_max_str.isEmpty())
-        result.append(u' ' % min_max_str % u" | " % id_it->second);
-    else
-        result.append(u"  " % id_it->second);
-
-    if (type != u"explicit")
-        result.append(u" (" % type_it->second % u')');
+    auto& stat = group_stats.emplace_back();
+    stat.type = type;
+    stat.translated_id = id_it->second;
 
     if (auto weight_v = value_o["weight"]; !weight_v.isUndefined())
-        result.append(u": w" % QString::number(weight_v.toDouble()));
+        stat.weight = weight_v.toDouble();
 
-    result.append(u'\n');
+    if (auto min_v = value_o["min"]; !min_v.isUndefined())
+        stat.min = min_v.toDouble();
+    if (auto max_v = value_o["max"]; !max_v.isUndefined())
+        stat.min = max_v.toDouble();
 }
 
-QString QueryParser::parseMinMax(const QJsonObject& obj) const
+QString ParsedQuery::toString(const QueryParser& parser) const
 {
-    auto min_v = obj["min"];
-    auto max_v = obj["max"];
-    if (min_v.isUndefined() && max_v.isUndefined())
-        return {};
-
-    auto min_str = !min_v.isUndefined() ? QString::number(min_v.toDouble()) : u"-"_s;
-    if (max_v.isUndefined() || max_v.isNull()) {
-        return min_format.arg(min_str);
+    QString result;
+    if (!type.isEmpty()) {
+        if (!name.isEmpty())
+            result.append(name % u' ');
+        result.append(type % u'\n');
     }
 
-    auto max_str = QString::number(max_v.toDouble());
-    return min_max_format.arg(min_str, max_str);
+    for (auto& [group_name, filters] : filter_groups) {
+        for (auto& filter : filters)
+            result.append(filter.toString());
+    }
+    bool first_and = true;
+    for (auto& group : stat_groups) {
+        if (!(first_and && group.type == "and")) {
+            auto type_it = parser.stat_groups.find(group.type);
+            result.append(type_it != parser.stat_groups.end() ? type_it->second : group.type);
+
+            result.append(printMinMax(group.min, group.max) % u'\n');
+            first_and = false;
+        }
+        for (auto& stat : group.stats)
+            result.append(stat.toString(parser));
+    }
+
+    if (result.endsWith(u'\n'))
+        result.removeLast();
+
+    return result;
+}
+
+QString ParsedQuery::Filter::toString() const
+{
+    QString result;
+    result.append(translated_name);
+
+    if (translated_option)
+        result.append(u": " % *translated_option);
+    else
+        result.append(u':');
+
+    result.append(printMinMax(min, max) % u'\n');
+    return result;
+}
+
+QString ParsedQuery::Stat::toString(const QueryParser& parser) const
+{
+    QString result;
+    auto min_max_str = printMinMax(min, max);
+    if (!min_max_str.isEmpty())
+        result.append(u' ' % min_max_str % u" | " % translated_id);
+    else
+        result.append(u"  " % translated_id);
+
+    if (type != u"explicit") {
+        auto type_it = parser.stat_types.find(type);
+        result.append(u" (" % (type_it != parser.stat_types.end() ? type_it->second : type) % u')');
+    }
+    if (weight)
+        result.append(u" | w" % QString::number(*weight));
+
+    result.append(u'\n');
+    return result;
 }
 
 } // namespace planner

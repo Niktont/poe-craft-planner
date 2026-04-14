@@ -9,14 +9,13 @@ class QLineEdit;
 class QComboBox;
 
 namespace planner {
-class MainWindow;
 class SnapshotView;
 
 class SnapshotsDialog : public QDialog
 {
     Q_OBJECT
 public:
-    SnapshotsDialog(MainWindow& mw);
+    SnapshotsDialog(QWidget* parent);
 
     void openGame(Game game);
 
@@ -33,8 +32,6 @@ private:
     QStringList leagues_poe2;
 
     SnapshotView* view;
-
-    MainWindow* mw() const;
 };
 
 } // namespace planner

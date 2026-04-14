@@ -1,5 +1,5 @@
 #include "RequestEditDialog.h"
-#include "MainWindow.h"
+#include "AppState.h"
 #include "Settings.h"
 #include "TradeRequestCache.h"
 #include <QAbstractProxyModel>
@@ -17,7 +17,6 @@
 #include <QMessageBox>
 #include <QPushButton>
 #include <QVBoxLayout>
-
 #ifndef PLANNER_NO_BROWSER
 #include "WebViewDialog.h"
 #include <QWebEngineView>
@@ -25,8 +24,8 @@
 
 namespace planner {
 
-RequestEditDialog::RequestEditDialog(MainWindow& mw)
-    : QDialog{&mw}
+RequestEditDialog::RequestEditDialog(QWidget* parent)
+    : QDialog{parent}
 {
     setWindowTitle(tr("Edit Search"));
     setWindowModality(Qt::WindowModal);
@@ -128,15 +127,15 @@ void RequestEditDialog::openGame(Game game_, bool need_clear)
     open();
 }
 
-void RequestEditDialog::openRequest(Game game, const TradeRequestKey& request)
+void RequestEditDialog::openRequest(Game game_, const TradeRequestKey& request)
 {
-    if (game >= Game::Unknown)
+    if (game_ >= Game::Unknown)
         return;
 
     clear();
 
     edit_request = request;
-    setGame(game);
+    setGame(game_);
 
     if (edit_request.isValid()) {
         is_link_valid = true;
@@ -167,11 +166,11 @@ void RequestEditDialog::setGame(Game game_)
 {
     game = game_;
     if (game == Game::Poe1) {
-        cache = mw()->trade_cache_poe1;
+        cache = AppState::state.trade_cache_poe1;
         link_edit->setPlaceholderText(
             "https://www.pathofexile.com/trade/search/[league]/EBo4ajr4S5");
     } else {
-        cache = mw()->trade_cache_poe2;
+        cache = AppState::state.trade_cache_poe2;
         link_edit->setPlaceholderText(
             "https://www.pathofexile.com/trade2/search/poe2/[league]/7o6gMy2h5");
     }
@@ -201,18 +200,19 @@ void RequestEditDialog::checkLink()
     auto link = link_edit->text().trimmed();
     auto res = TradeRequestKey::fromUrl(link, game);
     if (!res) {
-        QMessageBox msg;
-        msg.setWindowTitle(tr("Invalid Link"));
-        msg.addButton(QMessageBox::Ok);
+        auto msg = new QMessageBox{this};
+        msg->setAttribute(Qt::WA_DeleteOnClose);
+        msg->setWindowTitle(tr("Invalid Link"));
+        msg->addButton(QMessageBox::Ok);
         if (res.error() == TradeRequestKey::ParseError::GameMismatch) {
             if (game == Game::Poe1)
-                msg.setText(tr("This link is not for PoE 1."));
+                msg->setText(tr("This link is not for PoE 1."));
             else
-                msg.setText(tr("This link is not for PoE 2."));
+                msg->setText(tr("This link is not for PoE 2."));
         } else {
-            msg.setText(tr("Failed to parse link."));
+            msg->setText(tr("Failed to parse link."));
         }
-        msg.exec();
+        msg->open();
 
         is_link_valid = false;
         setLoadEnabled(false);
@@ -236,7 +236,7 @@ void RequestEditDialog::checkLink()
 
 void RequestEditDialog::checkQuery()
 {
-    QJsonDocument query = QJsonDocument::fromJson(qApp->clipboard()->text().toUtf8());
+    auto query{QJsonDocument::fromJson(qApp->clipboard()->text().toUtf8())};
     if (query.isNull()) {
         enableSave(false);
         setQueryValid(false);
@@ -297,7 +297,7 @@ void RequestEditDialog::loadQuery()
     setLoadEnabled(false);
     link_edit->setEnabled(false);
 
-    auto web_view = mw()->web_view_dialog->web_view;
+    auto web_view = AppState::state.web_view_dialog->web_view;
     web_view->load(edit_request.toUrl(game));
     connect(
         web_view,
@@ -370,12 +370,13 @@ void RequestEditDialog::findQuery(const QString& html)
 
 void RequestEditDialog::queryLoadFailed()
 {
-    QMessageBox msg;
-    msg.setWindowTitle(tr("Query Loading Failed"));
-    msg.addButton(QMessageBox::Ok);
-    msg.setText(tr("Failed to load query. Trade website don't load query without logging in. "
-                   "Consider pasting query manually."));
-    msg.exec();
+    auto msg = new QMessageBox{this};
+    msg->setAttribute(Qt::WA_DeleteOnClose);
+    msg->setWindowTitle(tr("Query Loading Failed"));
+    msg->addButton(QMessageBox::Ok);
+    msg->setText(tr("Failed to load query. Trade website don't load query without logging in. "
+                    "Consider pasting query manually."));
+    msg->open();
 
     setLoadEnabled(true);
     link_edit->setEnabled(true);
@@ -416,11 +417,6 @@ void RequestEditDialog::clear()
     description_edit->clear();
     edit_request = {};
     edit_query = {};
-}
-
-MainWindow* RequestEditDialog::mw() const
-{
-    return static_cast<MainWindow*>(parent());
 }
 
 void RequestEditDialog::setQueryValid(bool valid)

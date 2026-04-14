@@ -1,7 +1,6 @@
 #ifndef STEPWIDGET_H
 #define STEPWIDGET_H
 
-#include "StepItemModel.h"
 #include <QFrame>
 
 class QLineEdit;
@@ -11,7 +10,9 @@ class QAction;
 class QCheckBox;
 
 namespace planner {
-
+class StepItemModel;
+class TradeRequestKey;
+class Currency;
 class Plan;
 class Step;
 class PlanWidget;
@@ -29,7 +30,8 @@ public:
     void updatePos(size_t new_pos);
 
     void updateCost(bool current_updated);
-    void updateStepName(const QUuid& changed_step, bool deleted);
+    void clearStep(const QUuid& deleted_step);
+    void updateStepName(const QUuid& changed_step);
     void updatePlanName(const QUuid& changed_plan);
     void updateTradeName(const planner::TradeRequestKey& request);
     void updateTradeTime(const planner::TradeRequestKey& request);
@@ -46,12 +48,15 @@ public:
     void hideNotUsedItems();
     void hideTitleCurrencyName();
 
+    void updateMoveActions();
+
 protected:
     void contextMenuEvent(QContextMenuEvent* event) override;
 
 private slots:
     void deleteStep();
     void setNameFromEdit();
+    void setDescriptionChanged();
 
 private:
     QLineEdit* name_edit;
@@ -60,7 +65,8 @@ private:
     QWidget* edit_widget;
 
     DescriptionEdit* description;
-    bool is_text_reset{false};
+
+    bool is_description_changed{false};
 
     Plan* plan{};
     size_t step_pos{};
@@ -85,7 +91,7 @@ private:
     void setName(QString name);
     void displayCost();
 
-    Step* currentStep();
+    Step& currentStep();
 };
 } // namespace planner
 #endif // STEPWIDGET_H

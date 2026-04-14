@@ -60,7 +60,7 @@ public:
     PlanItemData* plan() { return std::get_if<PlanItemData>(&data); }
     const PlanItemData* plan() const { return std::get_if<PlanItemData>(&data); }
 
-    std::optional<ItemCost> calculateCost(const Plan& plan,
+    std::optional<ItemCost> calculateCost(const Plan& step_plan,
                                           const ExchangeRequestCache& exchange_cache,
                                           const TradeRequestCache& trade_cache,
                                           const PlanModel& plan_model) const;

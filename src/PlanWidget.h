@@ -1,8 +1,7 @@
 #ifndef PLANWIDGET_H
 #define PLANWIDGET_H
 
-#include "Plan.h"
-#include "StepItem.h"
+#include "Game.h"
 #include <vector>
 #include <QWidget>
 
@@ -14,10 +13,13 @@ class QCheckBox;
 namespace planner {
 class PlanModel;
 class Plan;
+class PlanItem;
 class StepWidget;
 class MainWindow;
 class CostWidget;
 class TradeRequestCache;
+class Currency;
+class PlanTitleWidget;
 
 class PlanWidget : public QWidget
 {
@@ -27,39 +29,29 @@ public:
 
     void connectSignals();
 
-    MainWindow* mw() const;
     Game game() const;
     Plan* plan() const { return plan_; }
 
     void setPlanChanged();
     void updateStepNames(size_t renamed_step);
-    void setDescriptions(planner::Plan* target_plan);
-
-    void openPlan(const QUuid& plan_id, Game game);
 
     void moveStep(size_t step_pos, bool up);
     void deleteStep(size_t step_pos);
     void duplicateStep(size_t step_pos);
     void setFinalStep(size_t step_pos, bool checked);
-    void scrollToStep(const QUuid& step_id);
-    void copyStep(size_t step_pos);
     void pasteStep(size_t step_pos);
-
-    void copyItem(Game game, const StepItem& item) { step_item_copy_state = {game, item}; }
-    const std::pair<Game, StepItem>& itemForPaste() const { return step_item_copy_state; }
-
-    bool haveCopyStep() const { return !step_copy_state.first.isNull(); }
-    bool haveCopyItem(Game game) const
-    {
-        return step_item_copy_state.first == game && game != Game::Unknown;
-    }
 
 signals:
     void gameChanged(planner::Game game);
 
 public slots:
+    void openPlan(const QUuid& plan_id, planner::Game game);
+    void scrollToStep(const QUuid& step_id);
+
     void addStep();
     void updateCost(planner::Game game, const std::vector<std::pair<Plan*, bool>>& updated_plans);
+
+    void setDescriptions(planner::Game game, const planner::Plan* target_plan);
 
     void hideDescriptions(bool hide);
     void hideEmptyResources(bool hide);
@@ -79,6 +71,8 @@ private slots:
     void setPlanOnCurrentChange(const QModelIndex& new_current);
     void selectPlan(planner::PlanModel& model, planner::Plan& plan);
 
+    void reselectCurrent(planner::Game game);
+
     void checkDeletingPlans(const QModelIndex& parent, int first, int last);
 
     void updatePlanName(const planner::Plan& renamed_plan);
@@ -92,36 +86,34 @@ private slots:
     void updateTradeDefaultTime();
     void updateExchangeDefaultTime();
 
+    void updateOnSnapshotChange(planner::Game game);
+
 private:
-    QLabel* name_label;
-    QLabel* league_label;
-    CostWidget* cost_widget;
-    QCheckBox* locked_cb;
-    QCheckBox* is_auto_final_cb;
+    PlanTitleWidget* title_widget;
 
     QScrollArea* steps_scroll;
     QWidget* steps_widget;
 
     QAction* paste_step_action;
 
+    std::vector<StepWidget*> step_widgets;
+
     const PlanModel* current_model{};
     Plan* plan_{};
 
-    void setPlan(const planner::PlanModel* model, planner::Plan* plan);
+    MainWindow* mw() const;
 
-    static bool checkDeletingPlan(PlanItem& parent, int first, int last, const Plan& plan_to_check);
+    void setPlan(const planner::PlanModel* model, planner::Plan* plan, bool is_update = false);
+    void setStepDescriptions();
+
     void clear();
 
-    std::vector<StepWidget*> step_widgets;
     void emplaceStepWidget(size_t i);
 
     void displayFinalStep();
     void updateDisplayedCost();
     void displayCost();
     void updateCosts(bool current_updated);
-
-    std::pair<QUuid, QUuid> step_copy_state;
-    std::pair<Game, StepItem> step_item_copy_state{Game::Unknown, {}};
 
     using History = std::vector<std::pair<QUuid, Game>>;
     History navigation_history;

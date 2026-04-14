@@ -1,13 +1,17 @@
 #include "PlanWidget.h"
+#include "AppState.h"
 #include "CostWidget.h"
 #include "ExchangeRequestCache.h"
 #include "MainWindow.h"
 #include "Plan.h"
+#include "PlanItem.h"
 #include "PlanModel.h"
+#include "PlanTitleWidget.h"
 #include "PlanTreeView.h"
 #include "Settings.h"
 #include "SettingsDialog.h"
 #include "SnapshotModel.h"
+#include "StepCopyState.h"
 #include "StepItem.h"
 #include "StepWidget.h"
 #include "TradeRequestCache.h"
@@ -29,43 +33,23 @@ PlanWidget::PlanWidget(MainWindow& mw)
     auto main_layout = new QVBoxLayout{};
     setLayout(main_layout);
 
-    auto title_layout = new QHBoxLayout{};
-    main_layout->addLayout(title_layout);
-
-    name_label = new QLabel{};
-    title_layout->addWidget(name_label);
-
-    is_auto_final_cb = new QCheckBox{tr("Auto")};
-    is_auto_final_cb->setToolTip(tr("On costs update, set step with max profit as Final"));
-    connect(is_auto_final_cb, &QCheckBox::clicked, this, [this](bool checked) {
+    title_widget = new PlanTitleWidget{};
+    connect(title_widget->is_auto_final_cb, &QCheckBox::clicked, this, [this](bool checked) {
         if (!plan_)
             return;
 
         plan_->is_auto_final = checked;
         plan_->setChanged();
     });
-    is_auto_final_cb->hide();
-    title_layout->addWidget(is_auto_final_cb);
-
-    locked_cb = new QCheckBox{tr("Lock")};
-    locked_cb->setToolTip(tr("Steps costs of locked plan won't be updated"));
-    connect(locked_cb, &QCheckBox::clicked, this, [this](bool checked) {
+    connect(title_widget->locked_cb, &QCheckBox::clicked, this, [this](bool checked) {
         if (!plan_)
             return;
 
         plan_->locked = checked;
         plan_->setChanged();
     });
-    locked_cb->hide();
-    title_layout->addWidget(locked_cb);
-
-    league_label = new QLabel{};
-    title_layout->addWidget(league_label);
-
-    cost_widget = new CostWidget(mw);
-    title_layout->addWidget(cost_widget);
-
-    title_layout->addStretch(1);
+    title_widget->hide();
+    main_layout->addWidget(title_widget);
 
     steps_scroll = new QScrollArea{};
     steps_scroll->setWidgetResizable(true);
@@ -95,20 +79,41 @@ PlanWidget::PlanWidget(MainWindow& mw)
 
 void PlanWidget::connectSignals()
 {
-    connect(mw()->plan_model_poe1,
+    connect(AppState::state.plan_model_poe1,
             &PlanModel::rowsAboutToBeRemoved,
             this,
             &PlanWidget::checkDeletingPlans);
-    connect(mw()->plan_model_poe2,
+    connect(AppState::state.plan_model_poe2,
             &PlanModel::rowsAboutToBeRemoved,
             this,
             &PlanWidget::checkDeletingPlans);
 
-    connect(mw()->plan_model_poe1, &PlanModel::planUpdated, this, &PlanWidget::setPlanOnUpdate);
-    connect(mw()->plan_model_poe2, &PlanModel::planUpdated, this, &PlanWidget::setPlanOnUpdate);
+    connect(AppState::state.plan_model_poe1,
+            &PlanModel::planUpdated,
+            this,
+            &PlanWidget::setPlanOnUpdate);
+    connect(AppState::state.plan_model_poe2,
+            &PlanModel::planUpdated,
+            this,
+            &PlanWidget::setPlanOnUpdate);
 
-    connect(mw()->plan_model_poe1, &PlanModel::planRenamed, this, &PlanWidget::updatePlanName);
-    connect(mw()->plan_model_poe2, &PlanModel::planRenamed, this, &PlanWidget::updatePlanName);
+    connect(AppState::state.plan_model_poe1,
+            &PlanModel::planRenamed,
+            this,
+            &PlanWidget::updatePlanName);
+    connect(AppState::state.plan_model_poe2,
+            &PlanModel::planRenamed,
+            this,
+            &PlanWidget::updatePlanName);
+
+    connect(AppState::state.plan_model_poe1,
+            &PlanModel::descriptionsNeeded,
+            this,
+            &PlanWidget::setDescriptions);
+    connect(AppState::state.plan_model_poe2,
+            &PlanModel::descriptionsNeeded,
+            this,
+            &PlanWidget::setDescriptions);
 
     connect(mw()->plan_view_poe1, &QTreeView::clicked, this, &PlanWidget::setPlanOnClick);
     connect(mw()->plan_view_poe2, &QTreeView::clicked, this, &PlanWidget::setPlanOnClick);
@@ -125,29 +130,38 @@ void PlanWidget::connectSignals()
     connect(mw()->plan_view_poe1, &PlanTreeView::planSelected, this, &PlanWidget::selectPlan);
     connect(mw()->plan_view_poe2, &PlanTreeView::planSelected, this, &PlanWidget::selectPlan);
 
-    connect(mw()->trade_cache_poe1,
+    connect(AppState::state.plan_model_poe1,
+            &PlanModel::currentNeedsReselecting,
+            this,
+            &PlanWidget::reselectCurrent);
+    connect(AppState::state.plan_model_poe2,
+            &PlanModel::currentNeedsReselecting,
+            this,
+            &PlanWidget::reselectCurrent);
+
+    connect(AppState::state.trade_cache_poe1,
             &TradeRequestCache::rowsAboutToBeRemoved,
             this,
             &PlanWidget::checkDeletingTradeRequests);
-    connect(mw()->trade_cache_poe2,
+    connect(AppState::state.trade_cache_poe2,
             &TradeRequestCache::rowsAboutToBeRemoved,
             this,
             &PlanWidget::checkDeletingTradeRequests);
 
-    connect(mw()->trade_cache_poe1,
+    connect(AppState::state.trade_cache_poe1,
             &TradeRequestCache::dataChanged,
             this,
             &PlanWidget::updateTradeRequests);
-    connect(mw()->trade_cache_poe2,
+    connect(AppState::state.trade_cache_poe2,
             &TradeRequestCache::dataChanged,
             this,
             &PlanWidget::updateTradeRequests);
 
-    connect(mw()->exchange_cache_poe1,
+    connect(AppState::state.exchange_cache_poe1,
             &ExchangeRequestCache::defaultTimeChanged,
             this,
             &PlanWidget::updateCurrencyTime);
-    connect(mw()->exchange_cache_poe2,
+    connect(AppState::state.exchange_cache_poe2,
             &ExchangeRequestCache::defaultTimeChanged,
             this,
             &PlanWidget::updateCurrencyTime);
@@ -161,14 +175,14 @@ void PlanWidget::connectSignals()
             this,
             &PlanWidget::updateExchangeDefaultTime);
 
-    connect(mw()->snapshots_poe1, &SnapshotModel::currentChanged, this, [this](Game game) {
-        if (plan_ && plan_->game == game)
-            updateCosts(false);
-    });
-    connect(mw()->snapshots_poe2, &SnapshotModel::currentChanged, this, [this](Game game) {
-        if (plan_ && plan_->game == game)
-            updateCosts(false);
-    });
+    connect(AppState::state.snapshots_poe1,
+            &SnapshotModel::currentChanged,
+            this,
+            &PlanWidget::updateOnSnapshotChange);
+    connect(AppState::state.snapshots_poe2,
+            &SnapshotModel::currentChanged,
+            this,
+            &PlanWidget::updateOnSnapshotChange);
 }
 
 MainWindow* PlanWidget::mw() const
@@ -211,7 +225,7 @@ void PlanWidget::emplaceStepWidget(size_t i)
 
 void PlanWidget::displayCost()
 {
-    cost_widget->setCost(plan_->game, plan_->costStep());
+    title_widget->cost_widget->setCost(plan_->game, plan_->costStep());
 }
 
 void PlanWidget::updateCosts(bool current_updated)
@@ -238,12 +252,7 @@ void PlanWidget::clear()
     plan_ = nullptr;
     current_model = nullptr;
 
-    name_label->clear();
-    league_label->clear();
-
-    is_auto_final_cb->hide();
-    locked_cb->hide();
-    cost_widget->hide();
+    title_widget->hide();
 
     for (size_t i = 0; i < step_widgets.size(); ++i) {
         step_widgets[i]->hide();
@@ -253,7 +262,7 @@ void PlanWidget::clear()
 
 void PlanWidget::updateCost(Game game, const std::vector<std::pair<Plan*, bool>>& updated_plans)
 {
-    auto model = mw()->planModel(game);
+    auto model = AppState::planModel(game);
     auto updateModelCost = [](Plan* plan, PlanModel* model) {
         auto idx = plan->item()->index();
         model->updateCost(idx);
@@ -277,7 +286,7 @@ void PlanWidget::updateCost(Game game, const std::vector<std::pair<Plan*, bool>>
     }
 
     if (current_updated) {
-        league_label->setText(plan_->league);
+        title_widget->league_label->setText(plan_->league);
         updateDisplayedCost();
         if (final_changed)
             displayFinalStep();
@@ -286,12 +295,17 @@ void PlanWidget::updateCost(Game game, const std::vector<std::pair<Plan*, bool>>
     updateCosts(current_updated);
 }
 
-void PlanWidget::setDescriptions(Plan* target_plan)
+void PlanWidget::setDescriptions(Game game, const Plan* target_plan)
 {
-    if (!plan_)
+    if (!plan_ || plan_->game != game || (target_plan && plan_ != target_plan))
         return;
 
-    if (target_plan && plan_ != target_plan)
+    setStepDescriptions();
+}
+
+void PlanWidget::setStepDescriptions()
+{
+    if (!plan_->is_changed)
         return;
 
     for (size_t i = 0; i < plan_->steps.size(); ++i)
@@ -332,11 +346,17 @@ void PlanWidget::deleteStep(size_t step_pos)
     plan_->steps.erase(plan_->steps.begin() + step_pos);
     plan_->setChanged();
 
-    for (size_t i = step_pos; i < plan_->steps.size(); ++i)
-        step_widgets[i]->updateStepName(deleted_id, true);
+    if (step_pos > 0) {
+        if (step_pos == plan_->steps.size())
+            step_widgets[step_pos - 1]->updateMoveActions();
+    } else if (!plan_->steps.empty())
+        step_widgets[step_pos]->updateMoveActions();
 
-    if (step_copy_state.second == deleted_id)
-        step_copy_state = {};
+    for (size_t i = step_pos; i < plan_->steps.size(); ++i)
+        step_widgets[i]->clearStep(deleted_id);
+
+    if (StepCopyState::state.step_id == deleted_id)
+        StepCopyState::state.game = Game::Unknown;
 
     if (is_final_changed) {
         updateDisplayedCost();
@@ -355,6 +375,8 @@ void PlanWidget::duplicateStep(size_t step_pos)
     auto step_it = plan_->steps.emplace(plan_->steps.begin() + step_pos + 1, plan_->steps[step_pos]);
     step_it->name += tr(" - Copy");
     plan_->setChanged();
+
+    step_widgets[step_pos]->updateMoveActions();
 
     if (plan_->steps.size() < step_widgets.size()) {
         auto widget = step_widgets.back();
@@ -398,29 +420,21 @@ void PlanWidget::scrollToStep(const QUuid& step_id)
     steps_scroll->ensureWidgetVisible(step_widgets[pos]);
 }
 
-void PlanWidget::copyStep(size_t step_pos)
-{
-    if (!plan_ || step_pos >= plan_->steps.size())
-        return;
-
-    step_copy_state = {plan_->id(), plan_->steps[step_pos].id};
-}
-
 void PlanWidget::pasteStep(size_t step_pos)
 {
-    if (!plan_)
+    if (!plan_ || !StepCopyState::haveCopy(plan_->game))
         return;
 
-    auto source_plan_it = current_model->plans.find(step_copy_state.first);
+    auto source_plan_it = current_model->plans.find(StepCopyState::state.plan_id);
     if (source_plan_it == current_model->plans.end())
         return;
     auto& source_plan = source_plan_it->second;
 
-    auto source_step_it = source_plan.findStepIt(step_copy_state.second);
+    auto source_step_it = source_plan.findStepIt(StepCopyState::state.step_id);
     if (source_step_it == source_plan.steps.cend())
         return;
 
-    std::set<std::vector<Step>::const_iterator> steps_to_copy;
+    std::set<Plan::Steps::const_iterator> steps_to_copy;
     auto add_step_item = [&](const auto& add_step, const StepItem& item) {
         if (auto step_item = item.step()) {
             auto it = source_plan.findStepIt(step_item->step_id);
@@ -429,7 +443,7 @@ void PlanWidget::pasteStep(size_t step_pos)
             add_step(add_step, it);
         }
     };
-    auto add_step = [&](const auto& self, std::vector<Step>::const_iterator step_it) {
+    auto add_step = [&](const auto& self, Plan::Steps::const_iterator step_it) {
         if (!steps_to_copy.emplace(step_it).second)
             return;
 
@@ -452,14 +466,22 @@ void PlanWidget::pasteStep(size_t step_pos)
         auto id_it = changed_ids.try_emplace(it->id).first;
         id_it->second = copied_steps.emplace_back(*it).id;
     }
-    for (auto& step : copied_steps)
+    for (auto& step : copied_steps) {
         step.updateIds(changed_ids);
+        step.name = step.name + tr(" - Copy");
+    }
 
-    bool is_final_changed = plan_->finalStepId().isNull() && step_pos == plan_->steps.size();
+    bool is_last_changed = step_pos == plan_->steps.size();
     auto move_begin = std::move_iterator(copied_steps.begin());
     auto move_end = std::move_iterator(copied_steps.end());
     plan_->steps.insert(plan_->steps.begin() + step_pos, move_begin, move_end);
     plan_->setChanged();
+
+    if (step_pos > 0) {
+        if (is_last_changed)
+            step_widgets[step_pos - 1]->updateMoveActions();
+    } else if (!step_widgets.empty())
+        step_widgets[step_pos]->updateMoveActions();
 
     if (plan_->steps.size() < step_widgets.size()) {
         for (size_t i = step_pos; i < step_pos + copy_size; ++i) {
@@ -476,7 +498,7 @@ void PlanWidget::pasteStep(size_t step_pos)
             emplaceStepWidget(i);
     }
 
-    if (is_final_changed)
+    if (plan_->finalStepId().isNull() && is_last_changed)
         updateDisplayedCost();
 }
 
@@ -502,7 +524,7 @@ void PlanWidget::updateDisplayedCost()
     displayCost();
 
     auto idx = plan_->item()->index();
-    mw()->planModel(plan_->game)->updateCost(idx);
+    AppState::planModel(plan_->game)->updateCost(idx);
 }
 
 void PlanWidget::moveStep(size_t step_pos, bool up)
@@ -529,6 +551,9 @@ void PlanWidget::moveStep(size_t step_pos, bool up)
     widget->updatePos(bottom_pos);
     bottom_widget->updatePos(step_pos);
 
+    widget->updateMoveActions();
+    bottom_widget->updateMoveActions();
+
     auto it = plan_->steps.begin() + step_pos;
     auto bottom_it = plan_->steps.begin() + bottom_pos;
     std::iter_swap(it, bottom_it);
@@ -551,13 +576,13 @@ void PlanWidget::updateStepNames(size_t renamed_step)
 
     auto& step = plan_->steps[renamed_step];
     for (size_t i = renamed_step + 1; i < plan_->steps.size(); ++i)
-        step_widgets[i]->updateStepName(step.id, false);
+        step_widgets[i]->updateStepName(step.id);
 }
 
 void PlanWidget::updatePlanName(const Plan& renamed_plan)
 {
     if (&renamed_plan == plan_)
-        name_label->setText(plan_->name);
+        title_widget->name_label->setText(plan_->name);
 
     for (size_t i = 0; i < plan_->steps.size(); ++i)
         step_widgets[i]->updatePlanName(renamed_plan.id());
@@ -591,8 +616,8 @@ void PlanWidget::checkDeletingTradeRequests(const QModelIndex&, int first, int l
 
     for (int i = first; i <= last; ++i) {
         auto it = model->cache.nth(i);
-        for (size_t i = 0; i < plan_->steps.size(); ++i)
-            step_widgets[i]->clearTradeRequest(it->first);
+        for (size_t j = 0; j < plan_->steps.size(); ++j)
+            step_widgets[j]->clearTradeRequest(it->first);
     }
 }
 
@@ -635,6 +660,12 @@ void PlanWidget::updateExchangeDefaultTime()
 
     for (size_t i = 0; i < plan_->steps.size(); ++i)
         step_widgets[i]->updateCurrencyTime({});
+}
+
+void PlanWidget::updateOnSnapshotChange(Game game)
+{
+    if (plan_ && plan_->game == game)
+        updateCosts(false);
 }
 
 void PlanWidget::hideDescriptions(bool hide)
@@ -680,7 +711,7 @@ void PlanWidget::hideTitleCurrencyName(bool hide)
     if (!plan_)
         return;
 
-    cost_widget->hideCurrencyName();
+    title_widget->cost_widget->hideCurrencyName();
     for (size_t i = 0; i < plan_->steps.size(); ++i)
         step_widgets[i]->hideTitleCurrencyName();
 }
@@ -695,12 +726,12 @@ void PlanWidget::goBack()
     auto current_id = history_it != navigation_history.end() ? history_it->first : QUuid{};
 
     auto prev_it = std::prev(history_it);
-    auto plan_model = mw()->planModel(prev_it->second);
+    auto plan_model = AppState::planModel(prev_it->second);
     auto plan_it = plan_model->plans.find(prev_it->first);
     while (prev_it != navigation_history.begin()
            && (plan_it == plan_model->plans.end() || plan_it->first == current_id)) {
         prev_it = std::prev(prev_it);
-        plan_model = mw()->planModel(prev_it->second);
+        plan_model = AppState::planModel(prev_it->second);
         plan_it = plan_model->plans.find(prev_it->first);
     }
 
@@ -733,12 +764,12 @@ void PlanWidget::goForward()
 
     auto back_it = std::prev(navigation_history.end());
 
-    auto plan_model = mw()->planModel(next_it->second);
+    auto plan_model = AppState::planModel(next_it->second);
     auto plan_it = plan_model->plans.find(next_it->first);
     while (next_it != back_it
            && (plan_it == plan_model->plans.end() || plan_it->first == history_it->first)) {
         next_it = std::next(next_it);
-        plan_model = mw()->planModel(next_it->second);
+        plan_model = AppState::planModel(next_it->second);
         plan_it = plan_model->plans.find(next_it->first);
     }
 
@@ -759,10 +790,13 @@ void PlanWidget::goForward()
 
 void PlanWidget::contextMenuEvent(QContextMenuEvent* event)
 {
+    if (!plan_)
+        return;
+
     auto menu = new QMenu{this};
     menu->setAttribute(Qt::WA_DeleteOnClose);
     menu->addAction(mw()->add_step_action);
-    if (haveCopyStep())
+    if (StepCopyState::haveCopy(plan_->game))
         menu->addAction(paste_step_action);
 
     menu->popup(event->globalPos());
@@ -776,6 +810,12 @@ void PlanWidget::selectPlan(PlanModel& model, Plan& plan)
 
         setPlan(&model, &plan);
     }
+}
+
+void PlanWidget::reselectCurrent(Game game)
+{
+    if (plan_ && plan_->game == game)
+        mw()->planView(game)->selectPlan(*plan_);
 }
 
 void PlanWidget::setPlanChanged()
@@ -803,7 +843,7 @@ void PlanWidget::setPlanOnUpdate(Plan& updated_plan)
     if (&updated_plan != plan_)
         return;
 
-    setPlan(current_model, &updated_plan);
+    setPlan(current_model, &updated_plan, true);
 }
 
 void PlanWidget::setPlanOnCurrentChange(const QModelIndex& new_current)
@@ -827,7 +867,7 @@ void PlanWidget::setPlanOnCurrentChange(const QModelIndex& new_current)
 void PlanWidget::checkDeletingPlans(const QModelIndex& parent, int first, int last)
 {
     auto model = static_cast<PlanModel*>(sender());
-    auto updating_plan = mw()->update_cost_dialog->plan();
+    auto updating_plan = AppState::state.update_cost_dialog->plan();
 
     bool check_current = plan_ && plan_->game == model->game;
     bool check_updating = updating_plan && updating_plan->game == model->game;
@@ -835,12 +875,17 @@ void PlanWidget::checkDeletingPlans(const QModelIndex& parent, int first, int la
     if (!check_current && !check_updating)
         return;
 
+    auto checkPlan = [](const PlanItem& parent, int first, int last, const Plan& plan) {
+        auto descent_row = plan.item()->isAncestor(parent);
+        return first <= descent_row && descent_row <= last;
+    };
+
     auto parent_item = model->internalPtr(parent);
-    check_current = check_current && checkDeletingPlan(*parent_item, first, last, *plan_);
-    check_updating = check_updating && checkDeletingPlan(*parent_item, first, last, *updating_plan);
+    check_current = check_current && checkPlan(*parent_item, first, last, *plan_);
+    check_updating = check_updating && checkPlan(*parent_item, first, last, *updating_plan);
 
     if (check_updating)
-        mw()->update_cost_dialog->reject();
+        AppState::state.update_cost_dialog->reject();
 
     if (!check_current)
         return;
@@ -852,14 +897,15 @@ void PlanWidget::checkDeletingPlans(const QModelIndex& parent, int first, int la
     setPlan(model, nullptr);
 }
 
-void PlanWidget::setPlan(const PlanModel* model, Plan* plan)
+void PlanWidget::setPlan(const PlanModel* model, Plan* plan, bool is_update)
 {
     if (!plan) {
         clear();
         return;
     }
 
-    setDescriptions(plan_);
+    if (!is_update && plan_)
+        setStepDescriptions();
 
     auto prev_game = game();
     plan_ = plan;
@@ -881,19 +927,14 @@ void PlanWidget::setPlan(const PlanModel* model, Plan* plan)
 
     setEnabled(true);
 
-    name_label->setText(plan->name);
-    is_auto_final_cb->setChecked(plan->is_auto_final);
-    locked_cb->setChecked(plan->locked);
-    league_label->setText(plan->league);
-    is_auto_final_cb->show();
-    locked_cb->show();
+    title_widget->setPlan(*plan_);
 
     size_t i = 0;
-    size_t steps_size = plan->steps.size();
+    size_t steps_size = plan_->steps.size();
     for (; i < step_widgets.size(); ++i) {
         if (i < steps_size) {
             step_widgets[i]->show();
-            step_widgets[i]->setStep(plan, i);
+            step_widgets[i]->setStep(plan_, i);
         } else
             step_widgets[i]->hide();
     }
@@ -902,24 +943,6 @@ void PlanWidget::setPlan(const PlanModel* model, Plan* plan)
 
     displayCost();
     displayFinalStep();
-}
-
-bool PlanWidget::checkDeletingPlan(PlanItem& parent, int first, int last, const Plan& plan)
-{
-    bool plan_is_deleting = false;
-    for (int i = first; i <= last; ++i) {
-        auto deleting_item = parent.child(i);
-        if (deleting_item->isFolder()) {
-            if (deleting_item->isDescendant(plan.item())) {
-                plan_is_deleting = true;
-                break;
-            }
-        } else if (deleting_item->plan() == &plan) {
-            plan_is_deleting = true;
-            break;
-        }
-    }
-    return plan_is_deleting;
 }
 
 } // namespace planner

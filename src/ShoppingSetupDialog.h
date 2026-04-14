@@ -8,14 +8,13 @@ class QDoubleSpinBox;
 class QComboBox;
 
 namespace planner {
-class MainWindow;
 class Plan;
 
 class ShoppingSetupDialog : public QDialog
 {
     Q_OBJECT
 public:
-    ShoppingSetupDialog(MainWindow& mw);
+    ShoppingSetupDialog(QWidget* parent = nullptr);
 
     QComboBox* step_combo;
     QDoubleSpinBox* amount_edit;
@@ -25,7 +24,6 @@ public:
 
 private:
     Plan* plan{};
-    MainWindow* mw() const;
 };
 
 } // namespace planner

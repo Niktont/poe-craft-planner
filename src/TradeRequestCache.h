@@ -68,11 +68,12 @@ public:
     void deleteRequest(const TradeRequestKey& request) { deleteRequest(requestData(request)); }
     void deleteRequest(Cache::const_iterator it);
 
-    void setSnapshot(Snapshot* snapshot);
+    void setSnapshot(Snapshot* snapshot_) { snapshot = snapshot_; }
 
     void updateCost(const TradeRequestKey& request, TradeCostData::Data cost_data);
     void setDefaultTime(const TradeRequestKey& request, std::optional<ItemTime> time);
 
+    void updateLeagues(const QStringList& new_leagues);
     bool saveCostCache() const;
 
     bool isOutdated(const TradeRequestKey& request, QDateTime now) const;

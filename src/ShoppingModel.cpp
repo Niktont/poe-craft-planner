@@ -1,14 +1,14 @@
 #include "ShoppingModel.h"
-#include "MainWindow.h"
+#include "AppState.h"
 #include "Plan.h"
 #include "PlanModel.h"
+#include "QFont"
 #include "TradeRequestCache.h"
 
 namespace planner {
 
-ShoppingModel::ShoppingModel(MainWindow& mw, QObject* parent)
+ShoppingModel::ShoppingModel(QObject* parent)
     : QAbstractTableModel{parent}
-    , mw{&mw}
 {}
 
 QVariant ShoppingModel::headerData(int section, Qt::Orientation orientation, int role) const
@@ -106,7 +106,10 @@ QVariant ShoppingModel::data(const QModelIndex& index, int role) const
     return {};
 }
 
-bool ShoppingModel::setPlan(Plan& plan, size_t step_pos, double amount, bool include_dependencies_)
+bool ShoppingModel::setPlan(const Plan& plan,
+                            size_t step_pos,
+                            double amount,
+                            bool include_dependencies_)
 {
     if (amount == 0.0)
         return false;
@@ -116,19 +119,18 @@ bool ShoppingModel::setPlan(Plan& plan, size_t step_pos, double amount, bool inc
     plan_ = &plan;
     include_dependencies = include_dependencies_;
 
-    bool result{false};
     if (plan_->game == Game::Poe1) {
-        exchange_cache = mw->exchange_cache_poe1;
-        trade_cache = mw->trade_cache_poe1;
-        plan_model = mw->plan_model_poe1;
+        exchange_cache = AppState::state.exchange_cache_poe1;
+        trade_cache = AppState::state.trade_cache_poe1;
+        plan_model = AppState::state.plan_model_poe1;
     } else {
-        exchange_cache = mw->exchange_cache_poe2;
-        trade_cache = mw->trade_cache_poe2;
-        plan_model = mw->plan_model_poe2;
+        exchange_cache = AppState::state.exchange_cache_poe2;
+        trade_cache = AppState::state.trade_cache_poe2;
+        plan_model = AppState::state.plan_model_poe2;
     }
 
     dependencies.clear();
-    result = gatherPlanItems(step_pos, amount);
+    bool result = gatherPlanItems(step_pos, amount);
     dependencies.clear();
 
     endResetModel();

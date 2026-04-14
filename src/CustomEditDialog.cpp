@@ -37,11 +37,11 @@ CustomEditDialog::CustomEditDialog(QWidget* parent)
     layout->addWidget(buttons);
 }
 
-void CustomEditDialog::openCustomEdit(Plan* plan, size_t step_pos, StepItemsWidget* items_widget)
+void CustomEditDialog::openCustomEdit(Plan* plan_, size_t step_pos_, StepItemsWidget* items_widget_)
 {
-    this->plan = plan;
-    this->step_pos = step_pos;
-    this->items_widget = items_widget;
+    plan = plan_;
+    step_pos = step_pos_;
+    items_widget = items_widget_;
     if (!plan)
         return;
 

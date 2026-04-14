@@ -8,17 +8,16 @@
 namespace planner {
 class ShoppingView;
 class ShoppingModel;
-class MainWindow;
 class Plan;
 
 class ShoppingDialog : public QDialog
 {
     Q_OBJECT
 public:
-    ShoppingDialog(MainWindow& mw);
+    ShoppingDialog(QWidget* parent = nullptr);
 
-    void openPlan(Plan& plan);
-    void openPlan(Plan& plan, size_t step_pos, double amount, bool include_dependencies);
+    void openPlan(const Plan& plan);
+    void openPlan(const Plan& plan, size_t step_pos, double amount, bool include_dependencies);
 
 protected:
     void closeEvent(QCloseEvent* event) override;
@@ -34,7 +33,6 @@ private slots:
 private:
     ShoppingView* view;
     ShoppingModel* model;
-    MainWindow& mw;
 
 #ifndef PLANNER_NO_BROWSER
     bool web_view_dialog_was_shown{false};

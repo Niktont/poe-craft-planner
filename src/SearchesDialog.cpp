@@ -1,5 +1,5 @@
 #include "SearchesDialog.h"
-#include "MainWindow.h"
+#include "AppState.h"
 #include "Settings.h"
 #include "TradeRequestView.h"
 #include <QHeaderView>
@@ -8,10 +8,10 @@
 
 namespace planner {
 
-SearchesDialog::SearchesDialog(MainWindow& mw)
-    : QDialog{&mw}
+SearchesDialog::SearchesDialog(QWidget* parent)
+    : QDialog{parent}
 {
-    request_view = new TradeRequestView{mw};
+    request_view = new TradeRequestView{};
 
     auto layout = new QVBoxLayout{};
     setLayout(layout);
@@ -51,7 +51,7 @@ void SearchesDialog::openGame(Game game_)
     if (game != game_) {
         game = game_;
         filter_edit->clear();
-        request_view->setCache(*mw()->tradeCache(game_));
+        request_view->setCache(*AppState::tradeCache(game_));
         if (game == Game::Poe1)
             setWindowTitle(tr("PoE 1 Searches"));
         else
@@ -65,11 +65,6 @@ void SearchesDialog::saveState(QSettings& settings) const
     settings.setValue(Settings::windows_searches_dialog_geometry, saveGeometry());
     settings.setValue(Settings::windows_searches_view_columns,
                       request_view->horizontalHeader()->saveState());
-}
-
-MainWindow* SearchesDialog::mw() const
-{
-    return static_cast<MainWindow*>(parent());
 }
 
 } // namespace planner

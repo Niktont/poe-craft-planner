@@ -1,11 +1,13 @@
 #include "StepWidget.h"
+#include "AppState.h"
 #include "CostWidget.h"
 #include "DescriptionEdit.h"
-#include "MainWindow.h"
 #include "Plan.h"
 #include "PlanWidget.h"
 #include "Settings.h"
+#include "StepCopyState.h"
 #include "StepItemDelegate.h"
+#include "StepItemModel.h"
 #include "StepItemView.h"
 #include "StepItemsWidget.h"
 #include <QAbstractTextDocumentLayout>
@@ -42,7 +44,7 @@ StepWidget::StepWidget(PlanWidget* plan_widget, QWidget* parent)
     name_edit->setFixedWidth(name_fm.averageCharWidth() * (name_edit->maxLength() + 3));
     connect(name_edit, &QLineEdit::editingFinished, this, &StepWidget::setNameFromEdit);
 
-    cost_widget = new CostWidget(*plan_widget->mw());
+    cost_widget = new CostWidget{};
     title_layout->addWidget(cost_widget);
 
     auto toolbar = new QToolBar{};
@@ -52,7 +54,8 @@ StepWidget::StepWidget(PlanWidget* plan_widget, QWidget* parent)
         this->plan_widget->duplicateStep(step_pos);
     });
     copy_action = addAction(tr("Copy Reference"), this, [this]() {
-        this->plan_widget->copyStep(step_pos);
+        if (plan)
+            StepCopyState::state = {plan->game, plan->id(), plan->steps[step_pos].id};
     });
     paste_action = addAction(tr("Paste"), this, [this]() {
         this->plan_widget->pasteStep(step_pos);
@@ -94,13 +97,7 @@ StepWidget::StepWidget(PlanWidget* plan_widget, QWidget* parent)
     layout->addWidget(edit_widget);
     step_layout->setContentsMargins(0, 0, 0, 0);
 
-    description = new DescriptionEdit{*plan_widget->mw()->plan_model_poe1,
-                                      *plan_widget->mw()->plan_model_poe2,
-                                      this};
-    connect(description->edit, &QPlainTextEdit::textChanged, this, [this] {
-        if (!is_text_reset)
-            this->plan_widget->setPlanChanged();
-    });
+    description = new DescriptionEdit{};
     connect(description, &DescriptionEdit::planLinkClicked, plan_widget, &PlanWidget::openPlan);
 
     step_layout->addWidget(description);
@@ -110,33 +107,46 @@ StepWidget::StepWidget(PlanWidget* plan_widget, QWidget* parent)
     step_layout->addLayout(table_layout);
     table_layout->setContentsMargins(5, 0, 0, 0);
 
-    resources_model = new StepItemModel{true, *plan_widget};
-    resources_widget = new StepItemsWidget{*plan_widget->mw()->custom_edit_dialog, *resources_model};
+    resources_model = new StepItemModel{true, this};
+    resources_widget = new StepItemsWidget{*AppState::state.custom_edit_dialog, *resources_model};
 
-    results_model = new StepItemModel{false, *plan_widget};
-    results_widget = new StepItemsWidget{*plan_widget->mw()->custom_edit_dialog, *results_model};
+    results_model = new StepItemModel{false, this};
+    results_widget = new StepItemsWidget{*AppState::state.custom_edit_dialog, *results_model};
+
+    connect(resources_model, &StepItemModel::planLinkClicked, plan_widget, &PlanWidget::openPlan);
+    connect(results_model, &StepItemModel::planLinkClicked, plan_widget, &PlanWidget::openPlan);
+    connect(resources_model,
+            &StepItemModel::stepLinkClicked,
+            plan_widget,
+            &PlanWidget::scrollToStep);
+    connect(results_model, &StepItemModel::stepLinkClicked, plan_widget, &PlanWidget::scrollToStep);
 
     results_widget->setOtherView(*resources_widget);
 
     table_layout->addWidget(resources_widget);
     table_layout->addWidget(results_widget);
+    connect(description->edit,
+            &QPlainTextEdit::textChanged,
+            this,
+            &StepWidget::setDescriptionChanged);
 }
 
-Step* StepWidget::currentStep()
+Step& StepWidget::currentStep()
 {
-    return plan ? &plan->steps[step_pos] : nullptr;
+    assert(plan);
+    return plan->steps[step_pos];
 }
 
 void StepWidget::displayCost()
 {
     assert(plan);
-    cost_widget->setCost(plan->game, currentStep());
+    cost_widget->setCost(plan->game, &currentStep());
 }
 
-void StepWidget::setStep(Plan* plan, size_t step_pos)
+void StepWidget::setStep(Plan* plan_, size_t step_pos_)
 {
-    this->plan = plan;
-    this->step_pos = step_pos;
+    plan = plan_;
+    step_pos = step_pos_;
 
     resources_model->setStep(plan, step_pos);
     results_model->setStep(plan, step_pos);
@@ -157,22 +167,22 @@ void StepWidget::setStep(Plan* plan, size_t step_pos)
 
     resources_widget->view->syncColumns();
 
-    auto step = currentStep();
-    setName(step->name);
+    auto& step = currentStep();
+    setName(step.name);
     displayCost();
 
     description->edit->hide();
-    is_text_reset = true;
-    description->edit->setPlainText(step->description);
-    is_text_reset = false;
+
+    is_description_changed = true;
+    description->edit->setPlainText(step.description);
+    is_description_changed = false;
 
     description->browser->show();
-    description->browser->setMarkdown(step->description);
+    description->browser->setMarkdown(step.description);
 
     description->adjustBrowserSize();
 
-    move_up_action->setEnabled(step_pos != 0);
-    move_down_action->setEnabled(static_cast<long long>(step_pos) < std::ssize(plan->steps) - 1);
+    updateMoveActions();
 }
 
 void StepWidget::setFinal(bool checked)
@@ -182,10 +192,9 @@ void StepWidget::setFinal(bool checked)
 
 void StepWidget::setName(QString name)
 {
-    auto step = currentStep();
     if (name.isEmpty())
         name = tr("Step %1").arg(step_pos + 1);
-    step->name = name;
+    currentStep().name = name;
     name_edit->setText(name);
 }
 
@@ -203,10 +212,16 @@ void StepWidget::updateCost(bool current_updated)
     results_model->updateCosts();
 }
 
-void StepWidget::updateStepName(const QUuid& changed_step, bool deleted)
+void StepWidget::clearStep(const QUuid& deleted_step)
 {
-    resources_model->updateStepName(changed_step, deleted);
-    results_model->updateStepName(changed_step, deleted);
+    resources_model->clearStep(deleted_step);
+    results_model->clearStep(deleted_step);
+}
+
+void StepWidget::updateStepName(const QUuid& changed_step)
+{
+    resources_model->updateStepName(changed_step);
+    results_model->updateStepName(changed_step);
 }
 
 void StepWidget::updatePlanName(const QUuid& changed_plan)
@@ -217,11 +232,10 @@ void StepWidget::updatePlanName(const QUuid& changed_plan)
 
 void StepWidget::setDescription()
 {
-    auto step = currentStep();
-    if (!step)
+    if (!plan || !is_description_changed)
         return;
 
-    step->description = description->edit->toPlainText();
+    currentStep().description = description->edit->toPlainText();
 }
 
 void StepWidget::hideDescription()
@@ -231,11 +245,10 @@ void StepWidget::hideDescription()
 
 void StepWidget::hideEmptyResources()
 {
-    auto step = currentStep();
-    if (!step)
+    if (!plan)
         return;
 
-    if (step->resources.empty())
+    if (currentStep().resources.empty())
         resources_widget->setHidden(Settings::get<Settings::windows_main_hide_empty_resources>());
     else
         resources_widget->setHidden(false);
@@ -243,11 +256,10 @@ void StepWidget::hideEmptyResources()
 
 void StepWidget::hideEmptyResults()
 {
-    auto step = currentStep();
-    if (!step)
+    if (!plan)
         return;
 
-    if (step->results.empty())
+    if (currentStep().results.empty())
         results_widget->setHidden(Settings::get<Settings::windows_main_hide_empty_results>());
     else
         results_widget->setHidden(false);
@@ -255,7 +267,7 @@ void StepWidget::hideEmptyResults()
 
 void StepWidget::hideNotUsedItems()
 {
-    if (!currentStep())
+    if (!plan)
         return;
 
     resources_widget->view->hideNotUsedItems();
@@ -267,14 +279,20 @@ void StepWidget::hideTitleCurrencyName()
     cost_widget->hideCurrencyName();
 }
 
+void StepWidget::updateMoveActions()
+{
+    move_up_action->setEnabled(step_pos != 0);
+    move_down_action->setEnabled(static_cast<long long>(step_pos) < std::ssize(plan->steps) - 1);
+}
+
 void StepWidget::deleteStep()
 {
     auto modifiers = QGuiApplication::keyboardModifiers();
     bool delete_step = modifiers.testFlag(Qt::ShiftModifier);
     if (!delete_step) {
-        QMessageBox msg;
+        QMessageBox msg{this};
         msg.setWindowTitle(tr("Delete Step"));
-        msg.setText(tr("Delete \"%1\"?").arg(currentStep()->name));
+        msg.setText(tr("Delete \"%1\"?").arg(currentStep().name));
         msg.addButton(QMessageBox::Ok);
         msg.addButton(QMessageBox::Cancel);
         delete_step = msg.exec() == QMessageBox::Ok;
@@ -287,23 +305,35 @@ void StepWidget::setNameFromEdit()
 {
     if (!plan)
         return;
-    auto step = currentStep();
+
+    auto& step = currentStep();
     auto name = name_edit->text();
-    if (name != step->name) {
-        step->name = name;
+    if (name != step.name) {
+        step.name = name;
         plan->setChanged();
         plan_widget->updateStepNames(step_pos);
     }
 }
 
+void StepWidget::setDescriptionChanged()
+{
+    if (!is_description_changed) {
+        plan_widget->setPlanChanged();
+        is_description_changed = true;
+    }
+}
+
 void StepWidget::contextMenuEvent(QContextMenuEvent* event)
 {
+    if (!plan)
+        return;
+
     auto menu = new QMenu{this};
     menu->setAttribute(Qt::WA_DeleteOnClose);
 
     menu->addAction(duplicate_action);
     menu->addAction(copy_action);
-    if (plan_widget->haveCopyStep())
+    if (StepCopyState::haveCopy(plan->game))
         menu->addAction(paste_action);
     menu->addAction(move_up_action);
     menu->addAction(move_down_action);
@@ -321,9 +351,6 @@ void StepWidget::updatePos(size_t new_pos)
     results_model->updatePos(new_pos);
     resources_widget->updatePos(new_pos);
     results_widget->updatePos(new_pos);
-
-    move_up_action->setEnabled(step_pos != 0);
-    move_down_action->setEnabled(static_cast<long long>(step_pos) < std::ssize(plan->steps) - 1);
 }
 
 void StepWidget::updateTradeName(const TradeRequestKey& request)

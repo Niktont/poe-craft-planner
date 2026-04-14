@@ -9,10 +9,8 @@
 #include <QVariant>
 
 namespace planner {
-
 class Plan;
 class PlanModel;
-
 class ExchangeRequestCache;
 class TradeRequestCache;
 
@@ -37,14 +35,16 @@ public:
                            TradeRequestCache& trade_cache,
                            std::vector<QUuid>* plans_to_check) const;
 
-    PlanItem* replacePlan(int row, Plan&& new_plan);
+    void replacePlan(int row, Plan&& new_plan);
 
     PlanItem* restoreChild(int row);
-    PlanItem* insertCopy(int row, const PlanItem& copy_item);
+    void insertCopy(int row, const PlanItem& copy_item);
 
-    QModelIndex index() const;
+    QModelIndex index(int column = 0) const;
 
-    PlanItem* child(int row);
+    PlanItem& child(int row) { return *childs[row]; }
+    const PlanItem& child(int row) const { return *childs[row]; }
+
     int childCount() const { return childs.size(); }
 
     QVariant data(int column, int role) const;
@@ -55,9 +55,10 @@ public:
     QString path() const;
     QString shortPath() const;
 
-    bool isDescendant(PlanItem* item) const;
+    bool isDescendant(const PlanItem& item) const;
+    int isAncestor(const PlanItem& item) const;
     PlanItem* parent() { return parent_; }
-    void setParent(PlanItem* parent) { parent_ = parent; }
+    const PlanItem* parent() const { return parent_; }
 
     QModelIndex insertPlan(Plan& child, int row, const QModelIndex& index);
     QModelIndex insertFolder(QString folder_name, int row, const QModelIndex& index);
@@ -68,6 +69,7 @@ public:
     bool checkFolderName(const QString& name) const;
 
     Plan* plan() { return plan_; }
+    const Plan* plan() const { return plan_; }
 
     QString name() const;
     void setName(QString name);
@@ -84,9 +86,8 @@ private:
 
     void setItemChanged(bool new_item);
     void setPlanChanged();
-    void deleteFromDb(QSqlQuery& delete_query);
+    void remove(QSqlQuery& delete_query);
 
-    ExchangeRequestCache* exchangeCache() const;
     static QString formatCost(double value);
 
     friend class PlanModel;

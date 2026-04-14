@@ -1,5 +1,6 @@
 #include "SnapshotsDialog.h"
-#include "MainWindow.h"
+#include "AppState.h"
+#include "ExchangeRequestCache.h"
 #include "Settings.h"
 #include "SnapshotModel.h"
 #include "SnapshotView.h"
@@ -8,13 +9,14 @@
 #include <QFormLayout>
 #include <QHeaderView>
 #include <QLineEdit>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QVBoxLayout>
 
 namespace planner {
 
-SnapshotsDialog::SnapshotsDialog(MainWindow& mw)
-    : QDialog{&mw}
+SnapshotsDialog::SnapshotsDialog(QWidget* parent)
+    : QDialog{parent}
 {
     create_snapshot_dialog = new QDialog{this};
     create_snapshot_dialog->setWindowTitle(tr("Create Snapshot"));
@@ -36,8 +38,8 @@ SnapshotsDialog::SnapshotsDialog(MainWindow& mw)
     auto buttons = new QDialogButtonBox{};
     auto ok_button = buttons->addButton(QDialogButtonBox::Ok);
     connect(ok_button, &QPushButton::clicked, this, [this] {
-        if (this->mw()->snapshots(game)->createSnapshot(name_edit->text(),
-                                                        league_combo->currentText()))
+        if (AppState::snapshots(game)->createSnapshot(name_edit->text(),
+                                                      league_combo->currentText()))
             create_snapshot_dialog->accept();
         else
             QMessageBox::information(create_snapshot_dialog,
@@ -52,7 +54,7 @@ SnapshotsDialog::SnapshotsDialog(MainWindow& mw)
     layout->setHorizontalSizeConstraint(QLayout::SetFixedSize);
     setLayout(layout);
 
-    view = new SnapshotView{*this, *mw.snapshots_poe1};
+    view = new SnapshotView{*this, *AppState::state.snapshots_poe1};
     layout->addWidget(view);
 
     auto settings = Settings::get();
@@ -77,14 +79,14 @@ void SnapshotsDialog::openGame(Game game_)
 
         auto& leagues = game == Game::Poe1 ? leagues_poe1 : leagues_poe2;
         if (leagues.empty()) {
-            for (auto& league : mw()->exchangeCache(game)->cost_cache)
+            for (auto& league : AppState::exchangeCache(game)->cost_cache)
                 leagues.push_back(league.first);
         }
         league_combo->clear();
         league_combo->addItems(leagues);
         league_combo->setCurrentText(Settings::currentLeague(game));
 
-        view->setModel(mw()->snapshots(game));
+        view->setModel(AppState::snapshots(game));
         if (game == Game::Poe1)
             setWindowTitle(tr("PoE 1 Snapshots"));
         else
@@ -98,11 +100,6 @@ void SnapshotsDialog::saveState(QSettings& settings) const
     settings.setValue(Settings::windows_snapshots_dialog_size, size());
     settings.setValue(Settings::windows_snapshots_view_columns,
                       view->horizontalHeader()->saveState());
-}
-
-MainWindow* SnapshotsDialog::mw() const
-{
-    return static_cast<MainWindow*>(parent());
 }
 
 } // namespace planner

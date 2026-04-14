@@ -9,7 +9,6 @@ class QNetworkReply;
 class QJsonObject;
 
 namespace planner {
-class MainWindow;
 class ExchangeRequestCache;
 class ExchangeRequestManager : public QObject
 {
@@ -17,7 +16,7 @@ class ExchangeRequestManager : public QObject
 public:
     explicit ExchangeRequestManager(QRestAccessManager& manager,
                                     const QString& user_agent,
-                                    MainWindow& parent);
+                                    QObject* parent = nullptr);
 
     QNetworkReply* getLeagues(Game game);
     QNetworkReply* getOverview(Game game, const QString& type);

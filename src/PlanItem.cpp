@@ -1,12 +1,13 @@
 #include "PlanItem.h"
-
+#include "AppState.h"
 #include "Database.h"
 #include "ImportException.h"
-#include "MainWindow.h"
 #include "Plan.h"
 #include "PlanModel.h"
 #include "PlanSearchModel.h"
+#include "StepCopyState.h"
 #include <algorithm>
+#include <QApplication>
 #include <QIcon>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -24,7 +25,7 @@ enum DatabaseColumn {
 
 PlanItem::PlanItem(QString name, PlanModel& model, PlanItem* parent)
     : id{QUuid::createUuidV7()}
-    , name_{name}
+    , name_{std::move(name)}
     , model{&model}
     , parent_{parent}
 {}
@@ -58,9 +59,7 @@ PlanItem::PlanItem(QUuid id, QSqlQuery& select, PlanModel& model, PlanItem* pare
     } else {
         plan_ = &model.plans
                      .insert_or_assign(id,
-                                       Plan{id,
-                                            json.object(),
-                                            *model.mw()->exchangeCache(model.game)})
+                                       Plan{id, json.object(), *AppState::exchangeCache(model.game)})
                      .first->second;
         plan_->item_ = this;
         plan_->name = std::move(name);
@@ -98,8 +97,10 @@ PlanItem::PlanItem(bool is_folder, const QJsonObject& item_o, PlanModel& model, 
         if (id.isNull())
             throw ImportException{ImportError::InvalidPlanId};
 
-        auto res = model.import_plans
-                       .try_emplace(id, Plan{id, item_o, *model.mw()->exchangeCache(model.game)});
+        auto res = model.import_plans.try_emplace(id,
+                                                  id,
+                                                  item_o,
+                                                  *AppState::exchangeCache(model.game));
         if (!res.second)
             throw ImportException{ImportError::InvalidPlanId};
         plan_ = &res.first->second;
@@ -127,20 +128,6 @@ PlanItem::PlanItem(const PlanItem& item)
     }
 }
 
-// PlanItem::PlanItem(PlanItem&& item)
-//     : plan_{item.plan_}
-//     , name_{std::move(item.name_)}
-//     , model{item.model}
-//     , parent_{item.parent_}
-//     , childs{std::move(item.childs)}
-// {
-//     if (plan_)
-//         plan_->setItem(this);
-
-//     for (auto& item : childs)
-//         item->parent_ = this;
-// }
-
 PlanItem& PlanItem::operator=(PlanItem&& item)
 {
     if (plan_ && item.plan_ != plan_ && model)
@@ -166,14 +153,6 @@ PlanItem::~PlanItem()
 {
     if (model->item_copy_state == this)
         model->item_copy_state = nullptr;
-
-    if (plan_) {
-        if (auto it = model->plans.find(plan_->id());
-            it != model->plans.end() && (&it->second) == plan_) {
-            model->search_model->removePlan(it->first);
-            model->plans.erase(it);
-        }
-    }
 }
 
 QJsonObject PlanItem::saveJson() const
@@ -211,52 +190,45 @@ QJsonObject PlanItem::exportJson(const ExchangeRequestCache& cache,
         return plan_->exportJson(cache, trade_cache);
 }
 
-PlanItem* PlanItem::replacePlan(int row, Plan&& new_plan)
+void PlanItem::replacePlan(int row, Plan&& new_plan)
 {
-    auto& child_ptr = childs[row];
-    *child_ptr->plan_ = std::move(new_plan);
-    child_ptr->plan_->item_ = child_ptr.get();
-    child_ptr->plan()->setChanged();
-
-    return child_ptr.get();
+    auto& child = childs[row];
+    *child->plan_ = std::move(new_plan);
+    child->plan_->item_ = child.get();
+    child->plan_->setChanged();
 }
 
 PlanItem* PlanItem::restoreChild(int row)
 {
-    auto& child_ptr = childs[row];
+    auto& child = childs[row];
 
     auto select = Database::selectPlan(model->game);
 
-    select.addBindValue(child_ptr->id.toString());
+    select.addBindValue(child->id.toString());
 
     if (!select.exec())
         return nullptr;
     if (!select.next())
         return nullptr;
 
-    *child_ptr = {child_ptr->id, select, *model, this};
+    *child = {child->id, select, *model, this};
 
-    return child_ptr.get();
+    return child.get();
 }
 
-PlanItem* PlanItem::insertCopy(int row, const PlanItem& copy_item)
+void PlanItem::insertCopy(int row, const PlanItem& copy_item)
 {
     auto& child = *childs.emplace(childs.begin() + row, std::make_unique<PlanItem>(copy_item));
     child->parent_ = this;
     child->setName(child->name() + PlanModel::tr(" - Copy"));
-    return child.get();
 }
 
-QModelIndex PlanItem::index() const
+QModelIndex PlanItem::index(int column) const
 {
-    if (parent_)
-        return model->index(row(), 0, parent_->index());
-    return {};
-}
+    if (model->root.get() == this)
+        return {};
 
-PlanItem* PlanItem::child(int row)
-{
-    return row >= 0 && row < childCount() ? childs[row].get() : nullptr;
+    return model->createIndex(row(), column, this);
 }
 
 QVariant PlanItem::data(int column, int role) const
@@ -270,7 +242,7 @@ QVariant PlanItem::data(int column, int role) const
             case Qt::EditRole:
                 return name_;
             case Qt::DecorationRole:
-                return model->mw()->style()->standardIcon(QStyle::SP_DirIcon);
+                return qApp->style()->standardIcon(QStyle::SP_DirIcon);
             }
         default:
             return {};
@@ -290,7 +262,7 @@ QVariant PlanItem::data(int column, int role) const
             case Qt::DecorationRole: {
                 if (auto step = plan_->costStep()) {
                     if (auto cost = step->cost(); cost.isValid()) {
-                        auto cache = exchangeCache();
+                        auto cache = AppState::exchangeCache(model->game);
                         auto it = cache->currencyData(cost.cost_in_primary.currency);
                         if (it != cache->cache.end())
                             return cache->icon(it);
@@ -336,10 +308,7 @@ int PlanItem::row() const
     if (!parent_)
         return 0;
 
-    auto it = std::find_if(parent_->childs.begin(),
-                           parent_->childs.end(),
-                           [this](const auto& item) { return item.get() == this; });
-
+    auto it = std::ranges::find(parent_->childs, this, &std::unique_ptr<PlanItem>::get);
     if (it != parent_->childs.end())
         return std::distance(parent_->childs.begin(), it);
 
@@ -350,24 +319,35 @@ QString PlanItem::path() const
 {
     if (!parent_ || parent_->name().isEmpty())
         return name();
-    return parent_->path() % '/' % name();
+    return parent_->path() % u'/' % name();
 }
 
 QString PlanItem::shortPath() const
 {
     if (!parent_ || parent_->name().isEmpty())
         return name();
-    return parent_->name() % '/' % name();
+    return parent_->name() % u'/' % name();
 }
 
-bool PlanItem::isDescendant(PlanItem* item) const
+bool PlanItem::isDescendant(const PlanItem& item) const
 {
-    auto parent = item->parent_;
+    auto parent = item.parent_;
 
     while (parent && parent != this)
         parent = parent->parent_;
 
     return parent != nullptr;
+}
+
+int PlanItem::isAncestor(const PlanItem& item) const
+{
+    auto parent = this->parent_;
+    auto child = this;
+    while (parent && parent != &item) {
+        child = parent;
+        parent = parent->parent_;
+    }
+    return parent != nullptr ? child->row() : -1;
 }
 
 QModelIndex PlanItem::insertPlan(Plan& child, int row, const QModelIndex& index)
@@ -389,7 +369,7 @@ QModelIndex PlanItem::insertFolder(QString folder_name, int row, const QModelInd
         row = std::ssize(childs);
 
     auto child_it = childs.insert(childs.begin() + row,
-                                  std::make_unique<PlanItem>(folder_name, *model, this));
+                                  std::make_unique<PlanItem>(std::move(folder_name), *model, this));
     model->changed_folders.insert(this);
     model->changed_folders.insert(child_it->get());
 
@@ -427,10 +407,16 @@ QString PlanItem::name() const
 
 void PlanItem::setName(QString name)
 {
-    if (plan_)
-        plan_->name = name;
-    else
-        name_ = name;
+    if (plan_) {
+        plan_->name = std::move(name);
+        model->search_model->updatePath(*plan_);
+    } else {
+        name_ = std::move(name);
+        for (auto& child : childs) {
+            if (child->plan_)
+                model->search_model->updatePath(*child->plan_);
+        }
+    }
 }
 
 void PlanItem::setItemChanged(bool new_item)
@@ -447,28 +433,28 @@ void PlanItem::setItemChanged(bool new_item)
 
 void PlanItem::setPlanChanged()
 {
-    model->setPlanChanged(this);
+    model->setPlanChanged(*this);
 }
 
-void PlanItem::deleteFromDb(QSqlQuery& delete_query)
+void PlanItem::remove(QSqlQuery& delete_query)
 {
     if (isFolder())
         model->changed_folders.erase(this);
-    else
+    else {
         model->changed_plans.erase(this);
+        if (auto it = model->plans.find(plan_->id()); it != model->plans.end()) {
+            if (StepCopyState::state.plan_id == it->first)
+                StepCopyState::state.game = Game::Unknown;
+            model->search_model->removePlan(it->first);
+            model->plans.erase(it);
+        }
+    }
 
     delete_query.addBindValue(id.toString());
     delete_query.exec();
 
     for (auto& child : childs)
-        child->deleteFromDb(delete_query);
-}
-
-ExchangeRequestCache* PlanItem::exchangeCache() const
-{
-    if (plan_)
-        return model->mw()->exchangeCache(plan_->game);
-    return nullptr;
+        child->remove(delete_query);
 }
 
 QString PlanItem::formatCost(double value)

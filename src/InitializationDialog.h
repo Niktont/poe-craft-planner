@@ -49,8 +49,8 @@ private:
     QComboBox* league_combo_poe1;
     QComboBox* league_combo_poe2;
 
-    bool request_finished_poe1{false};
-    bool request_finished_poe2{false};
+    QStringList leagues_poe1;
+    QStringList leagues_poe2;
 
     QStringList league_urls_poe1;
     QStringList league_urls_poe2;
@@ -58,12 +58,10 @@ private:
     std::queue<QString> currency_types_poe1;
     std::queue<QString> currency_types_poe2;
 
+    bool request_finished_poe1{false};
+    bool request_finished_poe2{false};
     bool is_data_needed_poe1{false};
     bool is_data_needed_poe2{false};
-
-    void requestFailed(QString type);
-    void parseFailed(QString type);
-    bool isDataNeeded(Game game);
 };
 
 } // namespace planner

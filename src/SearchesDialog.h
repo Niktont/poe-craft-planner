@@ -9,13 +9,12 @@ class QSettings;
 
 namespace planner {
 class TradeRequestView;
-class MainWindow;
 
 class SearchesDialog : public QDialog
 {
     Q_OBJECT
 public:
-    SearchesDialog(MainWindow& mw);
+    SearchesDialog(QWidget* parent = nullptr);
 
     void openGame(Game game);
 
@@ -26,8 +25,6 @@ private:
 
     QLineEdit* filter_edit;
     TradeRequestView* request_view;
-
-    MainWindow* mw() const;
 };
 
 } // namespace planner

@@ -43,7 +43,7 @@ public:
     using Steps = std::vector<Step>;
     Steps steps;
 
-    bool is_changed{true};
+    mutable bool is_changed{true};
 
     PlanItem* item() const { return item_; }
     QUuid id() const { return id_; }

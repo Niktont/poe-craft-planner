@@ -1,9 +1,14 @@
 #include "MainWindow.h"
 
+#include "AppState.h"
 #include "CustomEditDialog.h"
 #include "ExchangeRequestCache.h"
 #include "ExchangeRequestManager.h"
+#include "Plan.h"
+#include "PlanItem.h"
+#include "PlanModel.h"
 #include "PlanSearchDialog.h"
+#include "PlanSearchView.h"
 #include "PlanTreeView.h"
 #include "PlanWidget.h"
 #include "RequestEditDialog.h"
@@ -53,45 +58,68 @@ MainWindow::MainWindow(QWidget* parent)
     else
         restoreGeometry(geometry.toByteArray());
 
+    AppState::state.mw = this;
+
     setAcceptDrops(true);
 
     auto plan_widget = new PlanWidget{*this};
     setCentralWidget(plan_widget);
 
-    exchange_cache_poe1 = new ExchangeRequestCache{Game::Poe1, this};
-    exchange_cache_poe2 = new ExchangeRequestCache{Game::Poe2, this};
-    trade_cache_poe1 = new TradeRequestCache{Game::Poe1, *exchange_cache_poe1, this};
-    trade_cache_poe2 = new TradeRequestCache{Game::Poe2, *exchange_cache_poe2, this};
+    AppState::state.exchange_cache_poe1 = new ExchangeRequestCache{Game::Poe1, this};
+    AppState::state.exchange_cache_poe2 = new ExchangeRequestCache{Game::Poe2, this};
+    AppState::state.trade_cache_poe1 = new TradeRequestCache{Game::Poe1,
+                                                             *AppState::state.exchange_cache_poe1,
+                                                             this};
+    AppState::state.trade_cache_poe2 = new TradeRequestCache{Game::Poe2,
+                                                             *AppState::state.exchange_cache_poe2,
+                                                             this};
 
-    snapshots_poe1 = new SnapshotModel{*exchange_cache_poe1, *trade_cache_poe1, this};
-    snapshots_poe2 = new SnapshotModel{*exchange_cache_poe2, *trade_cache_poe2, this};
+    AppState::state.snapshots_poe1 = new SnapshotModel{*AppState::state.exchange_cache_poe1,
+                                                       *AppState::state.trade_cache_poe1,
+                                                       this};
+    AppState::state.snapshots_poe2 = new SnapshotModel{*AppState::state.exchange_cache_poe2,
+                                                       *AppState::state.trade_cache_poe2,
+                                                       this};
 
     setupDockWidgets();
 
     setupNetwork();
 
-    settings_dialog = new SettingsDialog{*this};
-    searches_dialog = new SearchesDialog{*this};
-    snapshots_dialog = new SnapshotsDialog{*this};
-    request_edit_dialog = new RequestEditDialog{*this};
-    update_cost_dialog = new UpdateCostDialog{*this};
-    connect(update_cost_dialog,
+    settings_dialog = new SettingsDialog{this};
+    searches_dialog = new SearchesDialog{this};
+    snapshots_dialog = new SnapshotsDialog{this};
+    AppState::state.request_edit_dialog = new RequestEditDialog{this};
+    AppState::state.update_cost_dialog = new UpdateCostDialog{this};
+    connect(AppState::state.update_cost_dialog,
             &UpdateCostDialog::costUpdated,
             plan_widget,
             &PlanWidget::updateCost);
-    shopping_dialog = new ShoppingDialog{*this};
-    shopping_setup = new ShoppingSetupDialog{*this};
-    custom_edit_dialog = new CustomEditDialog{this};
-    plan_search_dialog = new PlanSearchDialog{*this};
+    AppState::state.shopping_dialog = new ShoppingDialog{this};
+    shopping_setup = new ShoppingSetupDialog{this};
+    AppState::state.custom_edit_dialog = new CustomEditDialog{this};
+    AppState::state.plan_search_dialog = new PlanSearchDialog{this};
+    connect(AppState::state.plan_search_dialog->view,
+            &PlanSearchView::planClicked,
+            plan_widget,
+            &PlanWidget::openPlan);
 
-    snapshot_edit = new QLineEdit{this};
+    snapshot_edit = new QLineEdit{};
     snapshot_edit->setPlaceholderText(tr("Snapshot"));
     snapshot_edit->setFixedWidth(80);
     connect(plan_widget, &PlanWidget::gameChanged, this, [this](Game game) {
-        current_snapshot_model = snapshots(game);
+        current_snapshot_model = AppState::snapshots(game);
         snapshot_edit->setText(current_snapshot_model->currentName());
         snapshot_edit->setCompleter(current_snapshot_model->completer);
     });
+    connect(AppState::state.snapshots_poe1,
+            &SnapshotModel::dataChanged,
+            this,
+            &MainWindow::updateSnapshotName);
+    connect(AppState::state.snapshots_poe2,
+            &SnapshotModel::dataChanged,
+            this,
+            &MainWindow::updateSnapshotName);
+
     connect(snapshot_edit, &QLineEdit::editingFinished, this, [this] {
         if (!current_snapshot_model)
             return;
@@ -138,7 +166,7 @@ MainWindow::MainWindow(QWidget* parent)
         restoreState(state.toByteArray());
 }
 
-PlanWidget* MainWindow::planWidget()
+PlanWidget* MainWindow::planWidget() const
 {
     return static_cast<PlanWidget*>(centralWidget());
 }
@@ -146,9 +174,9 @@ PlanWidget* MainWindow::planWidget()
 void MainWindow::restoreSession()
 {
     auto settings = Settings::get();
-    snapshots_poe1->setCurrent(
+    AppState::state.snapshots_poe1->setCurrent(
         QUuid::fromString(settings.value(Settings::windows_main_snapshot_poe1).toString()));
-    snapshots_poe2->setCurrent(
+    AppState::state.snapshots_poe2->setCurrent(
         QUuid::fromString(settings.value(Settings::windows_main_snapshot_poe2).toString()));
 
     QUuid id{settings.value(Settings::windows_main_last_plan).toString()};
@@ -158,10 +186,10 @@ void MainWindow::restoreSession()
         return;
     }
 
-    auto it = plan_model_poe1->plans.find(id);
-    if (it == plan_model_poe1->plans.end()) {
-        it = plan_model_poe2->plans.find(id);
-        if (it == plan_model_poe2->plans.end()) {
+    auto it = AppState::state.plan_model_poe1->plans.find(id);
+    if (it == AppState::state.plan_model_poe1->plans.end()) {
+        it = AppState::state.plan_model_poe2->plans.find(id);
+        if (it == AppState::state.plan_model_poe2->plans.end()) {
             plan_view_poe1->setCurrentIndex({});
             plan_view_poe2->setCurrentIndex({});
             return;
@@ -190,18 +218,26 @@ void MainWindow::closeEvent(QCloseEvent* event)
     settings.setValue(Settings::windows_main_geometry, saveGeometry());
     settings.setValue(Settings::windows_main_state, saveState());
 #ifndef PLANNER_NO_BROWSER
-    settings.setValue(Settings::windows_web_view_dialog_geometry, web_view_dialog->saveGeometry());
+    settings.setValue(Settings::windows_web_view_dialog_geometry,
+                      AppState::state.web_view_dialog->saveGeometry());
 #endif
-    settings.setValue(Settings::windows_shopping_dialog_geometry, shopping_dialog->saveGeometry());
+    settings.setValue(Settings::windows_shopping_dialog_geometry,
+                      AppState::state.shopping_dialog->saveGeometry());
     searches_dialog->saveState(settings);
     snapshots_dialog->saveState(settings);
-    settings.setValue(Settings::windows_request_edit_dialog_size, request_edit_dialog->size());
-    settings.setValue(Settings::windows_plan_search_dialog_size, plan_search_dialog->size());
+    settings.setValue(Settings::windows_request_edit_dialog_size,
+                      AppState::state.request_edit_dialog->size());
+    settings.setValue(Settings::windows_plan_search_dialog_size,
+                      AppState::state.plan_search_dialog->size());
 
     settings.setValue(Settings::windows_main_snapshot_poe1,
-                      snapshots_poe1->current ? snapshots_poe1->current->id.toString() : QString{});
+                      AppState::state.snapshots_poe1->current
+                          ? AppState::state.snapshots_poe1->current->id.toString()
+                          : QString{});
     settings.setValue(Settings::windows_main_snapshot_poe2,
-                      snapshots_poe2->current ? snapshots_poe2->current->id.toString() : QString{});
+                      AppState::state.snapshots_poe2->current
+                          ? AppState::state.snapshots_poe2->current->id.toString()
+                          : QString{});
 
     Settings::save<settings::windows_main_hide_descriptions>(settings);
     Settings::save<settings::windows_main_hide_empty_resources>(settings);
@@ -256,13 +292,13 @@ void MainWindow::setAlwaysOnTop(bool checked)
             window->show();
     };
     setStaysOnTop(checked, this);
-    setStaysOnTop(checked, shopping_dialog);
+    setStaysOnTop(checked, AppState::state.shopping_dialog);
 }
 
 void MainWindow::cleanup()
 {
 #ifndef PLANNER_NO_BROWSER
-    web_view_dialog->cleanup();
+    AppState::state.web_view_dialog->cleanup();
 #endif
 }
 
@@ -294,14 +330,15 @@ bool MainWindow::importItem(const QJsonDocument& json)
     auto requests_v = export_o["trade_requests"];
     if (game == Game::Unknown || requests_v.isUndefined()
         || (folder_v.isUndefined() && plan_v.isUndefined())) {
-        QMessageBox msg;
-        msg.setWindowTitle(tr("Import Failed"));
-        msg.setText(tr("Unrecognized format."));
-        msg.exec();
+        auto msg = new QMessageBox{this};
+        msg->setAttribute(Qt::WA_DeleteOnClose);
+        msg->setWindowTitle(tr("Import Failed"));
+        msg->setText(tr("Unrecognized format."));
+        msg->open();
         return false;
     }
 
-    return planModel(game)->importItem(export_o);
+    return AppState::planModel(game)->importItem(export_o);
 }
 
 void MainWindow::openShoppingDialog()
@@ -323,7 +360,20 @@ void MainWindow::openShoppingDialog()
     if (QGuiApplication::keyboardModifiers().testFlag(Qt::ControlModifier))
         shopping_setup->openPlan(*plan);
     else
-        shopping_dialog->openPlan(*plan);
+        AppState::state.shopping_dialog->openPlan(*plan);
+}
+
+void MainWindow::updateSnapshotName(const QModelIndex& idx)
+{
+    if (!current_snapshot_model)
+        return;
+    auto changed_model = qobject_cast<const SnapshotModel*>(idx.model());
+    if (changed_model != current_snapshot_model)
+        return;
+
+    auto changed_it = changed_model->snapshots.nth(idx.row());
+    if (changed_model->current && changed_model->current->id == changed_it->first)
+        snapshot_edit->setText(changed_it->second.name);
 }
 
 void MainWindow::setupDockWidgets()
@@ -334,8 +384,8 @@ void MainWindow::setupDockWidgets()
     plans_widget_poe1->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
     plans_widget_poe1->setWindowTitle(tr("PoE 1"));
 
-    plan_model_poe1 = new PlanModel{Game::Poe1, *this};
-    plan_view_poe1 = new PlanTreeView{*plan_model_poe1, this};
+    AppState::state.plan_model_poe1 = new PlanModel{Game::Poe1, this};
+    plan_view_poe1 = new PlanTreeView{*AppState::state.plan_model_poe1, this};
     plans_widget_poe1->setWidget(plan_view_poe1);
 
     plans_widget_poe2 = new QDockWidget{this};
@@ -344,8 +394,8 @@ void MainWindow::setupDockWidgets()
     plans_widget_poe2->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
     plans_widget_poe2->setWindowTitle(tr("PoE 2"));
 
-    plan_model_poe2 = new PlanModel{Game::Poe2, *this};
-    plan_view_poe2 = new PlanTreeView{*plan_model_poe2, this};
+    AppState::state.plan_model_poe2 = new PlanModel{Game::Poe2, this};
+    plan_view_poe2 = new PlanTreeView{*AppState::state.plan_model_poe2, this};
     plans_widget_poe2->setWidget(plan_view_poe2);
 
     setDockOptions(ForceTabbedDocks | AnimatedDocks | GroupedDragging);
@@ -362,11 +412,11 @@ void MainWindow::setupNetwork()
     rest_manager = new QRestAccessManager{network_manager, this};
 
 #ifndef PLANNER_NO_BROWSER
-    web_view_dialog = new WebViewDialog{user_agent, this};
+    AppState::state.web_view_dialog = new WebViewDialog{user_agent, this};
 #endif
 
-    trade_manager = new TradeRequestManager{*rest_manager, user_agent, this};
-    exchange_manager = new ExchangeRequestManager{*rest_manager, user_agent, *this};
+    AppState::state.trade_manager = new TradeRequestManager{*rest_manager, user_agent, this};
+    AppState::state.exchange_manager = new ExchangeRequestManager{*rest_manager, user_agent, this};
 }
 
 void MainWindow::setupAboutDialog()
@@ -396,26 +446,29 @@ void MainWindow::setupActions()
     save_action->setShortcut(QKeySequence::Save);
     connect(save_action, &QAction::triggered, this, [this] {
         if (auto plan = planWidget()->plan()) {
-            planModel(plan->game)->savePlan(plan->item());
+            AppState::planModel(plan->game)->savePlan(*plan->item());
         }
     });
 
     save_all_action = new QAction{tr("Save All"), this};
     save_all_action->setShortcut(Qt::ControlModifier | Qt::ShiftModifier | Qt::Key_S);
-    connect(save_all_action, &QAction::triggered, this, [this] {
-        plan_model_poe1->saveAllPlans();
-        plan_model_poe2->saveAllPlans();
+    connect(save_all_action, &QAction::triggered, this, [] {
+        AppState::state.plan_model_poe1->saveAllPlans();
+        AppState::state.plan_model_poe2->saveAllPlans();
     });
 
     plan_search_action = new QAction{tr("Find Plan")};
     plan_search_action->setShortcut(Qt::ControlModifier | Qt::Key_F);
     connect(plan_search_action, &QAction::triggered, this, [this] {
-        plan_search_dialog->openGame(planWidget()->game());
+        AppState::state.plan_search_dialog->openGame(planWidget()->game());
     });
 
 #ifndef PLANNER_NO_BROWSER
     open_web_page_action = new QAction{tr("Open Web Page"), this};
-    connect(open_web_page_action, &QAction::triggered, web_view_dialog, &QDialog::show);
+    connect(open_web_page_action,
+            &QAction::triggered,
+            AppState::state.web_view_dialog,
+            &QDialog::show);
 #endif
 
     always_on_top_action = new QAction{tr("Always On Top"), this};
@@ -508,7 +561,7 @@ void MainWindow::setupActions()
     connect(update_cost_action, &QAction::triggered, this, [this] {
         auto modifiers = QGuiApplication::keyboardModifiers();
         bool send_requests = !Settings::offline_mode && !modifiers.testFlag(Qt::ShiftModifier);
-        update_cost_dialog->updatePlan(planWidget()->plan(), send_requests);
+        AppState::state.update_cost_dialog->updatePlan(planWidget()->plan(), send_requests);
     });
 
     shopping_mode_action = new QAction{tr("Shopping Mode"), this};
@@ -574,9 +627,10 @@ void MainWindow::setupActions()
     toolbar->addWidget(snapshot_edit);
 }
 
-bool MainWindow::haveUnsavedPlans()
+bool MainWindow::haveUnsavedPlans() const
 {
-    return plan_model_poe1->haveUnsavedPlans() || plan_model_poe2->haveUnsavedPlans();
+    return AppState::state.plan_model_poe1->haveUnsavedPlans()
+           || AppState::state.plan_model_poe2->haveUnsavedPlans();
 }
 
 bool MainWindow::execSaveMsg()
@@ -587,8 +641,8 @@ bool MainWindow::execSaveMsg()
                                    QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel);
     switch (ret) {
     case QMessageBox::Save:
-        plan_model_poe1->saveAllPlans();
-        plan_model_poe2->saveAllPlans();
+        AppState::state.plan_model_poe1->saveAllPlans();
+        AppState::state.plan_model_poe2->saveAllPlans();
         return true;
     case QMessageBox::Discard:
         return true;
@@ -606,10 +660,11 @@ bool MainWindow::readFileForImport(const QString& file_path, QJsonDocument& json
         return true;
     }
 
-    QMessageBox msg;
-    msg.setWindowTitle(tr("Import (File)"));
-    msg.setText(tr("Failed to read file \"%1\".").arg(file_path));
-    msg.exec();
+    auto msg = new QMessageBox{this};
+    msg->setAttribute(Qt::WA_DeleteOnClose);
+    msg->setWindowTitle(tr("Import (File)"));
+    msg->setText(tr("Failed to read file \"%1\".").arg(file_path));
+    msg->open();
     return false;
 }
 

@@ -1,5 +1,6 @@
 #include "ShoppingSetupDialog.h"
-#include "MainWindow.h"
+#include "AppState.h"
+#include "Plan.h"
 #include "ShoppingDialog.h"
 #include <QCheckBox>
 #include <QComboBox>
@@ -10,8 +11,8 @@
 
 namespace planner {
 
-ShoppingSetupDialog::ShoppingSetupDialog(MainWindow& mw)
-    : QDialog{&mw}
+ShoppingSetupDialog::ShoppingSetupDialog(QWidget* parent)
+    : QDialog{parent}
 {
     setWindowTitle(tr("Shopping Setup"));
 
@@ -38,7 +39,7 @@ ShoppingSetupDialog::ShoppingSetupDialog(MainWindow& mw)
     auto button = new QPushButton{tr("Continue")};
     main_layout->addWidget(button, 0, Qt::AlignRight | Qt::AlignVCenter);
     connect(button, &QPushButton::clicked, this, [this] {
-        auto dialog = this->mw()->shopping_dialog;
+        auto dialog = AppState::state.shopping_dialog;
         auto pos = step_combo->currentIndex();
         if (pos == 0) {
             auto it = plan->costStepIt();
@@ -60,9 +61,14 @@ void ShoppingSetupDialog::openPlan(Plan& plan_)
 {
     auto index = step_combo->currentIndex();
     step_combo->clear();
-    step_combo->addItem(tr("Final Step"));
+
     auto names = plan_.stepsName(plan_.steps.size());
+    names.prepend(tr("Final Step"));
     step_combo->addItems(names);
+    QFont f;
+    f.setItalic(true);
+    step_combo->setItemData(0, f, Qt::FontRole);
+
     if (plan != &plan_) {
         plan = &plan_;
         step_combo->setCurrentIndex(0);
@@ -70,11 +76,6 @@ void ShoppingSetupDialog::openPlan(Plan& plan_)
         step_combo->setCurrentIndex(index);
 
     open();
-}
-
-MainWindow* ShoppingSetupDialog::mw() const
-{
-    return static_cast<MainWindow*>(parent());
 }
 
 } // namespace planner

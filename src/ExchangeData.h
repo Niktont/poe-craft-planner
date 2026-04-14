@@ -20,19 +20,13 @@ public:
     QString translated_name;
 
     const std::optional<ItemTime> defaultTime() const { return default_time; }
-    void setDefaultTime(const std::optional<ItemTime>& time)
-    {
-        default_time = time;
-        is_changed = true;
-    }
-
-    mutable bool is_changed{true};
 
     QIcon icon;
 
 private:
     std::optional<ItemTime> default_time;
     friend class Database;
+    friend class ExchangeRequestCache;
 };
 
 } // namespace planner

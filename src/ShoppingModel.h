@@ -12,7 +12,6 @@ class Plan;
 class Step;
 class ExchangeRequestCache;
 class TradeRequestCache;
-class MainWindow;
 class TradeItemData;
 class PlanItemData;
 class StepItem;
@@ -30,7 +29,7 @@ class ShoppingModel : public QAbstractTableModel
 {
     Q_OBJECT
 public:
-    explicit ShoppingModel(MainWindow& mw, QObject* parent = nullptr);
+    explicit ShoppingModel(QObject* parent = nullptr);
 
     QVariant headerData(int section,
                         Qt::Orientation orientation,
@@ -42,17 +41,17 @@ public:
     QVariant data(const QModelIndex& index, int role) const override;
     const ShoppingItem& item(size_t row) const { return items[row]; }
 
-    bool setPlan(Plan& plan, size_t step_pos, double amount, bool include_dependencies);
-    Plan* plan() const { return plan_; }
+    bool setPlan(const Plan& plan, size_t step_pos, double amount, bool include_dependencies);
+    const Plan* plan() const { return plan_; }
 
-    ExchangeRequestCache* exchangeCache() const { return exchange_cache; }
-    TradeRequestCache* tradeCache() const { return trade_cache; }
+    const ExchangeRequestCache* exchangeCache() const { return exchange_cache; }
+    const TradeRequestCache* tradeCache() const { return trade_cache; }
 
 private:
-    Plan* plan_{};
-    PlanModel* plan_model{};
-    ExchangeRequestCache* exchange_cache{};
-    TradeRequestCache* trade_cache{};
+    const Plan* plan_{};
+    const PlanModel* plan_model{};
+    const ExchangeRequestCache* exchange_cache{};
+    const TradeRequestCache* trade_cache{};
 
     bool include_dependencies{true};
     std::vector<ShoppingItem> items;
@@ -80,8 +79,6 @@ private:
                          const TradeItemData& trade,
                          ExchangeItems& exchange_items,
                          TradeItems& trade_items);
-
-    MainWindow* mw;
 };
 
 } // namespace planner

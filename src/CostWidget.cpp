@@ -1,6 +1,6 @@
 #include "CostWidget.h"
+#include "AppState.h"
 #include "ExchangeRequestCache.h"
-#include "MainWindow.h"
 #include "Settings.h"
 #include "Step.h"
 #include <QHBoxLayout>
@@ -12,9 +12,8 @@ using namespace std::chrono;
 
 namespace planner {
 
-CostWidget::CostWidget(MainWindow& mw, QWidget* parent)
+CostWidget::CostWidget(QWidget* parent)
     : QWidget{parent}
-    , mw{&mw}
 {
     auto main_layout = new QHBoxLayout{};
     main_layout->setHorizontalSizeConstraint(QLayout::SetFixedSize);
@@ -72,7 +71,7 @@ void CostWidget::setCost(Game game, const Step* step)
     } else
         profit_label->hide();
 
-    auto exchange_cache = mw->exchangeCache(game);
+    auto exchange_cache = AppState::exchangeCache(game);
     if (auto it = exchange_cache->currencyData(primary); it != exchange_cache->cache.end()) {
         currency_icon_label->setPixmap(exchange_cache->icon(it).pixmap(16));
         currency_label->setText(exchange_cache->name(it));

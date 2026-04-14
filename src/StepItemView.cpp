@@ -1,6 +1,7 @@
 #include "StepItemView.h"
-#include "PlanWidget.h"
 #include "Settings.h"
+#include "Step.h"
+#include "StepItemCopyState.h"
 #include "StepItemModel.h"
 #include <QApplication>
 #include <QContextMenuEvent>
@@ -16,68 +17,6 @@ using namespace Qt::StringLiterals;
 static constexpr int min_name_width = 120;
 
 namespace planner {
-
-int StepItemView::widthForItemText(QStyleOptionViewItem& option, const QString& text) const
-{
-    option.text = text;
-    return style()->sizeFromContents(QStyle::CT_ItemViewItem, &option, {}).width() + showGrid();
-}
-
-void StepItemView::setupColumns()
-{
-    if (!stepModel()->is_resource_model) {
-        hideColumn(static_cast<int>(StepItemColumn::Gold));
-        hideColumn(static_cast<int>(StepItemColumn::Time));
-    } else
-        hideColumn(static_cast<int>(StepItemColumn::Success));
-
-    QStyleOptionViewItem option;
-    initViewItemOption(&option);
-    option.features = QStyleOptionViewItem::HasDisplay;
-
-    auto header = horizontalHeader();
-    header->setMinimumSectionSize(20);
-    header->setSectionResizeMode(QHeaderView::Fixed);
-    header->resizeSection(static_cast<int>(StepItemColumn::Row), 20);
-    header->resizeSection(static_cast<int>(StepItemColumn::Type), 20);
-
-    auto num_6_width = widthForItemText(option, u"10000.0"_s);
-    auto num_5_width = widthForItemText(option, u"1000.0"_s);
-
-    auto amount_width = std::max(header->sectionSizeHint(static_cast<int>(StepItemColumn::Amount)),
-                                 num_6_width);
-    header->resizeSection(static_cast<int>(StepItemColumn::Amount), amount_width);
-
-    header->resizeSection(static_cast<int>(StepItemColumn::Name), min_name_width);
-
-    auto link_width = header->sectionSizeHint(static_cast<int>(StepItemColumn::Link));
-    header->resizeSection(static_cast<int>(StepItemColumn::Link), link_width);
-
-    auto cost_num_width = std::max(widthForItemText(option, u"1/1000.0"_s), num_6_width);
-    auto cost_width = std::max(header->sectionSizeHint(static_cast<int>(StepItemColumn::Cost)),
-                               cost_num_width);
-    header->resizeSection(static_cast<int>(StepItemColumn::Cost), cost_width);
-
-    header->resizeSection(static_cast<int>(StepItemColumn::CostCurrency), min_name_width);
-
-    auto gold_width = std::max(header->sectionSizeHint(static_cast<int>(StepItemColumn::Gold)),
-                               num_6_width);
-    header->resizeSection(static_cast<int>(StepItemColumn::Gold), gold_width);
-
-    auto time_width = std::max(header->sectionSizeHint(static_cast<int>(StepItemColumn::Time)),
-                               num_5_width);
-    header->resizeSection(static_cast<int>(StepItemColumn::Time), time_width);
-    auto success_width = gold_width + time_width;
-    header->resizeSection(static_cast<int>(StepItemColumn::Success), success_width);
-
-    verticalHeader()->setSectionResizeMode(QHeaderView::Fixed);
-    verticalHeader()->setDefaultSectionSize(fontMetrics().height());
-    verticalHeader()->hide();
-
-    connect(stepModel(), &StepItemModel::rowsInserted, this, &StepItemView::syncColumns);
-    connect(stepModel(), &StepItemModel::rowsRemoved, this, &StepItemView::syncColumns);
-    connect(stepModel(), &StepItemModel::dataChanged, this, &StepItemView::resizeColumns);
-}
 
 StepItemView::StepItemView(StepItemModel& model, QWidget* parent)
     : QTableView{parent}
@@ -192,7 +131,7 @@ void StepItemView::contextMenuEvent(QContextMenuEvent* event)
     auto menu = new QMenu{this};
     menu->setAttribute(Qt::WA_DeleteOnClose);
 
-    bool have_item_copy = stepModel()->planWidget()->haveCopyItem(stepModel()->game());
+    bool have_item_copy = StepItemCopyState::haveCopy(stepModel()->game());
     context_index = indexAt(event->pos());
     if (context_index->isValid()) {
         menu->addAction(duplicate_action);
@@ -335,7 +274,7 @@ void StepItemView::deleteSearch()
 
     bool delete_search = modifiers.testFlag(Qt::ShiftModifier);
     if (!delete_search) {
-        QMessageBox msg;
+        QMessageBox msg{this};
 
         msg.setWindowTitle(tr("Delete Search"));
         msg.setText(tr("Delete this search?"));
@@ -371,6 +310,68 @@ void StepItemView::syncColumn(int col, int min_width)
 StepItemModel* StepItemView::stepModel() const
 {
     return static_cast<StepItemModel*>(model());
+}
+
+int StepItemView::widthForItemText(QStyleOptionViewItem& option, const QString& text) const
+{
+    option.text = text;
+    return style()->sizeFromContents(QStyle::CT_ItemViewItem, &option, {}).width() + showGrid();
+}
+
+void StepItemView::setupColumns()
+{
+    if (!stepModel()->is_resource_model) {
+        hideColumn(static_cast<int>(StepItemColumn::Gold));
+        hideColumn(static_cast<int>(StepItemColumn::Time));
+    } else
+        hideColumn(static_cast<int>(StepItemColumn::Success));
+
+    QStyleOptionViewItem option;
+    initViewItemOption(&option);
+    option.features = QStyleOptionViewItem::HasDisplay;
+
+    auto header = horizontalHeader();
+    header->setMinimumSectionSize(20);
+    header->setSectionResizeMode(QHeaderView::Fixed);
+    header->resizeSection(static_cast<int>(StepItemColumn::Row), 20);
+    header->resizeSection(static_cast<int>(StepItemColumn::Type), 20);
+
+    auto num_6_width = widthForItemText(option, u"10000.0"_s);
+    auto num_5_width = widthForItemText(option, u"1000.0"_s);
+
+    auto amount_width = std::max(header->sectionSizeHint(static_cast<int>(StepItemColumn::Amount)),
+                                 num_6_width);
+    header->resizeSection(static_cast<int>(StepItemColumn::Amount), amount_width);
+
+    header->resizeSection(static_cast<int>(StepItemColumn::Name), min_name_width);
+
+    auto link_width = header->sectionSizeHint(static_cast<int>(StepItemColumn::Link));
+    header->resizeSection(static_cast<int>(StepItemColumn::Link), link_width);
+
+    auto cost_num_width = std::max(widthForItemText(option, u"1/1000.0"_s), num_6_width);
+    auto cost_width = std::max(header->sectionSizeHint(static_cast<int>(StepItemColumn::Cost)),
+                               cost_num_width);
+    header->resizeSection(static_cast<int>(StepItemColumn::Cost), cost_width);
+
+    header->resizeSection(static_cast<int>(StepItemColumn::CostCurrency), min_name_width);
+
+    auto gold_width = std::max(header->sectionSizeHint(static_cast<int>(StepItemColumn::Gold)),
+                               num_6_width);
+    header->resizeSection(static_cast<int>(StepItemColumn::Gold), gold_width);
+
+    auto time_width = std::max(header->sectionSizeHint(static_cast<int>(StepItemColumn::Time)),
+                               num_5_width);
+    header->resizeSection(static_cast<int>(StepItemColumn::Time), time_width);
+    auto success_width = gold_width + time_width;
+    header->resizeSection(static_cast<int>(StepItemColumn::Success), success_width);
+
+    verticalHeader()->setSectionResizeMode(QHeaderView::Fixed);
+    verticalHeader()->setDefaultSectionSize(fontMetrics().height());
+    verticalHeader()->hide();
+
+    connect(stepModel(), &StepItemModel::rowsInserted, this, &StepItemView::syncColumns);
+    connect(stepModel(), &StepItemModel::rowsRemoved, this, &StepItemView::syncColumns);
+    connect(stepModel(), &StepItemModel::dataChanged, this, &StepItemView::resizeColumns);
 }
 
 } // namespace planner

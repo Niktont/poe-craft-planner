@@ -185,26 +185,37 @@ ItemTime ExchangeRequestCache::time(const ExchangeItemData& exchange_item) const
 
 bool ExchangeRequestCache::saveCache() const
 {
-    if (!cache_changed)
-        return true;
-
     auto db = QSqlDatabase::database();
     db.transaction();
     auto insert = Database::insertExchangeCache(game);
     auto result = true;
     for (auto& [id, data] : cache) {
-        if (!data.is_changed)
-            continue;
         if (!Database::insertExchangeCache(insert, id, data))
             result = false;
-        else
-            data.is_changed = false;
     }
     db.commit();
-    if (result)
-        cache_changed = false;
 
     return result;
+}
+
+void ExchangeRequestCache::updateLeagues(const QStringList& new_leagues, const QStringList& urls)
+{
+    boost::container::erase_if(cost_cache, [&](const auto& it) {
+        if (!new_leagues.contains(it.first)) {
+            Database::deleteExchangeCostCache(game, it.first);
+            return true;
+        }
+        return false;
+    });
+
+    for (int i = 0; i < new_leagues.size(); ++i) {
+        if (auto res = cost_cache.try_emplace(new_leagues[i]); res.second) {
+            res.first->second.league_url = urls[i];
+            res.first->second.is_changed = true;
+        }
+    }
+
+    saveCostCache();
 }
 
 bool ExchangeRequestCache::saveCostCache() const
@@ -282,15 +293,6 @@ bool ExchangeRequestCache::prepareCurrency(Currency& currency) const
     return false;
 }
 
-bool ExchangeRequestCache::prepareData(ExchangeData& data) const
-{
-    if (auto it = currency_types.find(data.type); it != currency_types.end()) {
-        data.type = it->first;
-        return true;
-    }
-    return false;
-}
-
 ExchangeRequestCache::CostCache::iterator ExchangeRequestCache::currentLeagueData()
 {
     return cost_cache.find(Settings::currentLeague(game));
@@ -330,7 +332,6 @@ std::pair<double, ExchangeRequestCache::Cache::const_iterator> ExchangeRequestCa
 
 ExchangeRequestCache::~ExchangeRequestCache() noexcept
 {
-    saveCache();
     saveCostCache();
 }
 
@@ -358,23 +359,17 @@ bool ExchangeRequestCache::readDatabase()
 
     beginResetModel();
     while (select.next()) {
-        auto p = Database::exchangeCacheFromQuery(select, game);
-        if (p.first.isEmpty()) {
-            result = false;
+        result = Database::exchangeCacheFromQuery(select, *this);
+        if (!result)
             break;
-        }
-        shareCurrencyType(p.second.type);
-        cache.emplace_hint(cache.end(), std::move(p));
     }
+
     select = Database::selectExchangeCostCache(game);
     result = result && select.exec();
     while (select.next()) {
-        auto p = Database::exchangeCostCacheFromQuery(select, *this);
-        if (p.first.isEmpty()) {
-            result = false;
+        result = Database::exchangeCostCacheFromQuery(select, *this);
+        if (!result)
             break;
-        }
-        cost_cache.emplace(std::move(p));
     }
     result = result && readAdditionalData();
     endResetModel();
@@ -408,15 +403,10 @@ void ExchangeRequestCache::setDefaultTime(const Currency& currency, std::optiona
         return;
 
     if (it->second.defaultTime() != time) {
-        it->second.setDefaultTime(time);
-        cache_changed = true;
+        it->second.default_time = time;
+        Database::updateExchangeTime(game, it->first, it->second);
         emit defaultTimeChanged(currency);
     }
-}
-
-void ExchangeRequestCache::setSnapshot(Snapshot* snapshot)
-{
-    this->snapshot = snapshot;
 }
 
 ExchangeRequestCache::Cache::iterator ExchangeRequestCache::currencyData(const Currency& currency)

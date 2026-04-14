@@ -1,6 +1,7 @@
 #include "Database.h"
 
 #include "ExchangeRequestCache.h"
+#include "TradeRequestCache.h"
 #include <array>
 #include <QJsonDocument>
 
@@ -19,7 +20,7 @@ static constexpr Tables currency_data{u"currency_data_poe1", u"currency_data_poe
 static constexpr Tables filters{u"filters_poe1", u"filters_poe2"};
 static constexpr Tables filter_options{u"filter_options_poe1", u"filter_options_poe2"};
 static constexpr Tables stats{u"stats_poe1", u"stats_poe2"};
-static constexpr Tables stat_types{u"stat_types_poe1", u"stat_types_poe1"};
+static constexpr Tables stat_types{u"stat_types_poe1", u"stat_types_poe2"};
 static constexpr Tables stat_groups{u"stat_groups_poe1", u"stat_groups_poe2"};
 
 static constexpr Tables plans{u"plans_poe1", u"plans_poe2"};
@@ -194,8 +195,7 @@ QSqlQuery planner::Database::selectExchangeCache(Game game)
 QSqlQuery planner::Database::selectExchangeCostCache(Game game)
 {
     QSqlQuery query;
-    query.prepare("SELECT league, cost_cache FROM " % exchange_cost_cache.forGame(game)
-                  % " ORDER BY league;");
+    query.prepare("SELECT league, cost_cache FROM " % exchange_cost_cache.forGame(game) % ";");
 
     return query;
 }
@@ -203,8 +203,10 @@ QSqlQuery planner::Database::selectExchangeCostCache(Game game)
 QSqlQuery planner::Database::insertExchangeCache(Game game)
 {
     QSqlQuery query;
-    query.prepare("INSERT OR REPLACE INTO " % exchange_cache.forGame(game)
-                  % "(id, name, details_id, type, default_time) VALUES (?, ?, ?, ?, ?);");
+    query.prepare("INSERT INTO " % exchange_cache.forGame(game)
+                  % "(id, name, details_id, type, default_time) VALUES (?, ?, ?, ?, ?) ON CONFLICT "
+                    "(id) DO UPDATE SET name = excluded.name, details_id = excluded.details_id, "
+                    "type = excluded.type;");
 
     return query;
 }
@@ -248,38 +250,43 @@ bool Database::clearExchangeCostCache(Game game)
     return query.exec();
 }
 
-std::pair<QString, ExchangeData> planner::Database::exchangeCacheFromQuery(const QSqlQuery& query,
-                                                                           Game game)
+bool Database::exchangeCacheFromQuery(const QSqlQuery& query, ExchangeRequestCache& cache)
 {
-    std::pair<QString, ExchangeData> result;
+    std::pair<QString, ExchangeData> exchange_data;
     int i = -1;
-    result.first = query.value(++i).toString();
+    exchange_data.first = query.value(++i).toString();
+    if (exchange_data.first.isEmpty())
+        return false;
 
-    result.second.name = query.value(++i).toString();
-    result.second.details_id = query.value(++i).toString();
-    result.second.type = query.value(++i).toString();
+    exchange_data.second.name = query.value(++i).toString();
+    exchange_data.second.details_id = query.value(++i).toString();
+    exchange_data.second.type = query.value(++i).toString();
     auto default_time = query.value(++i);
     if (!default_time.isNull())
-        result.second.default_time = ItemTime(default_time.toDouble());
-    if (!result.first.isEmpty())
-        result.second.icon = QIcon{ExchangeRequestCache::iconFileName(game, result.first)};
+        exchange_data.second.default_time = ItemTime(default_time.toDouble());
 
-    result.second.is_changed = false;
+    exchange_data.second.icon = QIcon{
+        ExchangeRequestCache::iconFileName(cache.game, exchange_data.first)};
 
-    return result;
+    cache.shareCurrencyType(exchange_data.second.type);
+    cache.cache.emplace_hint(cache.cache.end(), std::move(exchange_data));
+    return true;
 }
 
-std::pair<QString, ExchangeCostData> Database::exchangeCostCacheFromQuery(
-    const QSqlQuery& query, const ExchangeRequestCache& cache)
+bool Database::exchangeCostCacheFromQuery(const QSqlQuery& query, ExchangeRequestCache& cache)
 {
-    std::pair<QString, ExchangeCostData> result;
+    std::pair<QString, ExchangeCostData> cost_data;
     int i = -1;
-    result.first = query.value(++i).toString();
+    cost_data.first = query.value(++i).toString();
+    if (cost_data.first.isEmpty())
+        return false;
 
     auto json{QJsonDocument::fromJson(query.value(++i).toByteArray())};
-    result.second = ExchangeCostData::fromJson(json.object(), cache);
+    cost_data.second = ExchangeCostData::fromJson(json.object(), cache);
+    cost_data.second.is_changed = false;
 
-    return result;
+    cache.cost_cache.emplace(std::move(cost_data));
+    return true;
 }
 
 bool planner::Database::insertExchangeCache(QSqlQuery& query,
@@ -302,9 +309,21 @@ bool Database::insertExchangeCostCache(QSqlQuery& query,
                                        const ExchangeCostData& data)
 {
     query.addBindValue(league);
+    query.addBindValue(QJsonDocument{data.toJson()}.toJson(QJsonDocument::Compact));
 
-    QJsonDocument doc{data.toJson()};
-    query.addBindValue(doc.toJson(QJsonDocument::Compact));
+    return query.exec();
+}
+
+bool Database::updateExchangeTime(Game game, const QString& id, const ExchangeData& data)
+{
+    QSqlQuery query;
+    query.prepare("UPDATE " % exchange_cache.forGame(game) % " SET default_time = ? WHERE id = ?;");
+
+    if (data.default_time)
+        query.addBindValue(data.default_time->count());
+    else
+        query.addBindValue(QVariant{QMetaType::fromType<double>()});
+    query.addBindValue(id);
 
     return query.exec();
 }
@@ -337,8 +356,7 @@ QSqlQuery Database::selectTradeCache(Game game)
 QSqlQuery Database::selectTradeCostCache(Game game)
 {
     QSqlQuery query;
-    query.prepare("SELECT league, cost_cache FROM " % trade_cost_cache.forGame(game)
-                  % " ORDER BY league;");
+    query.prepare("SELECT league, cost_cache FROM " % trade_cost_cache.forGame(game) % ";");
 
     return query;
 }
@@ -452,35 +470,42 @@ bool Database::clearTradeCostCache(Game game)
     return query.exec();
 }
 
-std::pair<TradeRequestKey, TradeRequestData> Database::tradeCacheFromQuery(const QSqlQuery& query)
+bool Database::tradeCacheFromQuery(const QSqlQuery& query, TradeRequestCache& cache)
 {
-    std::pair<TradeRequestKey, TradeRequestData> result;
+    std::pair<TradeRequestKey, TradeRequestData> request;
     int i = -1;
-    result.first.request_id = query.value(++i).toString();
-    result.first.domain = static_cast<Domain>(query.value(++i).toInt());
+    request.first.request_id = query.value(++i).toString();
+    request.first.domain = static_cast<Domain>(query.value(++i).toInt());
+    if (!request.first.isValid())
+        return false;
 
-    result.second.name_ = query.value(++i).toString();
-    result.second.query_ = QJsonDocument::fromJson(query.value(++i).toByteArray());
-    result.second.regex_ = query.value(++i).toString();
-    result.second.description_ = {QJsonDocument::fromJson(query.value(++i).toByteArray()).object()};
+    request.second.name_ = query.value(++i).toString();
+    request.second.query_ = QJsonDocument::fromJson(query.value(++i).toByteArray());
+    request.second.regex_ = query.value(++i).toString();
+    request.second.description_ = {QJsonDocument::fromJson(query.value(++i).toByteArray()).object()};
     auto default_time = query.value(++i);
     if (!default_time.isNull())
-        result.second.default_time = ItemTime(default_time.toDouble());
+        request.second.default_time = ItemTime(default_time.toDouble());
 
-    return result;
+    cache.cache.emplace_hint(cache.cache.end(), std::move(request));
+    return true;
 }
 
-std::pair<QString, TradeCostData> Database::tradeCostCacheFromQuery(
-    const QSqlQuery& query, const ExchangeRequestCache& cache)
+bool Database::tradeCostCacheFromQuery(const QSqlQuery& query,
+                                       const ExchangeRequestCache& exchange,
+                                       TradeRequestCache& trade)
 {
-    std::pair<QString, TradeCostData> result;
+    std::pair<QString, TradeCostData> cost_data;
     int i = -1;
-    result.first = query.value(++i).toString();
+    cost_data.first = query.value(++i).toString();
+    if (cost_data.first.isEmpty())
+        return false;
 
     auto json{QJsonDocument::fromJson(query.value(++i).toByteArray())};
-    result.second = TradeCostData::fromJson(json.object(), cache);
+    cost_data.second = TradeCostData::fromJson(json.object(), exchange);
 
-    return result;
+    trade.cost_cache.emplace(std::move(cost_data));
+    return true;
 }
 
 bool Database::insertTradeRequest(QSqlQuery& query,
@@ -506,9 +531,7 @@ bool Database::insertTradeCostCache(QSqlQuery& query,
                                     const TradeCostData& data)
 {
     query.addBindValue(league);
-
-    QJsonDocument doc{data.toJson()};
-    query.addBindValue(doc.toJson(QJsonDocument::Compact));
+    query.addBindValue(QJsonDocument{data.toJson()}.toJson(QJsonDocument::Compact));
 
     return query.exec();
 }

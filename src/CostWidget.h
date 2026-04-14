@@ -8,21 +8,19 @@ class QLabel;
 
 namespace planner {
 class Step;
-class MainWindow;
 class CurrencyCost;
 
 class CostWidget : public QWidget
 {
     Q_OBJECT
 public:
-    explicit CostWidget(MainWindow& mw, QWidget* parent = nullptr);
+    explicit CostWidget(QWidget* parent = nullptr);
 
     void hideCurrencyName();
 
 public slots:
     void setCost(planner::Game game, const planner::Step* step);
 
-signals:
 private:
     QLabel* cost_label;
     QLabel* profit_label;
@@ -31,7 +29,6 @@ private:
     QLabel* gold_label;
     QLabel* time_label;
 
-    MainWindow* mw;
     static QString formatCost(const CurrencyCost& cost);
     static QString formatCeil1(double value);
 };

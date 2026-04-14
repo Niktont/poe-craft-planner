@@ -1,6 +1,7 @@
 #include "SettingsDialog.h"
+#include "AppState.h"
+#include "ExchangeRequestCache.h"
 #include "HotkeyEdit.h"
-#include "MainWindow.h"
 #include "Settings.h"
 #include <QCheckBox>
 #include <QComboBox>
@@ -52,8 +53,8 @@ static const std::array<QString, 8> trade_languages{
     u"jp"_s,
 };
 
-SettingsDialog::SettingsDialog(MainWindow& mw)
-    : QDialog{&mw}
+SettingsDialog::SettingsDialog(QWidget* parent)
+    : QDialog{parent}
 {
     needs_reset.fill(true);
     setWindowTitle(tr("Settings"));
@@ -218,11 +219,8 @@ void SettingsDialog::setupRequestsTab()
     requests_tab->layout()->addWidget(trade_group);
 
     auto exchange_group = new QGroupBox{tr("Exchange")};
-    auto exchange_layout = new QVBoxLayout{};
-    exchange_group->setLayout(exchange_layout);
-
     auto exchange_form = new QFormLayout{};
-    exchange_layout->addLayout(exchange_form);
+    exchange_group->setLayout(exchange_form);
 
     exchange_min_update_time = new QSpinBox{};
     exchange_min_update_time->setSuffix(tr(" min"));
@@ -240,9 +238,9 @@ void SettingsDialog::setupRequestsTab()
     exchange_form->addRow(tr("Default time for items:"), exchange_default_time);
 
     reload_data_poe1 = new QCheckBox{tr("Reload PoE 1 data on next initialization")};
-    exchange_layout->addWidget(reload_data_poe1);
+    exchange_form->addRow(reload_data_poe1);
     reload_data_poe2 = new QCheckBox{tr("Reload PoE 2 data on next initialization")};
-    exchange_layout->addWidget(reload_data_poe2);
+    exchange_form->addRow(reload_data_poe2);
 
     requests_tab->layout()->addWidget(exchange_group);
 
@@ -302,10 +300,8 @@ void SettingsDialog::saveRequests(QSettings& settings)
 void SettingsDialog::setupLeagueTab()
 {
     league_tab = new QWidget{};
-    auto layout = new QVBoxLayout{};
-    league_tab->setLayout(layout);
     auto form = new QFormLayout{};
-    layout->addLayout(form);
+    league_tab->setLayout(form);
 
     league_poe1 = new QComboBox{};
     connect(league_poe1, &QComboBox::currentIndexChanged, this, &SettingsDialog::setLeagueChanged);
@@ -321,15 +317,14 @@ void SettingsDialog::setupLeagueTab()
             &QCheckBox::checkStateChanged,
             this,
             &SettingsDialog::setLeagueChanged);
-    layout->addWidget(snapshot_use_current_data);
-    layout->addStretch(1);
+    form->addRow(snapshot_use_current_data);
 }
 
 void SettingsDialog::resetLeague()
 {
     if (league_poe1->count() == 0) {
         QStringList leagues;
-        for (auto& league : mw()->exchange_cache_poe1->cost_cache)
+        for (auto& league : AppState::state.exchange_cache_poe1->cost_cache)
             leagues.push_back(league.first);
         league_poe1->addItems(leagues);
     }
@@ -337,7 +332,7 @@ void SettingsDialog::resetLeague()
 
     if (league_poe2->count() == 0) {
         QStringList leagues;
-        for (auto& league : mw()->exchange_cache_poe2->cost_cache)
+        for (auto& league : AppState::state.exchange_cache_poe2->cost_cache)
             leagues.push_back(league.first);
         league_poe2->addItems(leagues);
     }
@@ -401,18 +396,19 @@ void SettingsDialog::setupLanguageTab()
     language_tab = new QWidget{};
     auto layout = new QFormLayout{};
     language_tab->setLayout(layout);
-    QStringList trade_languages;
-    trade_languages.push_back("English");
-    trade_languages.push_back("Português (Brasil)");
-    trade_languages.push_back("Русский");
-    trade_languages.push_back("ไทย");
-    trade_languages.push_back("Deutsch");
-    trade_languages.push_back("Français");
-    trade_languages.push_back("Español");
-    trade_languages.push_back("日本語");
+
+    QStringList trade_language_list;
+    trade_language_list.push_back("English");
+    trade_language_list.push_back("Português (Brasil)");
+    trade_language_list.push_back("Русский");
+    trade_language_list.push_back("ไทย");
+    trade_language_list.push_back("Deutsch");
+    trade_language_list.push_back("Français");
+    trade_language_list.push_back("Español");
+    trade_language_list.push_back("日本語");
 
     currency_language = new QComboBox{};
-    currency_language->addItems(trade_languages);
+    currency_language->addItems(trade_language_list);
     connect(currency_language,
             &QComboBox::currentIndexChanged,
             this,
@@ -420,7 +416,7 @@ void SettingsDialog::setupLanguageTab()
     layout->addRow(tr("Language for names of Exchange items:"), currency_language);
 
     trade_query_language = new QComboBox{};
-    trade_query_language->addItems(trade_languages);
+    trade_query_language->addItems(trade_language_list);
     connect(trade_query_language,
             &QComboBox::currentIndexChanged,
             this,
@@ -522,11 +518,6 @@ void SettingsDialog::saveHotkeys(QSettings& settings)
     Settings::set<hotkeys_paste_have>(paste_have->keySequence(), settings);
     Settings::set<hotkeys_paste_have_amount>(paste_have_amount->keySequence(), settings);
     Settings::set<hotkeys_open_link>(open_link->keySequence(), settings);
-}
-
-MainWindow* SettingsDialog::mw() const
-{
-    return static_cast<MainWindow*>(parent());
 }
 
 } // namespace planner

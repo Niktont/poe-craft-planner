@@ -70,7 +70,7 @@ void SnapshotView::deleteSnapshot()
     auto modifiers = QGuiApplication::keyboardModifiers();
     bool delete_search = modifiers.testFlag(Qt::ShiftModifier);
     if (!delete_search) {
-        QMessageBox msg;
+        QMessageBox msg{this};
         if (selection[0].top() == selection[0].bottom()) {
             msg.setWindowTitle(tr("Delete Snapshot"));
             msg.setText(tr("Delete this snapshot?"));

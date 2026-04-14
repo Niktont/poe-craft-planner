@@ -1,4 +1,6 @@
 #include "Step.h"
+#include "Plan.h"
+#include "PlanItem.h"
 #include "PlanModel.h"
 #include "StepItemsWidget.h"
 #include <boost/container/flat_map.hpp>

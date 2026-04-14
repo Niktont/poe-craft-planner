@@ -1,8 +1,7 @@
 #ifndef PLANMODEL_H
 #define PLANMODEL_H
 
-#include "Plan.h"
-#include "PlanItem.h"
+#include "Game.h"
 #include "HashFunctions.h"
 #include <boost/unordered/unordered_flat_map.hpp>
 #include <boost/unordered/unordered_flat_set.hpp>
@@ -11,10 +10,13 @@
 #include <QAbstractItemModel>
 #include <QUuid>
 
+class QSqlQuery;
+
 namespace planner {
-class MainWindow;
 class ImportOverwriteModel;
 class PlanSearchModel;
+class Plan;
+class PlanItem;
 
 enum class PlanItemColumn {
     Name,
@@ -27,7 +29,7 @@ class PlanModel : public QAbstractItemModel
 {
     Q_OBJECT
 public:
-    PlanModel(Game game, MainWindow& mw);
+    PlanModel(Game game, QObject* parent = nullptr);
     ~PlanModel();
 
     using Plans = boost::unordered::unordered_node_map<QUuid, Plan>;
@@ -75,21 +77,25 @@ public:
                       int column,
                       const QModelIndex& parent) override;
 
-    static std::vector<PlanItem*> decodePlanItemsMime(Game game, const QMimeData* data);
-    static std::vector<Plan*> decodeMimeToPlans(Game game, const QMimeData* data);
+    static std::vector<PlanItem*> decodePlanItemsMime(Game game, const QMimeData& data);
+    static std::vector<Plan*> decodeMimeToPlans(Game game, const QMimeData& data);
 
     QModelIndex index(int row, int column, const QModelIndex& parent = {}) const override;
     QModelIndex parent(const QModelIndex& index) const override;
 
     PlanItem* internalPtr(const QModelIndex& index = {}) const;
-    const PlanItem* constInternalPtr(const QModelIndex& index = {}) const;
+    const PlanItem* constInternalPtr(const QModelIndex& index = {}) const
+    {
+        return static_cast<const PlanItem*>(internalPtr(index));
+    }
 
     bool readDatabase();
 
-    bool importItem(const QJsonObject& export_o);
-    void exportItem(const QModelIndex& index, bool to_clipboard) const;
+    bool importItem(const QJsonObject& export_o, QWidget* dialog_parent = nullptr);
+    QString exportFileName(const QModelIndex& index) const;
+    QJsonDocument exportItem(const QModelIndex& index) const;
 
-    void savePlan(PlanItem* item);
+    void savePlan(const PlanItem& item);
     void savePlan(const QModelIndex& index);
     void saveAllPlans();
 
@@ -107,11 +113,12 @@ public:
 
     void updateCost(const QModelIndex& index);
 
-    MainWindow* mw() const;
-
 signals:
     void planRenamed(const planner::Plan& plan);
     void planUpdated(planner::Plan& updated_plan);
+
+    void descriptionsNeeded(planner::Game game, const planner::Plan* target_plan) const;
+    void currentNeedsReselecting(planner::Game game) const;
 
 private:
     std::unique_ptr<PlanItem> root;
@@ -119,26 +126,26 @@ private:
     QString base_plan_name;
     QString base_folder_name;
 
-    boost::unordered::unordered_flat_set<PlanItem*> changed_folders;
-    boost::unordered::unordered_flat_map<PlanItem*, bool> changed_plans;
+    boost::unordered::unordered_flat_set<const PlanItem*> changed_folders;
+    boost::unordered::unordered_flat_map<const PlanItem*, bool> changed_plans;
 
     mutable PlanItem* item_copy_state{};
 
     QModelIndex insertCopy(const QModelIndex& parent, int row, const PlanItem& item);
 
-    void setPlanChanged(PlanItem* item);
+    void setPlanChanged(const PlanItem& item);
 
-    void saveName(PlanItem& item);
+    void saveName(const PlanItem& item) const;
 
     void saveFoldersTransaction();
     void saveFolders(QSqlQuery& save_query);
-    void savePlanItem(PlanItem* item, QSqlQuery& save_query);
+    void savePlanItem(const PlanItem& item, QSqlQuery& save_query);
 
     bool gatherDependencies(QJsonObject& export_o,
                             const QJsonObject& item_o,
                             std::vector<QUuid>& dependencies) const;
 
-    bool handleOverwrite();
+    bool handleOverwrite(QWidget* dialog_parent);
     Plans import_plans;
 
     friend class PlanItem;

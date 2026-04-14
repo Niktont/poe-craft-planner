@@ -1,6 +1,5 @@
 #include "ExchangeRequestManager.h"
 #include "ExchangeRequestCache.h"
-#include "MainWindow.h"
 #include "Settings.h"
 #include <QFile>
 #include <QJsonArray>
@@ -16,8 +15,8 @@ namespace planner {
 
 ExchangeRequestManager::ExchangeRequestManager(QRestAccessManager& manager,
                                                const QString& user_agent,
-                                               MainWindow& parent)
-    : QObject{&parent}
+                                               QObject* parent)
+    : QObject{parent}
     , manager{&manager}
     , user_agent{user_agent}
 {}
@@ -103,8 +102,6 @@ bool ExchangeRequestManager::parseOverviewItems(const QJsonObject& overview,
         data.name = name;
         data.details_id = details_id;
         data.type = type;
-        data.is_changed = true;
-        cache.cache_changed = true;
 
         auto link_path = item_o["image"].toString();
         if (!link_path.isEmpty()) {

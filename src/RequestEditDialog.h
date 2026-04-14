@@ -12,14 +12,13 @@ class QPushButton;
 class QCheckBox;
 
 namespace planner {
-class MainWindow;
 class TradeRequestCache;
 
 class RequestEditDialog : public QDialog
 {
     Q_OBJECT
 public:
-    RequestEditDialog(MainWindow& mw);
+    RequestEditDialog(QWidget* parent = nullptr);
 
     TradeRequestKey edit_request;
 
@@ -61,7 +60,6 @@ private:
 
     TradeRequestCache* cache;
     Game game{Game::Unknown};
-    MainWindow* mw() const;
 
     bool is_name_valid{false};
     bool is_link_valid{false};

@@ -1,16 +1,19 @@
 #include "UpdateCostDialog.h"
+#include "AppState.h"
 #include "CustomEditDialog.h"
 #include "ExchangeRequestCache.h"
 #include "ExchangeRequestManager.h"
-#include "MainWindow.h"
 #include "Plan.h"
+#include "PlanModel.h"
 #include "Settings.h"
 #include "SnapshotModel.h"
+#include "StepItem.h"
 #include "TradeRequestCache.h"
 #include "TradeRequestManager.h"
 #include <QCloseEvent>
 #include <QLabel>
 #include <QListView>
+#include <QMessageBox>
 #include <QNetworkReply>
 #include <QPushButton>
 #include <QRestReply>
@@ -22,11 +25,9 @@ using namespace std::chrono;
 
 namespace planner {
 
-UpdateCostDialog::UpdateCostDialog(MainWindow& mw)
-    : QDialog{&mw}
+UpdateCostDialog::UpdateCostDialog(QWidget* parent)
+    : QDialog{parent}
 {
-    setWindowTitle(tr("Update Costs"));
-
     auto main_layout = new QVBoxLayout{};
     main_layout->setVerticalSizeConstraint(QLayout::SetFixedSize);
     setLayout(main_layout);
@@ -54,13 +55,14 @@ void UpdateCostDialog::updatePlan(Plan* plan, bool send_requests)
         return;
 
     plan_ = plan;
+    setWindowTitle(tr("%1 - Update").arg(plan_->name));
 
     dependencies.clear();
     dependencies.push_back(plan->id());
-    auto plan_model = mw()->planModel(plan->game);
+    auto plan_model = AppState::planModel(plan->game);
     plan->gatherDependencies(*plan_model, dependencies);
 
-    if (!send_requests || mw()->snapshots(plan->game)->current) {
+    if (!send_requests || AppState::snapshots(plan->game)->current) {
         trade_finished = true;
         exchange_finished = true;
         calculateCost();
@@ -70,8 +72,8 @@ void UpdateCostDialog::updatePlan(Plan* plan, bool send_requests)
     cancel_button->setText(tr("Cancel"));
     progress_label->setText(tr("Requesting data..."));
 
-    auto trade_cache = mw()->tradeCache(plan->game);
-    auto exchange_cache = mw()->exchangeCache(plan->game);
+    auto trade_cache = AppState::tradeCache(plan->game);
+    auto exchange_cache = AppState::exchangeCache(plan->game);
 
     auto now = QDateTime::currentDateTimeUtc();
     for (auto& id : dependencies) {
@@ -91,7 +93,7 @@ void UpdateCostDialog::updatePlan(Plan* plan, bool send_requests)
     if (!trade_finished) {
         checkCurrency({"chaos"}, now, *exchange_cache);
         if (!is_active_trade) {
-            QTimer::singleShot(mw()->trade_manager->searchDelay(),
+            QTimer::singleShot(AppState::state.trade_manager->searchDelay(),
                                this,
                                &UpdateCostDialog::requestTradeSearch);
         }
@@ -133,7 +135,7 @@ void UpdateCostDialog::requestTradeSearch()
         return;
     }
 
-    auto trade_cache = mw()->tradeCache(plan_->game);
+    auto trade_cache = AppState::tradeCache(plan_->game);
 
     auto node = trade_requests.extract(trade_requests.begin());
     auto it = trade_cache->requestData(node.value());
@@ -148,7 +150,9 @@ void UpdateCostDialog::requestTradeSearch()
     }
 
     is_active_trade = true;
-    auto reply = mw()->trade_manager->postSearchRequest(plan_->game, it->first, it->second.query());
+    auto reply = AppState::state.trade_manager->postSearchRequest(plan_->game,
+                                                                  it->first,
+                                                                  it->second.query());
     connect(reply,
             &QNetworkReply::finished,
             this,
@@ -171,7 +175,7 @@ void UpdateCostDialog::requestExchangeCost()
 
     is_active_exchange = true;
     auto type{std::move(exchange_requests.extract(exchange_requests.begin()).value())};
-    auto reply = mw()->exchange_manager->getOverview(plan_->game, type);
+    auto reply = AppState::state.exchange_manager->getOverview(plan_->game, type);
     connect(reply, &QNetworkReply::finished, this, [this, game = plan_->game, reply] {
         parseExchangeCostData(game, reply);
     });
@@ -194,9 +198,11 @@ void UpdateCostDialog::parseTradeSearch(Game game,
         return;
     }
 
-    auto items = mw()->trade_manager->parseSearchReply(reply, json->object(), trade_requests.size());
+    auto items = AppState::state.trade_manager->parseSearchReply(reply,
+                                                                 json->object(),
+                                                                 trade_requests.size());
     if (items.first == 0) {
-        auto trade_cache = mw()->tradeCache(game);
+        auto trade_cache = AppState::tradeCache(game);
         trade_cache->updateCost(request, {QDateTime::currentDateTimeUtc(), {}});
 
         if (auto it = trade_cache->requestData(request);
@@ -206,7 +212,7 @@ void UpdateCostDialog::parseTradeSearch(Game game,
         if (!trade_requests.empty()) {
             updateProgress();
             is_active_trade = true;
-            QTimer::singleShot(mw()->trade_manager->searchDelay(),
+            QTimer::singleShot(AppState::state.trade_manager->searchDelay(),
                                this,
                                &UpdateCostDialog::requestTradeSearch);
         } else {
@@ -217,9 +223,10 @@ void UpdateCostDialog::parseTradeSearch(Game game,
     } else {
         is_active_trade = true;
         size_t items_to_fetch = std::clamp(items.second.size() / 10, 1ull, 10ull);
-        auto fetch_reply = mw()->trade_manager->fetchItems(game,
-                                                           request,
-                                                           {items.second.begin(), items_to_fetch});
+        auto fetch_reply = AppState::state.trade_manager->fetchItems(game,
+                                                                     request,
+                                                                     {items.second.begin(),
+                                                                      items_to_fetch});
         connect(fetch_reply, &QNetworkReply::finished, this, [=, this, total = items.first] {
             parseFetchSearch(game, request, total, fetch_reply);
         });
@@ -246,8 +253,8 @@ void UpdateCostDialog::parseFetchSearch(Game game,
     if (!TradeRequestManager::parseFetchReply(json->object(),
                                               request,
                                               total,
-                                              *mw()->exchangeCache(game),
-                                              *mw()->tradeCache(game))) {
+                                              *AppState::exchangeCache(game),
+                                              *AppState::tradeCache(game))) {
         parseFailed();
         return;
     }
@@ -255,7 +262,7 @@ void UpdateCostDialog::parseFetchSearch(Game game,
     if (!trade_requests.empty()) {
         updateProgress();
         is_active_trade = true;
-        QTimer::singleShot(mw()->trade_manager->searchDelay(),
+        QTimer::singleShot(AppState::state.trade_manager->searchDelay(),
                            this,
                            &UpdateCostDialog::requestTradeSearch);
     } else {
@@ -281,7 +288,7 @@ void UpdateCostDialog::parseExchangeCostData(Game game, QNetworkReply* reply)
     }
 
     const auto obj = json->object();
-    auto exchange_cache = mw()->exchangeCache(game);
+    auto exchange_cache = AppState::exchangeCache(game);
     if (!ExchangeRequestManager::parseOverviewCosts(obj, *exchange_cache)
         || !ExchangeRequestManager::parseCore(obj["core"].toObject(), *exchange_cache)) {
         parseFailed();
@@ -298,11 +305,6 @@ void UpdateCostDialog::parseExchangeCostData(Game game, QNetworkReply* reply)
         if (plan_)
             calculateCost();
     }
-}
-
-MainWindow* UpdateCostDialog::mw() const
-{
-    return static_cast<MainWindow*>(parent());
 }
 
 void UpdateCostDialog::checkCurrency(const Currency& currency,
@@ -358,7 +360,7 @@ void UpdateCostDialog::updateProgress()
 {
     auto request_count = trade_requests.size() + exchange_requests.size();
 
-    auto trade_requests_estimation = mw()->trade_manager->currentSearchDelay()
+    auto trade_requests_estimation = AppState::state.trade_manager->currentSearchDelay()
                                      * std::ssize(trade_requests);
     auto exchange_requests_estimation = Settings::exchangeRequestDelay()
                                         * std::ssize(exchange_requests);
@@ -374,7 +376,7 @@ void UpdateCostDialog::calculateCost()
     if (!plan_ || !trade_finished || !exchange_finished || plan_->locked)
         return;
 
-    auto plan_model = mw()->planModel(plan_->game);
+    auto plan_model = AppState::planModel(plan_->game);
 
     std::vector<std::pair<Plan*, bool>> plans;
     for (auto& id : std::views::reverse(dependencies)) {
@@ -390,7 +392,7 @@ void UpdateCostDialog::calculateCost()
         }
     }
 
-    auto snapshot_name = mw()->snapshots(plan_->game)->currentName();
+    auto snapshot_name = AppState::snapshots(plan_->game)->currentName();
     bool parse_failed = false;
     for (auto& [plan, final_changed] : plans) {
         if (!parse_failed) {
@@ -433,11 +435,11 @@ void UpdateCostDialog::calculateCost()
 
 bool UpdateCostDialog::calculateStepCost(const Plan& step_plan, Step& step)
 {
-    auto trade_cache = mw()->tradeCache(step_plan.game);
-    auto exchange_cache = mw()->exchangeCache(step_plan.game);
-    auto plan_model = mw()->planModel(step_plan.game);
+    auto trade_cache = AppState::tradeCache(step_plan.game);
+    auto exchange_cache = AppState::exchangeCache(step_plan.game);
+    auto plan_model = AppState::planModel(step_plan.game);
 
-    auto& custom_visitor = mw()->custom_edit_dialog->calc.visitor;
+    auto& custom_visitor = AppState::state.custom_edit_dialog->calc.visitor;
     custom_visitor.setPlan(step_plan);
     custom_visitor.setModels(*exchange_cache, *trade_cache, *plan_model);
 
@@ -560,14 +562,14 @@ bool UpdateCostDialog::calculateStepCustomCost(bool is_resource_cost,
     auto& cost = is_resource_cost ? step.resources_cost : step.results_cost;
     auto& items = is_resource_cost ? step.resources : step.results;
     auto& custom_data = is_resource_cost ? step.custom_resource_data : step.custom_result_data;
-    auto& calc = mw()->custom_edit_dialog->calc;
+    auto& calc = AppState::state.custom_edit_dialog->calc;
 
     calc.visitor.setItems(items);
 
     std::optional<CustomResult> result;
     try {
         result = calc.calculate(custom_data);
-    } catch (ParseException& e) {
+    } catch (ParseException&) {
         custom_data.tree.reset();
     }
     if (!result) {

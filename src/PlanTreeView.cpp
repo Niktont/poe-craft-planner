@@ -1,6 +1,12 @@
 #include "PlanTreeView.h"
+#include "Plan.h"
+#include "PlanItem.h"
 #include "PlanModel.h"
+#include <QApplication>
+#include <QClipboard>
 #include <QContextMenuEvent>
+#include <QFile>
+#include <QFileDialog>
 #include <QHeaderView>
 #include <QMenu>
 #include <QMessageBox>
@@ -63,12 +69,11 @@ PlanTreeView::PlanTreeView(PlanModel& model, QWidget* parent)
     delete_action->setShortcutContext(Qt::WidgetShortcut);
 
     export_clipboard_action = addAction(tr("Export (Clipboard)"), this, [this] {
-        planModel()->exportItem(selectionModel()->currentIndex(), true);
+        qApp->clipboard()->setText(
+            planModel()->exportItem(selectionModel()->currentIndex()).toJson(QJsonDocument::Compact));
     });
 
-    export_file_action = addAction(tr("Export (File)"), this, [this] {
-        planModel()->exportItem(selectionModel()->currentIndex(), false);
-    });
+    export_file_action = addAction(tr("Export (File)"), this, &PlanTreeView::exportToFile);
 }
 
 PlanModel* PlanTreeView::planModel()
@@ -125,14 +130,6 @@ void PlanTreeView::contextMenuEvent(QContextMenuEvent* event)
     menu->popup(event->globalPos());
 }
 
-void PlanTreeView::keyPressEvent(QKeyEvent* event)
-{
-    if (delete_action->shortcut().matches(event->keyCombination())) {
-        delete_action->trigger();
-    } else
-        QTreeView::keyPressEvent(event);
-}
-
 void PlanTreeView::restoreItem()
 {
     auto current = selectionModel()->currentIndex();
@@ -145,7 +142,7 @@ void PlanTreeView::restoreItem()
     auto modifiers = QGuiApplication::keyboardModifiers();
     bool restore_item = modifiers.testFlag(Qt::ShiftModifier);
     if (!restore_item) {
-        QMessageBox msg;
+        QMessageBox msg{this};
         msg.setWindowTitle(tr("Restore Plan"));
         msg.setText(tr("Discard changes to \"%1\"?").arg(item->name()));
         msg.addButton(QMessageBox::Ok);
@@ -167,7 +164,7 @@ void PlanTreeView::deleteItem()
     bool delete_item = modifiers.testFlag(Qt::ShiftModifier)
                        || (item->isFolder() && item->childCount() == 0);
     if (!delete_item) {
-        QMessageBox msg;
+        QMessageBox msg{this};
         if (item->isFolder())
             msg.setWindowTitle(tr("Delete Folder"));
         else
@@ -179,6 +176,32 @@ void PlanTreeView::deleteItem()
     }
     if (delete_item)
         planModel()->removeRows(current.row(), 1, current.parent());
+}
+
+void PlanTreeView::exportToFile()
+{
+    auto current = selectionModel()->currentIndex();
+    auto name = planModel()->exportFileName(current);
+
+    auto file_name = QFileDialog::getSaveFileName(this,
+                                                  tr("Export"),
+                                                  name + ".json",
+                                                  tr("JSON file (*.json)"));
+    if (file_name.isEmpty())
+        return;
+
+    auto json = planModel()->exportItem(current);
+
+    QFile file{file_name};
+    if (file.open(QFile::WriteOnly))
+        file.write(json.toJson(QJsonDocument::Compact));
+    else {
+        auto msg = new QMessageBox{this};
+        msg->setAttribute(Qt::WA_DeleteOnClose);
+        msg->setWindowTitle(tr("Export Failed"));
+        msg->setText(tr("Failed to write file \"%1\".").arg(file_name));
+        msg->open();
+    }
 }
 
 } // namespace planner

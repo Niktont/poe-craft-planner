@@ -6,10 +6,8 @@
 #include <QAbstractTableModel>
 
 namespace planner {
-class PlanWidget;
 class ExchangeRequestCache;
 class TradeRequestCache;
-class MainWindow;
 class ExchangeItemData;
 class TradeItemData;
 class CustomItemData;
@@ -37,7 +35,7 @@ class StepItemModel : public QAbstractTableModel
 {
     Q_OBJECT
 public:
-    explicit StepItemModel(bool is_resource_model, PlanWidget& plan_widget);
+    explicit StepItemModel(bool is_resource_model, QObject* parent = nullptr);
 
     QVariant headerData(int section,
                         Qt::Orientation orientation,
@@ -85,7 +83,7 @@ public:
                       const QModelIndex& parent) override;
 
     static std::pair<StepItemModel*, std::vector<StepItem*>> decodeStepItemsMime(
-        Game game, const QMimeData* data);
+        Game game, const QMimeData& data);
 
     const bool is_resource_model{};
     size_t stepPos() const { return step_pos; }
@@ -96,7 +94,8 @@ public:
     void updateTime(const planner::TradeRequestKey& request);
     void updateTime(const planner::Currency& currency);
 
-    void updateStepName(const QUuid& changed_step, bool deleted);
+    void clearStep(const QUuid& deleted_step);
+    void updateStepName(const QUuid& changed_step);
     void updatePlanName(const QUuid& changed_plan);
 
     void updatePos(size_t new_pos) { step_pos = new_pos; }
@@ -119,12 +118,15 @@ public:
     void openLink(const QModelIndex& idx);
 
     Game game() const;
-    PlanWidget* planWidget() const;
 
     Step* step();
     const Step* step() const { return const_cast<StepItemModel*>(this)->step(); };
 
     PlanModel* planModel() const { return plan_model; }
+
+signals:
+    void planLinkClicked(const QUuid& plan_id, planner::Game game) const;
+    void stepLinkClicked(const QUuid& step_id) const;
 
 private slots:
     void updateRowNumbers(const QModelIndex& idx, int first, int last);
@@ -132,7 +134,7 @@ private slots:
 private:
     friend class StepItemDelegate;
 
-    Plan* plan{};
+    Plan* plan_{};
     size_t step_pos{};
     ExchangeRequestCache* exchange_cache{};
     TradeRequestCache* trade_cache{};
@@ -180,10 +182,8 @@ private:
     static QVariant formatGold(double gold);
     static QVariant formatTime(ItemTime time);
 
-    MainWindow* mw() const;
-
-    void moveItems(int dest_row, const QMimeData* data);
-    void addPlanItems(int dest_row, const QMimeData* data);
+    void moveItems(int dest_row, const QMimeData& data);
+    void addPlanItems(int dest_row, const QMimeData& data);
 };
 
 } // namespace planner

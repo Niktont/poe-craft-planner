@@ -1,4 +1,6 @@
 #include "ImportOverwriteModel.h"
+#include "Plan.h"
+#include "PlanItem.h"
 
 namespace planner {
 

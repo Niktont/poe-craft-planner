@@ -5,13 +5,12 @@
 
 namespace planner {
 class TradeRequestCache;
-class MainWindow;
 
 class TradeRequestView : public QTableView
 {
     Q_OBJECT
 public:
-    TradeRequestView(MainWindow& mw, QWidget* parent = nullptr);
+    TradeRequestView(QWidget* parent = nullptr);
 
 public:
     void setCache(TradeRequestCache& cache);
@@ -28,7 +27,6 @@ private slots:
 
 private:
     TradeRequestCache* cache{};
-    MainWindow* mw;
 
     QAction* edit_action;
     QAction* add_action;

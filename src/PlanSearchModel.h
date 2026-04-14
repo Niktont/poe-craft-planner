@@ -33,7 +33,7 @@ public:
 
     void updatePath(const Plan& plan);
 
-    QUuid planId(const QModelIndex& idx) const { return plans.nth(idx.row())->first; }
+    const QUuid& planId(const QModelIndex& idx) const { return plans.nth(idx.row())->first; }
 
     QVariant headerData(int section,
                         Qt::Orientation orientation,

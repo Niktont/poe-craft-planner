@@ -1,6 +1,6 @@
 #include "StepItemDelegate.h"
+#include "AppState.h"
 #include "ExchangeRequestCache.h"
-#include "MainWindow.h"
 #include "Plan.h"
 #include "PlanModel.h"
 #include "PlanSearchModel.h"
@@ -56,7 +56,7 @@ QWidget* StepItemDelegate::createEditor(QWidget* parent,
         if (items[index.row()].type() == StepItemType::Exchange)
             return createCurrencyEdit(parent, step_model);
         if (items[index.row()].type() == StepItemType::Step) {
-            auto steps = step_model->plan->stepsName(step_model->stepPos());
+            auto steps = step_model->plan_->stepsName(step_model->stepPos());
             auto combo = new QComboBox{parent};
             combo->addItems(steps);
             connect(combo, &QComboBox::activated, this, &StepItemDelegate::commitAndCloseEditor);
@@ -169,8 +169,8 @@ void StepItemDelegate::setModelData(QWidget* editor,
             auto selected_index = edit->property("index").toModelIndex();
             if (!selected_index.isValid())
                 return;
-            auto id = static_cast<PlanSearchModel*>(edit->completer()->model())
-                          ->planId(selected_index);
+            auto& id = static_cast<PlanSearchModel*>(edit->completer()->model())
+                           ->planId(selected_index);
             model->setData(index, id);
             return;
         }
@@ -280,7 +280,7 @@ QLineEdit* StepItemDelegate::createPlanEdit(QWidget* parent, const StepItemModel
 {
     auto edit = new QLineEdit{parent};
 
-    edit->setCompleter(model->mw()->planModel(model->game())->search_model->completer);
+    edit->setCompleter(AppState::planModel(model->game())->search_model->completer);
     connect(edit->completer(),
             qOverload<const QModelIndex&>(&QCompleter::activated),
             this,

@@ -1,4 +1,6 @@
 #include "PlanSearchModel.h"
+#include "Plan.h"
+#include "PlanItem.h"
 #include "PlanModel.h"
 #include <QCompleter>
 #include <QSortFilterProxyModel>

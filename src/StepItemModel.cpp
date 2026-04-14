@@ -1,10 +1,11 @@
 #include "StepItemModel.h"
+#include "AppState.h"
 #include "ExchangeRequestCache.h"
-#include "MainWindow.h"
 #include "Plan.h"
-#include "PlanWidget.h"
+#include "PlanModel.h"
 #include "RequestEditDialog.h"
 #include "Step.h"
+#include "StepItemCopyState.h"
 #include "TradeRequestCache.h"
 #include <boost/container/flat_set.hpp>
 #include <QApplication>
@@ -18,8 +19,8 @@ using namespace Qt::StringLiterals;
 
 namespace planner {
 
-StepItemModel::StepItemModel(bool is_resource_model, PlanWidget& plan_widget)
-    : QAbstractTableModel{&plan_widget}
+StepItemModel::StepItemModel(bool is_resource_model, QObject* parent)
+    : QAbstractTableModel{parent}
     , is_resource_model{is_resource_model}
 {
     connect(this, &QAbstractTableModel::rowsInserted, this, &StepItemModel::updateRowNumbers);
@@ -92,7 +93,7 @@ QVariant StepItemModel::headerData(int section, Qt::Orientation orientation, int
 
 int StepItemModel::rowCount(const QModelIndex& parent) const
 {
-    if (!plan || parent.isValid())
+    if (!plan_ || parent.isValid())
         return 0;
 
     return stepItems().size();
@@ -107,7 +108,7 @@ int StepItemModel::columnCount(const QModelIndex& parent) const
 
 bool StepItemModel::insertRows(int row, int count, const QModelIndex& parent)
 {
-    if (!plan || row < 0 || count == 0)
+    if (!plan_ || row < 0 || count == 0)
         return false;
 
     auto& items = stepItems();
@@ -117,7 +118,7 @@ bool StepItemModel::insertRows(int row, int count, const QModelIndex& parent)
     beginInsertRows(parent, row, row + count - 1);
 
     items.insert(items.begin() + row, count, {});
-    plan->setChanged();
+    plan_->setChanged();
 
     endInsertRows();
 
@@ -130,7 +131,7 @@ bool StepItemModel::moveRows(const QModelIndex& sourceParent,
                              const QModelIndex& destinationParent,
                              int destinationChild)
 {
-    if (!plan || count == 0 || sourceRow < 0 || destinationChild < 0)
+    if (!plan_ || count == 0 || sourceRow < 0 || destinationChild < 0)
         return false;
 
     auto& items = stepItems();
@@ -159,14 +160,14 @@ bool StepItemModel::moveRows(const QModelIndex& sourceParent,
     else
         std::rotate(first, last, dest);
 
-    plan->setChanged();
+    plan_->setChanged();
     endMoveRows();
     return true;
 }
 
 bool StepItemModel::removeRows(int row, int count, const QModelIndex& parent)
 {
-    if (!plan || row < 0 || count == 0)
+    if (!plan_ || row < 0 || count == 0)
         return false;
 
     auto& items = stepItems();
@@ -178,7 +179,7 @@ bool StepItemModel::removeRows(int row, int count, const QModelIndex& parent)
     beginRemoveRows(parent, row, row + count - 1);
 
     items.erase(first, first + count);
-    plan->setChanged();
+    plan_->setChanged();
 
     endRemoveRows();
 
@@ -192,7 +193,7 @@ QModelIndex StepItemModel::index(int row, StepItemColumn column) const
 
 QVariant StepItemModel::data(const QModelIndex& index, int role) const
 {
-    if (!index.isValid() || !plan)
+    if (!index.isValid() || !plan_)
         return {};
 
     auto& items = stepItems();
@@ -283,7 +284,7 @@ QVariant StepItemModel::data(const QModelIndex& index, int role) const
 
 bool StepItemModel::setData(const QModelIndex& index, const QVariant& value, int role)
 {
-    if (!index.isValid() || !plan)
+    if (!index.isValid() || !plan_)
         return false;
 
     auto& items = stepItems();
@@ -298,7 +299,7 @@ bool StepItemModel::setData(const QModelIndex& index, const QVariant& value, int
             return false;
         if (item.is_success_result != checked) {
             item.is_success_result = checked;
-            plan->setChanged();
+            plan_->setChanged();
             emit dataChanged(index, index, {role});
             return true;
         }
@@ -317,8 +318,8 @@ bool StepItemModel::setData(const QModelIndex& index, const QVariant& value, int
             return false;
         if (val != item.amount) {
             item.amount = val;
-            plan->setChanged();
-            emit dataChanged(index, index, {role});
+            plan_->setChanged();
+            emit dataChanged(index, index, {Qt::DisplayRole});
             return true;
         }
         return false;
@@ -339,14 +340,14 @@ bool StepItemModel::setData(const QModelIndex& index, const QVariant& value, int
         res = setPlanItemData(*plan, value, index);
 
     if (res)
-        plan->setChanged();
+        plan_->setChanged();
 
     return res;
 }
 
 Qt::ItemFlags StepItemModel::flags(const QModelIndex& index) const
 {
-    if (!plan)
+    if (!plan_)
         return Qt::NoItemFlags;
     if (!index.isValid())
         return Qt::ItemIsDropEnabled;
@@ -394,17 +395,17 @@ const QString StepItemModel::move_mime_poe2{u"application/x-movestepitem2"};
 
 QStringList StepItemModel::mimeTypes() const
 {
-    if (!plan)
+    if (!plan_)
         return {};
 
     QStringList types;
-    types << (plan->game == Game::Poe1 ? move_mime_poe1 : move_mime_poe2);
+    types << (plan_->game == Game::Poe1 ? move_mime_poe1 : move_mime_poe2);
     return types;
 }
 
 QMimeData* StepItemModel::mimeData(const QModelIndexList& indexes) const
 {
-    if (indexes.empty() || !plan)
+    if (indexes.empty() || !plan_)
         return nullptr;
 
     auto mime_data = new QMimeData{};
@@ -423,7 +424,7 @@ QMimeData* StepItemModel::mimeData(const QModelIndexList& indexes) const
     for (auto item : item_ptrs)
         stream << std::bit_cast<size_t>(item);
 
-    mime_data->setData(plan->game == Game::Poe1 ? move_mime_poe1 : move_mime_poe2, encodedData);
+    mime_data->setData(plan_->game == Game::Poe1 ? move_mime_poe1 : move_mime_poe2, encodedData);
     return mime_data;
 }
 
@@ -433,27 +434,26 @@ bool StepItemModel::canDropMimeData(const QMimeData* data,
                                     int /*column*/,
                                     const QModelIndex& /*parent*/) const
 {
-    if (!plan)
+    if (!plan_)
         return false;
 
-    auto& move_mime = plan->game == Game::Poe1 ? move_mime_poe1 : move_mime_poe2;
-    auto& plan_mime = plan->game == Game::Poe1 ? PlanModel::move_mime_poe1
-                                               : PlanModel::move_mime_poe2;
+    auto& move_mime = plan_->game == Game::Poe1 ? move_mime_poe1 : move_mime_poe2;
+    auto& plan_mime = plan_->game == Game::Poe1 ? PlanModel::move_mime_poe1
+                                                : PlanModel::move_mime_poe2;
     if (!data->hasFormat(move_mime) && !data->hasFormat(plan_mime))
         return false;
 
     return true;
 }
 
-void planner::StepItemModel::moveItems(int dest_row, const QMimeData* data)
+void planner::StepItemModel::moveItems(int dest_row, const QMimeData& data)
 {
-    auto [source_model, source_ptrs] = decodeStepItemsMime(plan->game, data);
+    auto [source_model, source_ptrs] = decodeStepItemsMime(plan_->game, data);
 
     auto& items = stepItems();
     if (source_model == this) {
         for (auto item : source_ptrs) {
             moveRows({}, std::distance(&items.front(), item), 1, {}, dest_row);
-            ++dest_row;
         }
     } else {
         for (auto source_item : source_ptrs) {
@@ -461,7 +461,7 @@ void planner::StepItemModel::moveItems(int dest_row, const QMimeData* data)
             items.insert(items.begin() + dest_row, std::move(*source_item));
             endInsertRows();
 
-            plan->setChanged();
+            plan_->setChanged();
             ++dest_row;
         }
 
@@ -475,9 +475,9 @@ void planner::StepItemModel::moveItems(int dest_row, const QMimeData* data)
     }
 }
 
-void StepItemModel::addPlanItems(int dest_row, const QMimeData* data)
+void StepItemModel::addPlanItems(int dest_row, const QMimeData& data)
 {
-    auto plans_to_add = PlanModel::decodeMimeToPlans(plan->game, data);
+    auto plans_to_add = PlanModel::decodeMimeToPlans(plan_->game, data);
     if (plans_to_add.empty())
         return;
 
@@ -488,7 +488,7 @@ void StepItemModel::addPlanItems(int dest_row, const QMimeData* data)
     base_item.amount = amount;
     base_item.data.emplace<PlanItemData>();
 
-    beginInsertRows({}, dest_row, dest_row + plans_to_add.size() - 1);
+    beginInsertRows({}, dest_row, dest_row + static_cast<int>(plans_to_add.size()) - 1);
 
     items.insert(items.begin() + dest_row, plans_to_add.size(), base_item);
     for (auto plan_to_add : plans_to_add) {
@@ -496,7 +496,7 @@ void StepItemModel::addPlanItems(int dest_row, const QMimeData* data)
         ++dest_row;
     }
 
-    plan->setChanged();
+    plan_->setChanged();
 
     endInsertRows();
 }
@@ -516,20 +516,20 @@ bool StepItemModel::dropMimeData(
     else
         dest_row = rowCount();
 
-    auto& move_mime = plan->game == Game::Poe1 ? move_mime_poe1 : move_mime_poe2;
+    auto& move_mime = plan_->game == Game::Poe1 ? move_mime_poe1 : move_mime_poe2;
     if (data->hasFormat(move_mime))
-        moveItems(dest_row, data);
+        moveItems(dest_row, *data);
     else
-        addPlanItems(dest_row, data);
+        addPlanItems(dest_row, *data);
 
     return true;
 }
 
 std::pair<StepItemModel*, std::vector<StepItem*>> StepItemModel::decodeStepItemsMime(
-    Game game, const QMimeData* data)
+    Game game, const QMimeData& data)
 {
     auto& move_mime = game == Game::Poe1 ? move_mime_poe1 : move_mime_poe2;
-    QByteArray encodedData = data->data(move_mime);
+    QByteArray encodedData = data.data(move_mime);
     QDataStream stream{&encodedData, QIODevice::ReadOnly};
 
     size_t source_ptr;
@@ -548,7 +548,7 @@ std::pair<StepItemModel*, std::vector<StepItem*>> StepItemModel::decodeStepItems
 
 const StepItem* StepItemModel::stepItem(const QModelIndex& idx) const
 {
-    if (!plan || !idx.isValid())
+    if (!plan_ || !idx.isValid())
         return nullptr;
 
     return &stepItems()[idx.row()];
@@ -556,8 +556,8 @@ const StepItem* StepItemModel::stepItem(const QModelIndex& idx) const
 
 Step* StepItemModel::step()
 {
-    assert(plan);
-    return &plan->steps[step_pos];
+    assert(plan_);
+    return &plan_->steps[step_pos];
 }
 
 void StepItemModel::updateRowNumbers(const QModelIndex& /*idx*/, int /*first*/, int last)
@@ -573,13 +573,13 @@ void StepItemModel::updateRowNumbers(const QModelIndex& /*idx*/, int /*first*/, 
 
 std::vector<StepItem>& StepItemModel::stepItems()
 {
-    assert(plan);
+    assert(plan_);
     return is_resource_model ? step()->resources : step()->results;
 }
 
 const std::vector<StepItem>& StepItemModel::stepItems() const
 {
-    assert(plan);
+    assert(plan_);
     return is_resource_model ? step()->resources : step()->results;
 }
 
@@ -596,24 +596,24 @@ void StepItemModel::setItemType(const QModelIndex& index, StepItemType type)
         auto& trade = item.data.emplace<TradeItemData>();
         trade.name = name;
         trade.time = time;
-        if (auto key = TradeRequestKey::fromUrl(link, plan->game))
+        if (auto key = TradeRequestKey::fromUrl(link, plan_->game))
             trade.request_key = key.assume_value();
     } else if (auto trade = item.trade(); trade && type == StepItemType::Custom) {
         auto name = std::move(trade->name);
         auto key = std::move(trade->request_key);
         auto time = trade_cache->time(*trade);
-        auto& custom = item.data.emplace<CustomItemData>();
-        custom.name = name;
-        custom.link = key.toUrl(plan->game);
-        custom.time = time;
+        auto& custom_data = item.data.emplace<CustomItemData>();
+        custom_data.name = name;
+        custom_data.link = key.toUrl(plan_->game);
+        custom_data.time = time;
         if (auto data = trade_cache->costData(key)) {
-            custom.cost = data->cost;
-            custom.gold = data->gold_fee;
+            custom_data.cost = data->cost;
+            custom_data.gold = data->gold_fee;
         }
     } else
         item.setType(type);
 
-    plan->setChanged();
+    plan_->setChanged();
     emit dataChanged(index, index.siblingAtColumn(columnCount() - 1));
 }
 
@@ -788,7 +788,7 @@ QVariant StepItemModel::tradeItemData(double amount,
                 return it->second.name();
             return {};
         case Qt::ToolTipRole:
-            if (auto url = trade.request_key.toUrl(plan->game); !url.isEmpty())
+            if (auto url = trade.request_key.toUrl(plan_->game); !url.isEmpty())
                 return url;
             return {};
         }
@@ -1025,8 +1025,8 @@ QVariant StepItemModel::stepItemData(double amount,
                                      StepItemColumn col,
                                      int role) const
 {
-    auto step_it = plan->findStepIt(step_item.step_id);
-    if (step_it == plan->steps.end())
+    auto step_it = plan_->findStepIt(step_item.step_id);
+    if (step_it == plan_->steps.end())
         return {};
 
     auto& cache = exchange_cache->cache;
@@ -1036,7 +1036,7 @@ QVariant StepItemModel::stepItemData(double amount,
         case Qt::DisplayRole:
             return step_it->name;
         case Qt::EditRole:
-            return std::distance(plan->steps.cbegin(), step_it);
+            return std::distance(plan_->steps.cbegin(), step_it);
         }
         return {};
     case StepItemColumn::Link:
@@ -1099,10 +1099,10 @@ bool StepItemModel::setStepItemData(StepItemData& step_item,
         return false;
 
     auto new_pos = value.toULongLong();
-    if (new_pos >= plan->steps.size() || new_pos >= step_pos)
+    if (new_pos >= plan_->steps.size() || new_pos >= step_pos)
         return false;
 
-    step_item.step_id = plan->steps[new_pos].id;
+    step_item.step_id = plan_->steps[new_pos].id;
     auto right_idx = sibling(idx, StepItemColumn::Time);
     emit dataChanged(idx, right_idx);
     return true;
@@ -1266,20 +1266,20 @@ QVariant StepItemModel::formatTime(ItemTime time)
     return QString::number(seconds, 'g', 5);
 }
 
-void StepItemModel::setStep(Plan* plan, size_t step_pos)
+void StepItemModel::setStep(Plan* plan, size_t step_pos_)
 {
     beginResetModel();
-    this->plan = plan;
-    this->step_pos = step_pos;
+    plan_ = plan;
+    this->step_pos = step_pos_;
     if (plan) {
         if (plan->game == Game::Poe1) {
-            exchange_cache = mw()->exchange_cache_poe1;
-            trade_cache = mw()->trade_cache_poe1;
-            plan_model = mw()->plan_model_poe1;
+            exchange_cache = AppState::state.exchange_cache_poe1;
+            trade_cache = AppState::state.trade_cache_poe1;
+            plan_model = AppState::state.plan_model_poe1;
         } else {
-            exchange_cache = mw()->exchange_cache_poe2;
-            trade_cache = mw()->trade_cache_poe2;
-            plan_model = mw()->plan_model_poe2;
+            exchange_cache = AppState::state.exchange_cache_poe2;
+            trade_cache = AppState::state.trade_cache_poe2;
+            plan_model = AppState::state.plan_model_poe2;
         }
     }
     endResetModel();
@@ -1287,7 +1287,7 @@ void StepItemModel::setStep(Plan* plan, size_t step_pos)
 
 void StepItemModel::updateCosts()
 {
-    if (!plan)
+    if (!plan_)
         return;
     auto& items = stepItems();
     if (items.empty())
@@ -1298,27 +1298,38 @@ void StepItemModel::updateCosts()
     emit dataChanged(top_left, bottom_right);
 }
 
-void StepItemModel::updateStepName(const QUuid& changed_step, bool deleted)
+void StepItemModel::clearStep(const QUuid& deleted_step)
 {
-    if (!plan)
+    if (!plan_)
+        return;
+
+    auto& items = stepItems();
+    for (size_t i = 0; i < items.size(); ++i) {
+        if (auto step = items[i].step(); step && step->step_id == deleted_step) {
+            auto idx = index(i, StepItemColumn::Name);
+            auto right_idx = sibling(idx, StepItemColumn::Time);
+            emit dataChanged(idx, right_idx);
+        }
+    }
+}
+
+void StepItemModel::updateStepName(const QUuid& changed_step)
+{
+    if (!plan_)
         return;
 
     auto& items = stepItems();
     for (size_t i = 0; i < items.size(); ++i) {
         if (auto step = items[i].step(); step && step->step_id == changed_step) {
             auto idx = index(i, StepItemColumn::Name);
-            if (deleted) {
-                auto right_idx = sibling(idx, StepItemColumn::Time);
-                emit dataChanged(idx, right_idx);
-            } else
-                emit dataChanged(idx, idx, {Qt::DisplayRole});
+            emit dataChanged(idx, idx, {Qt::DisplayRole});
         }
     }
 }
 
 void StepItemModel::updatePlanName(const QUuid& changed_plan)
 {
-    if (!plan)
+    if (!plan_)
         return;
 
     auto& items = stepItems();
@@ -1333,7 +1344,7 @@ void StepItemModel::updatePlanName(const QUuid& changed_plan)
 
 QModelIndex StepItemModel::insertItem(const QModelIndex& idx, StepItemType type)
 {
-    if (!plan)
+    if (!plan_)
         return {};
 
     auto& items = stepItems();
@@ -1347,8 +1358,8 @@ QModelIndex StepItemModel::insertItem(const QModelIndex& idx, StepItemType type)
         items[row].amount = items[row - 1].amount;
 
     if (auto step = items[row].step(); step && step_pos > 0)
-        step->step_id = plan->steps[step_pos - 1].id;
-    plan->setChanged();
+        step->step_id = plan_->steps[step_pos - 1].id;
+    plan_->setChanged();
 
     endInsertRows();
 
@@ -1357,7 +1368,7 @@ QModelIndex StepItemModel::insertItem(const QModelIndex& idx, StepItemType type)
 
 QModelIndex StepItemModel::duplicateItem(const QModelIndex& idx)
 {
-    if (!plan || !idx.isValid())
+    if (!plan_ || !idx.isValid())
         return {};
 
     auto& items = stepItems();
@@ -1366,30 +1377,30 @@ QModelIndex StepItemModel::duplicateItem(const QModelIndex& idx)
     beginInsertRows({}, pos, pos);
     items.emplace(items.begin() + pos, items[idx.row()]);
     endInsertRows();
-    plan->setChanged();
+    plan_->setChanged();
 
     return index(pos, StepItemColumn::Amount);
 }
 
 void StepItemModel::copyItem(const QModelIndex& idx)
 {
-    if (!plan || !idx.isValid())
+    if (!plan_ || !idx.isValid())
         return;
 
-    planWidget()->copyItem(plan->game, stepItems()[idx.row()]);
+    StepItemCopyState::state = {plan_->game, stepItems()[idx.row()]};
 }
 
 QModelIndex StepItemModel::pasteItem(const QModelIndex& idx)
 {
-    if (!plan || !planWidget()->haveCopyItem(plan->game))
+    if (!plan_ || !StepItemCopyState::haveCopy(plan_->game))
         return {};
 
     auto row = idx.isValid() ? idx.row() : rowCount();
     auto& items = stepItems();
     beginInsertRows({}, row, row);
-    items.emplace(items.begin() + row, planWidget()->itemForPaste().second);
+    items.emplace(items.begin() + row, StepItemCopyState::state.item);
     endInsertRows();
-    plan->setChanged();
+    plan_->setChanged();
 
     return index(row, StepItemColumn::Amount);
 }
@@ -1406,7 +1417,7 @@ bool StepItemModel::haveRegex(const StepItem& item) const
 
 void StepItemModel::copyRegex(const QModelIndex& idx)
 {
-    if (!plan || !idx.isValid())
+    if (!plan_ || !idx.isValid())
         return;
 
     if (auto trade = stepItems()[idx.row()].trade()) {
@@ -1418,33 +1429,33 @@ void StepItemModel::copyRegex(const QModelIndex& idx)
 
 void StepItemModel::copyLink(const QModelIndex& idx)
 {
-    if (!plan || !idx.isValid())
+    if (!plan_ || !idx.isValid())
         return;
 
     if (auto trade = stepItems()[idx.row()].trade()) {
         if (trade->request_key.isValid())
-            qApp->clipboard()->setText(trade->request_key.toUrl(plan->game));
+            qApp->clipboard()->setText(trade->request_key.toUrl(plan_->game));
     }
 }
 
 void StepItemModel::openSearch(const QModelIndex& idx)
 {
-    if (!plan || !idx.isValid())
+    if (!plan_ || !idx.isValid())
         return;
 
     TradeRequestKey request;
     if (auto trade = stepItems()[idx.row()].trade())
         request = trade->request_key;
 
-    mw()->request_edit_dialog->openRequest(plan->game, request);
+    AppState::state.request_edit_dialog->openRequest(plan_->game, request);
     connect(
-        mw()->request_edit_dialog,
+        AppState::state.request_edit_dialog,
         &QDialog::finished,
         this,
         [this, row = idx.row()](int result) {
             if (result == QDialog::Accepted) {
                 if (auto trade = stepItems()[row].trade()) {
-                    auto& request = mw()->request_edit_dialog->edit_request;
+                    auto& request = AppState::state.request_edit_dialog->edit_request;
                     if (trade->request_key != request) {
                         trade->request_key = request;
                         auto idx = index(row, StepItemColumn::Name);
@@ -1458,7 +1469,7 @@ void StepItemModel::openSearch(const QModelIndex& idx)
 
 void StepItemModel::deleteSearch(const QModelIndex& idx)
 {
-    if (!plan || !idx.isValid())
+    if (!plan_ || !idx.isValid())
         return;
 
     if (auto trade = stepItems()[idx.row()].trade()) {
@@ -1469,7 +1480,7 @@ void StepItemModel::deleteSearch(const QModelIndex& idx)
 
 void StepItemModel::setDefaultTime(const QModelIndex& idx)
 {
-    if (!plan || !idx.isValid())
+    if (!plan_ || !idx.isValid())
         return;
 
     auto& items = stepItems();
@@ -1483,9 +1494,9 @@ void StepItemModel::openLink(const QModelIndex& idx)
 {
     auto& item = stepItems()[idx.row()];
     if (auto step = item.step())
-        mw()->planWidget()->scrollToStep(step->step_id);
+        emit stepLinkClicked(step->step_id);
     else if (auto plan = item.plan())
-        mw()->planWidget()->openPlan(plan->plan_id, this->plan->game);
+        emit planLinkClicked(plan->plan_id, this->plan_->game);
     else {
         auto url = QUrl::fromUserInput(data(idx, Qt::ToolTipRole).toString());
         if (url.isValid())
@@ -1495,24 +1506,19 @@ void StepItemModel::openLink(const QModelIndex& idx)
 
 Game StepItemModel::game() const
 {
-    return plan ? plan->game : Game::Unknown;
-}
-
-PlanWidget* StepItemModel::planWidget() const
-{
-    return static_cast<PlanWidget*>(parent());
+    return plan_ ? plan_->game : Game::Unknown;
 }
 
 void StepItemModel::clearTradeRequest(const TradeRequestKey& request)
 {
-    if (!plan)
+    if (!plan_)
         return;
 
     auto& items = stepItems();
     for (size_t i = 0; i < items.size(); ++i) {
         if (auto trade = items[i].trade(); trade && trade->request_key == request) {
             trade->request_key = {};
-            plan->setChanged();
+            plan_->setChanged();
             auto idx = index(i, StepItemColumn::Name);
             auto time_idx = sibling(idx, StepItemColumn::Time);
             emit dataChanged(idx, time_idx);
@@ -1522,7 +1528,7 @@ void StepItemModel::clearTradeRequest(const TradeRequestKey& request)
 
 void StepItemModel::updateTradeName(const TradeRequestKey& request)
 {
-    if (!plan)
+    if (!plan_)
         return;
 
     auto& items = stepItems();
@@ -1537,7 +1543,7 @@ void StepItemModel::updateTradeName(const TradeRequestKey& request)
 
 void StepItemModel::updateTime(const TradeRequestKey& request)
 {
-    if (!plan)
+    if (!plan_)
         return;
 
     auto& items = stepItems();
@@ -1553,7 +1559,7 @@ void StepItemModel::updateTime(const TradeRequestKey& request)
 
 void StepItemModel::updateTime(const Currency& currency)
 {
-    if (!plan)
+    if (!plan_)
         return;
 
     auto& items = stepItems();
@@ -1566,11 +1572,6 @@ void StepItemModel::updateTime(const Currency& currency)
             emit dataChanged(idx, idx, {Qt::DisplayRole});
         }
     }
-}
-
-MainWindow* StepItemModel::mw() const
-{
-    return static_cast<MainWindow*>(planWidget()->mw());
 }
 
 } // namespace planner

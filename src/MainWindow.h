@@ -1,40 +1,25 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
-#include "PlanModel.h"
-
+#include "Game.h"
 #include <QMainWindow>
 #include <QMessageBox>
 
 class QLineEdit;
 class QNetworkAccessManager;
 class QDockWidget;
-class QTreeView;
-class QToolBar;
 class QDialog;
 class QRestAccessManager;
 class QAction;
 
 namespace planner {
-class CustomEditDialog;
-class TradeRequestManager;
-class TradeRequestCache;
-class ExchangeRequestManager;
-class ExchangeRequestCache;
 class PlanWidget;
-class RequestEditDialog;
 class PlanTreeView;
-class UpdateCostDialog;
 class SettingsDialog;
-class ShoppingDialog;
 class ShoppingSetupDialog;
 class SearchesDialog;
-class PlanSearchDialog;
 class SnapshotsDialog;
 class SnapshotModel;
-#ifndef PLANNER_NO_BROWSER
-class WebViewDialog;
-#endif
 
 class MainWindow : public QMainWindow
 {
@@ -48,66 +33,24 @@ public:
     QDockWidget* plans_widget_poe2;
     PlanTreeView* plan_view_poe2;
 
-#ifndef PLANNER_NO_BROWSER
-    WebViewDialog* web_view_dialog;
-#endif
-
-    QNetworkAccessManager* network_manager;
-    QRestAccessManager* rest_manager;
-
-    TradeRequestManager* trade_manager;
-    TradeRequestCache* trade_cache_poe1;
-    TradeRequestCache* trade_cache_poe2;
-
-    ExchangeRequestManager* exchange_manager;
-    ExchangeRequestCache* exchange_cache_poe1;
-    ExchangeRequestCache* exchange_cache_poe2;
-
-    SnapshotModel* snapshots_poe1;
-    SnapshotModel* snapshots_poe2;
-    QLineEdit* snapshot_edit;
-    SnapshotModel* current_snapshot_model{};
-
-    SettingsDialog* settings_dialog;
-    SearchesDialog* searches_dialog;
-    RequestEditDialog* request_edit_dialog;
-    SnapshotsDialog* snapshots_dialog;
-    UpdateCostDialog* update_cost_dialog;
-    ShoppingDialog* shopping_dialog;
-    ShoppingSetupDialog* shopping_setup;
-
-    CustomEditDialog* custom_edit_dialog;
-    PlanSearchDialog* plan_search_dialog;
-
-    QDialog* about_dialog;
-
-    PlanModel* plan_model_poe1;
-    PlanModel* plan_model_poe2;
-
-    PlanWidget* planWidget();
-
-    void restoreSession();
-
     PlanTreeView* planView(Game game) const
     {
         return game == Game::Poe1 ? plan_view_poe1 : plan_view_poe2;
     }
-    PlanModel* planModel(Game game) const
-    {
-        return game == Game::Poe1 ? plan_model_poe1 : plan_model_poe2;
-    }
-    TradeRequestCache* tradeCache(Game game) const
-    {
-        return game == Game::Poe1 ? trade_cache_poe1 : trade_cache_poe2;
-    }
-    ExchangeRequestCache* exchangeCache(Game game) const
-    {
-        return game == Game::Poe1 ? exchange_cache_poe1 : exchange_cache_poe2;
-    }
-    SnapshotModel* snapshots(Game game) const
-    {
-        return game == Game::Poe1 ? snapshots_poe1 : snapshots_poe2;
-    }
+
+    QNetworkAccessManager* network_manager;
+    QRestAccessManager* rest_manager;
+
+    QLineEdit* snapshot_edit;
+    SnapshotModel* current_snapshot_model{};
+
+    SearchesDialog* searches_dialog;
+    SnapshotsDialog* snapshots_dialog;
+    ShoppingSetupDialog* shopping_setup;
+    SettingsDialog* settings_dialog;
+    QDialog* about_dialog;
+
+    void restoreSession();
 
     void raiseDock(Game game);
 
@@ -156,6 +99,7 @@ private slots:
     void importItem(bool from_clipboard);
     bool importItem(const QJsonDocument& json);
     void openShoppingDialog();
+    void updateSnapshotName(const QModelIndex& idx);
 
 private:
     void setupDockWidgets();
@@ -163,7 +107,9 @@ private:
     void setupAboutDialog();
     void setupActions();
 
-    bool haveUnsavedPlans();
+    PlanWidget* planWidget() const;
+
+    bool haveUnsavedPlans() const;
 
     bool execSaveMsg();
 

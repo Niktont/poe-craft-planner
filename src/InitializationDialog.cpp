@@ -1,9 +1,10 @@
 #include "InitializationDialog.h"
-
+#include "AppState.h"
 #include "Database.h"
 #include "ExchangeRequestCache.h"
 #include "ExchangeRequestManager.h"
 #include "MainWindow.h"
+#include "PlanModel.h"
 #include "Settings.h"
 #include "SnapshotModel.h"
 #include "TradeRequestCache.h"
@@ -127,19 +128,19 @@ void InitializationDialog::initDatabase()
 
 void InitializationDialog::readDatabase()
 {
-    bool result = mw->exchange_cache_poe1->readCurrencyTypes();
-    result = result && mw->exchange_cache_poe2->readCurrencyTypes();
+    bool result = AppState::state.exchange_cache_poe1->readCurrencyTypes();
+    result = result && AppState::state.exchange_cache_poe2->readCurrencyTypes();
 
-    result = result && mw->exchange_cache_poe1->readDatabase();
-    result = result && mw->exchange_cache_poe2->readDatabase();
-    result = result && mw->trade_cache_poe1->readDatabase();
-    result = result && mw->trade_cache_poe2->readDatabase();
+    result = result && AppState::state.exchange_cache_poe1->readDatabase();
+    result = result && AppState::state.exchange_cache_poe2->readDatabase();
+    result = result && AppState::state.trade_cache_poe1->readDatabase();
+    result = result && AppState::state.trade_cache_poe2->readDatabase();
 
-    result = result && mw->plan_model_poe1->readDatabase();
-    result = result && mw->plan_model_poe2->readDatabase();
+    result = result && AppState::state.plan_model_poe1->readDatabase();
+    result = result && AppState::state.plan_model_poe2->readDatabase();
 
-    result = result && mw->snapshots_poe1->readDatabase();
-    result = result && mw->snapshots_poe2->readDatabase();
+    result = result && AppState::state.snapshots_poe1->readDatabase();
+    result = result && AppState::state.snapshots_poe2->readDatabase();
 
     if (!result) {
         progress_label->setText(tr("Reading of database failed."));
@@ -158,12 +159,12 @@ void InitializationDialog::readDatabase()
 
 void InitializationDialog::requestLeagues()
 {
-    auto reply = mw->exchange_manager->getLeagues(Game::Poe1);
+    auto reply = AppState::state.exchange_manager->getLeagues(Game::Poe1);
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
         parseLeagues(Game::Poe1, reply);
     });
 
-    reply = mw->exchange_manager->getLeagues(Game::Poe2);
+    reply = AppState::state.exchange_manager->getLeagues(Game::Poe2);
     connect(reply, &QNetworkReply::finished, this, [this, reply]() {
         parseLeagues(Game::Poe2, reply);
     });
@@ -178,7 +179,7 @@ void InitializationDialog::parseLeagues(Game game, QNetworkReply* reply)
 
     QRestReply rest(reply);
     if (!rest.isSuccess()) {
-        requestFailed(tr("leagues"));
+        progress_label->setText(tr("Failed to request leagues."));
         return;
     }
 
@@ -186,15 +187,18 @@ void InitializationDialog::parseLeagues(Game game, QNetworkReply* reply)
     QStringList names;
     QStringList urls;
     if (!json || !ExchangeRequestManager::parseLeagues(json->object(), names, urls)) {
-        parseFailed(tr("leagues"));
+        progress_label->setText(tr("Failed to parse leagues."));
         return;
     }
-    auto& league_urls = game == Game::Poe1 ? league_urls_poe1 : league_urls_poe2;
-    league_urls = urls;
 
-    auto cache = mw->exchangeCache(game);
+    auto& leagues = game == Game::Poe1 ? leagues_poe1 : leagues_poe2;
+    auto& league_urls = game == Game::Poe1 ? league_urls_poe1 : league_urls_poe2;
+    leagues = std::move(names);
+    league_urls = std::move(urls);
+
+    auto cache = AppState::exchangeCache(game);
     bool is_leagues_changed{false};
-    for (auto& league : std::as_const(names)) {
+    for (auto& league : std::as_const(leagues)) {
         if (!cache->cost_cache.contains(league)) {
             is_leagues_changed = true;
             break;
@@ -202,14 +206,14 @@ void InitializationDialog::parseLeagues(Game game, QNetworkReply* reply)
     }
     if (!is_leagues_changed) {
         auto currentLeague = Settings::currentLeague(game);
-        if (!names.contains(currentLeague))
+        if (!leagues.contains(currentLeague))
             is_leagues_changed = true;
     }
 
     auto combo = game == Game::Poe1 ? league_combo_poe1 : league_combo_poe2;
     if (is_leagues_changed) {
         combo->clear();
-        combo->addItems(names);
+        combo->addItems(leagues);
         combo->setEnabled(true);
     }
 
@@ -221,8 +225,10 @@ void InitializationDialog::parseLeagues(Game game, QNetworkReply* reply)
 
     is_leagues_changed = league_combo_poe1->isEnabled() || league_combo_poe2->isEnabled();
 
-    is_data_needed_poe1 = isDataNeeded(Game::Poe1);
-    is_data_needed_poe2 = isDataNeeded(Game::Poe2);
+    is_data_needed_poe1 = Settings::initNeeded(Game::Poe1)
+                          || AppState::state.exchange_cache_poe1->cache.empty();
+    is_data_needed_poe2 = Settings::initNeeded(Game::Poe2)
+                          || AppState::state.exchange_cache_poe2->cache.empty();
     bool is_data_needed = is_data_needed_poe1 || is_data_needed_poe2;
 
     if (!is_leagues_changed && !is_data_needed) {
@@ -248,74 +254,16 @@ void InitializationDialog::updateCacheData()
     if (league_combo_poe1->isEnabled()) {
         Settings::set<Settings::poe1_league>(league_combo_poe1->currentText());
 
-        QStringList leagues;
-        for (int i = 0; i < league_combo_poe1->count(); ++i)
-            leagues.push_back(league_combo_poe1->itemText(i));
-
-        auto& cost_cache = mw->exchange_cache_poe1->cost_cache;
-        auto& trade_cost_cache = mw->trade_cache_poe1->cost_cache;
-        boost::container::erase_if(cost_cache, [&](const auto& it) {
-            if (!leagues.contains(it.first)) {
-                Database::deleteExchangeCostCache(Game::Poe1, it.first);
-                return true;
-            }
-            return false;
-        });
-        boost::container::erase_if(trade_cost_cache, [&](const auto& it) {
-            if (!leagues.contains(it.first)) {
-                Database::deleteTradeCostCache(Game::Poe1, it.first);
-                return true;
-            }
-            return false;
-        });
-
-        for (int i = 0; i < leagues.size(); ++i) {
-            if (auto res = cost_cache.try_emplace(leagues[i]); res.second) {
-                res.first->second.league_url = league_urls_poe1[i];
-                res.first->second.is_changed = true;
-            }
-            if (auto res = trade_cost_cache.try_emplace(leagues[i]); res.second)
-                res.first->second.is_changed = true;
-        }
-        mw->exchange_cache_poe1->saveCostCache();
-        mw->trade_cache_poe1->saveCostCache();
+        AppState::state.exchange_cache_poe1->updateLeagues(leagues_poe1, league_urls_poe1);
+        AppState::state.trade_cache_poe1->updateLeagues(leagues_poe1);
 
         league_combo_poe1->setEnabled(false);
     }
     if (league_combo_poe2->isEnabled()) {
         Settings::set<Settings::poe2_league>(league_combo_poe2->currentText());
 
-        QStringList leagues;
-        for (int i = 0; i < league_combo_poe2->count(); ++i)
-            leagues.push_back(league_combo_poe2->itemText(i));
-
-        auto& cost_cache = mw->exchange_cache_poe2->cost_cache;
-        auto& trade_cost_cache = mw->trade_cache_poe2->cost_cache;
-        boost::container::erase_if(cost_cache, [&](const auto& it) {
-            if (!leagues.contains(it.first)) {
-                Database::deleteExchangeCostCache(Game::Poe2, it.first);
-                return true;
-            }
-            return false;
-        });
-        boost::container::erase_if(trade_cost_cache, [&](const auto& it) {
-            if (!leagues.contains(it.first)) {
-                Database::deleteTradeCostCache(Game::Poe2, it.first);
-                return true;
-            }
-            return false;
-        });
-
-        for (int i = 0; i < leagues.size(); ++i) {
-            if (auto res = cost_cache.try_emplace(leagues[i]); res.second) {
-                res.first->second.league_url = league_urls_poe2[i];
-                res.first->second.is_changed = true;
-            }
-            if (auto res = trade_cost_cache.try_emplace(leagues[i]); res.second)
-                res.first->second.is_changed = true;
-        }
-        mw->exchange_cache_poe2->saveCostCache();
-        mw->trade_cache_poe2->saveCostCache();
+        AppState::state.exchange_cache_poe2->updateLeagues(leagues_poe2, league_urls_poe2);
+        AppState::state.trade_cache_poe2->updateLeagues(leagues_poe2);
 
         league_combo_poe2->setEnabled(false);
     }
@@ -326,11 +274,11 @@ void InitializationDialog::updateCacheData()
     }
 
     if (is_data_needed_poe1) {
-        for (auto& type : mw->exchange_cache_poe1->currency_types)
+        for (auto& type : AppState::state.exchange_cache_poe1->currency_types)
             currency_types_poe1.push(type.first);
     }
     if (is_data_needed_poe2) {
-        for (auto& type : mw->exchange_cache_poe2->currency_types)
+        for (auto& type : AppState::state.exchange_cache_poe2->currency_types)
             currency_types_poe2.push(type.first);
     }
 
@@ -346,7 +294,7 @@ void InitializationDialog::requestData()
 {
     if (!currency_types_poe1.empty()) {
         auto& type = currency_types_poe1.front();
-        auto reply = mw->exchange_manager->getOverview(Game::Poe1, type);
+        auto reply = AppState::state.exchange_manager->getOverview(Game::Poe1, type);
         connect(reply, &QNetworkReply::finished, this, [this, type, reply] {
             parseOverviewData(Game::Poe1, type, reply);
         });
@@ -354,7 +302,7 @@ void InitializationDialog::requestData()
         currency_types_poe1.pop();
     } else if (!currency_types_poe2.empty()) {
         auto& type = currency_types_poe2.front();
-        auto reply = mw->exchange_manager->getOverview(Game::Poe2, type);
+        auto reply = AppState::state.exchange_manager->getOverview(Game::Poe2, type);
         connect(reply, &QNetworkReply::finished, this, [this, type, reply] {
             parseOverviewData(Game::Poe2, type, reply);
         });
@@ -366,21 +314,21 @@ void InitializationDialog::parseOverviewData(Game game, QString type, QNetworkRe
 {
     QRestReply rest(reply);
     if (!rest.isSuccess()) {
-        requestFailed(tr("currency data"));
+        progress_label->setText(tr("Failed to request currency data."));
         return;
     }
 
-    auto cache = mw->exchangeCache(game);
+    auto cache = AppState::exchangeCache(game);
     auto json = rest.readJson();
     if (!json) {
-        parseFailed(tr("currency data"));
+        progress_label->setText(tr("Failed to parse currency data."));
         return;
     }
     const auto obj = json->object();
-    if (!mw->exchange_manager->parseOverviewItems(obj, type, *cache)
+    if (!AppState::state.exchange_manager->parseOverviewItems(obj, type, *cache)
         || !ExchangeRequestManager::parseOverviewCosts(obj, *cache)
         || !ExchangeRequestManager::parseCore(obj["core"].toObject(), *cache)) {
-        parseFailed(tr("currency data"));
+        progress_label->setText(tr("Failed to parse currency data."));
         return;
     }
 
@@ -394,15 +342,15 @@ void InitializationDialog::parseOverviewData(Game game, QString type, QNetworkRe
         QTimer::singleShot(3000, this, &InitializationDialog::finishInitialization);
 
         auto div_card_link_poe1 = u"/image/Art/2DItems/Divination/InventoryIcon.png"_s;
-        auto div_card_file_poe1 = mw->exchange_cache_poe1->iconFileName(
-            mw->exchange_cache_poe1->div_card_icon_id);
+        auto div_card_file_poe1 = AppState::state.exchange_cache_poe1->iconFileName(
+            AppState::state.exchange_cache_poe1->div_card_icon_id);
         if (!QFile::exists(div_card_file_poe1))
-            mw->exchange_manager->downloadIcon(div_card_link_poe1, div_card_file_poe1);
+            AppState::state.exchange_manager->downloadIcon(div_card_link_poe1, div_card_file_poe1);
 
-        mw->exchange_cache_poe1->saveCache();
-        mw->exchange_cache_poe1->saveCostCache();
-        mw->exchange_cache_poe2->saveCache();
-        mw->exchange_cache_poe2->saveCostCache();
+        AppState::state.exchange_cache_poe1->saveCache();
+        AppState::state.exchange_cache_poe1->saveCostCache();
+        AppState::state.exchange_cache_poe2->saveCache();
+        AppState::state.exchange_cache_poe2->saveCostCache();
     }
 }
 
@@ -410,16 +358,16 @@ void InitializationDialog::finishInitialization()
 {
     if (is_data_needed_poe1) {
         Settings::set<Settings::poe1_init_needed>(false);
-        for (auto& [id, data] : mw->exchange_cache_poe1->cache) {
-            if (data.icon.isNull())
-                data.icon = QIcon{ExchangeRequestCache::iconFileName(Game::Poe1, id)};
+        for (auto& [id, exchange_data] : AppState::state.exchange_cache_poe1->cache) {
+            if (exchange_data.icon.isNull())
+                exchange_data.icon = QIcon{ExchangeRequestCache::iconFileName(Game::Poe1, id)};
         }
     }
     if (is_data_needed_poe2) {
         Settings::set<Settings::poe2_init_needed>(false);
-        for (auto& [id, data] : mw->exchange_cache_poe2->cache) {
-            if (data.icon.isNull())
-                data.icon = QIcon{ExchangeRequestCache::iconFileName(Game::Poe2, id)};
+        for (auto& [id, exchange_data] : AppState::state.exchange_cache_poe2->cache) {
+            if (exchange_data.icon.isNull())
+                exchange_data.icon = QIcon{ExchangeRequestCache::iconFileName(Game::Poe2, id)};
         }
     }
 
@@ -429,23 +377,6 @@ void InitializationDialog::finishInitialization()
     mw->show();
 
     deleteLater();
-}
-
-void InitializationDialog::requestFailed(QString type)
-{
-    progress_label->setText(tr("Failed to request %1.").arg(type));
-}
-
-void InitializationDialog::parseFailed(QString type)
-{
-    progress_label->setText(tr("Failed to parse %1.").arg(type));
-}
-
-bool InitializationDialog::isDataNeeded(Game game)
-{
-    return Settings::initNeeded(game)
-           || (game == Game::Poe1 ? mw->exchange_cache_poe1->cache.empty()
-                                  : mw->exchange_cache_poe2->cache.empty());
 }
 
 } // namespace planner

@@ -21,7 +21,7 @@ const QStringList& StepItem::typeList()
     return list;
 }
 
-std::optional<ItemCost> StepItem::calculateCost(const Plan& plan,
+std::optional<ItemCost> StepItem::calculateCost(const Plan& step_plan,
                                                 const ExchangeRequestCache& exchange_cache,
                                                 const TradeRequestCache& trade_cache,
                                                 const PlanModel& plan_model) const
@@ -54,7 +54,7 @@ std::optional<ItemCost> StepItem::calculateCost(const Plan& plan,
         result.gold = custom->gold;
         result.time = custom->time;
     } else if (auto step = this->step()) {
-        if (auto plan_step = plan.findStep(step->step_id); plan_step)
+        if (auto plan_step = step_plan.findStep(step->step_id); plan_step)
             result = plan_step->cost();
         else
             return {};

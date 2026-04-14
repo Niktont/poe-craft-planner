@@ -7,16 +7,17 @@
 class QLineEdit;
 
 namespace planner {
-class MainWindow;
 class PlanSearchView;
 
 class PlanSearchDialog : public QDialog
 {
     Q_OBJECT
 public:
-    PlanSearchDialog(MainWindow& mw);
+    PlanSearchDialog(QWidget* parent = nullptr);
 
     void openGame(Game game);
+
+    PlanSearchView* view;
 
 protected:
     void closeEvent(QCloseEvent* event) override;
@@ -25,11 +26,8 @@ private:
     Game game{Game::Unknown};
 
     QLineEdit* filter_edit;
-    PlanSearchView* view;
 
     QRect last_geometry;
-
-    MainWindow& mw() const;
 };
 
 } // namespace planner

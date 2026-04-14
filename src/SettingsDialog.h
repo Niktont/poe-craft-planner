@@ -13,14 +13,13 @@ class QDoubleSpinBox;
 class QComboBox;
 
 namespace planner {
-class MainWindow;
 class HotkeyEdit;
 
 class SettingsDialog : public QDialog
 {
     Q_OBJECT
 public:
-    SettingsDialog(MainWindow& mw);
+    SettingsDialog(QWidget* parent = nullptr);
 
 signals:
     void tradeTimeChanged();
@@ -97,8 +96,6 @@ private:
 
     std::array<bool, 5> is_changed{};
     std::array<bool, 5> needs_reset;
-
-    MainWindow* mw() const;
 };
 
 } // namespace planner

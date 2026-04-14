@@ -1,4 +1,6 @@
 #include "DescriptionEdit.h"
+#include "AppState.h"
+#include "Plan.h"
 #include "PlanModel.h"
 #include "StepItemModel.h"
 #include <QAbstractTextDocumentLayout>
@@ -58,19 +60,19 @@ bool DescriptionTextEdit::canInsertFromMimeData(const QMimeData* source) const
 void DescriptionTextEdit::insertFromMimeData(const QMimeData* source)
 {
     if (source->hasFormat(PlanModel::move_mime_poe1))
-        return insertPlanLink(Game::Poe1, source);
+        return insertPlanLink(Game::Poe1, *source);
     if (source->hasFormat(PlanModel::move_mime_poe2))
-        return insertPlanLink(Game::Poe2, source);
+        return insertPlanLink(Game::Poe2, *source);
 
     if (source->hasFormat(StepItemModel::move_mime_poe1))
-        return insertStepItem(Game::Poe1, source);
+        return insertStepItem(Game::Poe1, *source);
     if (source->hasFormat(StepItemModel::move_mime_poe2))
-        return insertStepItem(Game::Poe2, source);
+        return insertStepItem(Game::Poe2, *source);
 
     QPlainTextEdit::insertFromMimeData(source);
 }
 
-void DescriptionTextEdit::insertPlanLink(Game game, const QMimeData* source)
+void DescriptionTextEdit::insertPlanLink(Game game, const QMimeData& source)
 {
     auto plans = PlanModel::decodeMimeToPlans(game, source);
     if (plans.empty())
@@ -89,7 +91,7 @@ void DescriptionTextEdit::insertPlanLink(Game game, const QMimeData* source)
     cursor.endEditBlock();
 }
 
-void DescriptionTextEdit::insertStepItem(Game game, const QMimeData* source)
+void DescriptionTextEdit::insertStepItem(Game game, const QMimeData& source)
 {
     auto [step_model, step_items] = StepItemModel::decodeStepItemsMime(game, source);
     QStringList links;
@@ -127,12 +129,8 @@ void DescriptionBrowser::contextMenuEvent(QContextMenuEvent* event)
     menu->popup(event->globalPos());
 }
 
-DescriptionEdit::DescriptionEdit(PlanModel& plan_model_poe1,
-                                 PlanModel& plan_model_poe2,
-                                 QWidget* parent)
+DescriptionEdit::DescriptionEdit(QWidget* parent)
     : QWidget{parent}
-    , plan_model_poe1{plan_model_poe1}
-    , plan_model_poe2{plan_model_poe2}
 {
     setLayout(new QVBoxLayout{});
     layout()->setContentsMargins(0, 0, 0, 0);
@@ -160,15 +158,18 @@ DescriptionEdit::DescriptionEdit(PlanModel& plan_model_poe1,
 
     connect(browser->start_editing_action, &QAction::triggered, this, [this] {
         browser->hide();
+        edit->document()->setModified(false);
         edit->show();
         edit->setFocus();
     });
     connect(edit->finish_editing_action, &QAction::triggered, this, [this] {
         edit->hide();
         browser->show();
-        browser->setMarkdown(edit->toPlainText());
+        if (edit->document()->isModified()) {
+            browser->setMarkdown(edit->toPlainText());
+            adjustBrowserSize();
+        }
         browser->setFocus();
-        adjustBrowserSize();
     });
 
     auto p = browser->viewport()->palette();
@@ -194,10 +195,12 @@ void DescriptionEdit::displayTooltip(const QUrl& url)
 {
     QString tooltip;
     if (url.scheme() == plan_link_scheme_poe1) {
-        if (auto it = plan_model_poe1.plans.find(idFromLink(url)); it != plan_model_poe1.plans.end())
+        if (auto it = AppState::state.plan_model_poe1->plans.find(idFromLink(url));
+            it != AppState::state.plan_model_poe1->plans.end())
             tooltip = it->second.name;
     } else if (url.scheme() == plan_link_scheme_poe2) {
-        if (auto it = plan_model_poe2.plans.find(idFromLink(url)); it != plan_model_poe2.plans.end())
+        if (auto it = AppState::state.plan_model_poe2->plans.find(idFromLink(url));
+            it != AppState::state.plan_model_poe2->plans.end())
             tooltip = it->second.name;
     } else
         tooltip = url.toDisplayString();

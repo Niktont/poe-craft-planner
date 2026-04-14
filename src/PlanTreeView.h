@@ -25,11 +25,11 @@ signals:
 
 protected:
     void contextMenuEvent(QContextMenuEvent* event) override;
-    void keyPressEvent(QKeyEvent* event) override;
 
 private slots:
     void restoreItem();
     void deleteItem();
+    void exportToFile();
 
 private:
     QAction* add_plan_action;

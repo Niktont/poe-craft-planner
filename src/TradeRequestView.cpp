@@ -1,5 +1,5 @@
 #include "TradeRequestView.h"
-#include "MainWindow.h"
+#include "AppState.h"
 #include "RequestEditDialog.h"
 #include "Settings.h"
 #include "TradeRequestCache.h"
@@ -15,9 +15,8 @@
 
 namespace planner {
 
-TradeRequestView::TradeRequestView(MainWindow& mw_, QWidget* parent)
+TradeRequestView::TradeRequestView(QWidget* parent)
     : QTableView{parent}
-    , mw{&mw_}
 {
     setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
     setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
@@ -25,7 +24,7 @@ TradeRequestView::TradeRequestView(MainWindow& mw_, QWidget* parent)
     setSelectionMode(ContiguousSelection);
     setSelectionBehavior(SelectRows);
 
-    setModel(mw->trade_cache_poe1->proxy_model);
+    setModel(AppState::state.trade_cache_poe1->proxy_model);
 
     auto header = horizontalHeader();
 
@@ -60,11 +59,11 @@ TradeRequestView::TradeRequestView(MainWindow& mw_, QWidget* parent)
         current = cache->proxy_model->mapToSource(current);
 
         auto& request = cache->cache.nth(current.row())->first;
-        mw->request_edit_dialog->openRequest(cache->game, request);
+        AppState::state.request_edit_dialog->openRequest(cache->game, request);
     });
 
     add_action = addAction(tr("Add"), this, [this] {
-        mw->request_edit_dialog->openGame(cache->game, true);
+        AppState::state.request_edit_dialog->openGame(cache->game, true);
     });
 
     delete_action = addAction(tr("Delete"), this, &TradeRequestView::deleteSearch);
@@ -131,7 +130,7 @@ void TradeRequestView::deleteSearch()
     auto modifiers = QGuiApplication::keyboardModifiers();
     bool delete_search = modifiers.testFlag(Qt::ShiftModifier);
     if (!delete_search) {
-        QMessageBox msg;
+        QMessageBox msg{this};
         if (selection[0].top() == selection[0].bottom()) {
             msg.setWindowTitle(tr("Delete Search"));
             msg.setText(tr("Delete this search?"));

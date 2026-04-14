@@ -4,7 +4,6 @@
 #include <QTableView>
 
 namespace planner {
-
 class StepItemModel;
 
 class StepItemView : public QTableView
@@ -13,7 +12,7 @@ class StepItemView : public QTableView
 public:
     StepItemView(StepItemModel& model, QWidget* parent = nullptr);
 
-    void setOtherView(StepItemView* other_view) { this->other_view = other_view; }
+    void setOtherView(StepItemView& other_view_) { this->other_view = &other_view_; }
 
     QSize sizeHint() const override;
 

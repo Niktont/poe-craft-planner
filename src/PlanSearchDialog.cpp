@@ -1,5 +1,4 @@
 #include "PlanSearchDialog.h"
-#include "MainWindow.h"
 #include "PlanSearchView.h"
 #include "Settings.h"
 #include <QLineEdit>
@@ -7,10 +6,10 @@
 
 namespace planner {
 
-PlanSearchDialog::PlanSearchDialog(MainWindow& mw)
-    : QDialog{&mw}
+PlanSearchDialog::PlanSearchDialog(QWidget* parent)
+    : QDialog{parent}
+    , view{new PlanSearchView{}}
     , filter_edit{new QLineEdit{}}
-    , view{new PlanSearchView{mw}}
 {
     auto layout = new QVBoxLayout{};
     setLayout(layout);
@@ -56,11 +55,6 @@ void PlanSearchDialog::closeEvent(QCloseEvent* event)
 {
     QDialog::closeEvent(event);
     last_geometry = geometry();
-}
-
-MainWindow& PlanSearchDialog::mw() const
-{
-    return *static_cast<MainWindow*>(parent());
 }
 
 } // namespace planner

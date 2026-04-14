@@ -9,7 +9,6 @@
 class QAction;
 
 namespace planner {
-class PlanModel;
 
 class DescriptionTextEdit : public QPlainTextEdit
 {
@@ -27,8 +26,8 @@ protected:
     void insertFromMimeData(const QMimeData* source) override;
 
 private:
-    void insertPlanLink(Game game, const QMimeData* source);
-    void insertStepItem(Game game, const QMimeData* source);
+    void insertPlanLink(Game game, const QMimeData& source);
+    void insertStepItem(Game game, const QMimeData& source);
 };
 class DescriptionBrowser : public QTextBrowser
 {
@@ -45,24 +44,20 @@ class DescriptionEdit : public QWidget
 {
     Q_OBJECT
 public:
-    DescriptionEdit(PlanModel& plan_model_poe1,
-                    PlanModel& plan_model_poe2,
-                    QWidget* parent = nullptr);
+    DescriptionEdit(QWidget* parent = nullptr);
 
     DescriptionTextEdit* edit;
     DescriptionBrowser* browser;
     void adjustBrowserSize();
 
 signals:
-    void planLinkClicked(const QUuid& id, planner::Game game);
+    void planLinkClicked(const QUuid& id, planner::Game game) const;
 
 private slots:
     void displayTooltip(const QUrl& url);
     void handleAnchorClicked(const QUrl& url);
 
 private:
-    PlanModel& plan_model_poe1;
-    PlanModel& plan_model_poe2;
 };
 
 } // namespace planner

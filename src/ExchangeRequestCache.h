@@ -34,7 +34,6 @@ public:
 
     using Cache = boost::container::flat_map<QString, ExchangeData>;
     Cache cache;
-    mutable bool cache_changed{false};
 
     using CostCache = boost::container::flat_map<QString, ExchangeCostData>;
     CostCache cost_cache;
@@ -52,9 +51,10 @@ public:
 
     void setDefaultTime(const Currency& currency, std::optional<ItemTime> time);
 
-    void setSnapshot(Snapshot* snapshot);
+    void setSnapshot(Snapshot* snapshot_) { snapshot = snapshot_; }
 
     bool saveCache() const;
+    void updateLeagues(const QStringList& new_leagues, const QStringList& urls);
     bool saveCostCache() const;
 
     const ExchangeCostData* costData() const;
@@ -77,7 +77,6 @@ public:
     bool shareCurrencyId(QString& id) const;
     bool shareCurrencyType(QString& type) const;
     bool prepareCurrency(Currency& currency) const;
-    bool prepareData(ExchangeData& data) const;
 
     QString iconFileName(const QString& id) const { return iconFileName(game, id); }
     QString iconFileName(Cache::const_iterator it) const;

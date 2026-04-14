@@ -61,14 +61,14 @@ void StepItemsWidget::updateCustomText()
 
 void StepItemsWidget::setOtherView(StepItemsWidget& other)
 {
-    view->setOtherView(other.view);
-    other.view->setOtherView(view);
+    view->setOtherView(*other.view);
+    other.view->setOtherView(*view);
 }
 
-void StepItemsWidget::setStep(Plan* plan, size_t step_pos)
+void StepItemsWidget::setStep(Plan* plan_, size_t step_pos_)
 {
-    this->plan = plan;
-    this->step_pos = step_pos;
+    plan = plan_;
+    step_pos = step_pos_;
     if (!plan)
         return;
 
