@@ -1,5 +1,4 @@
 #include "StepItemDelegate.h"
-#include "AppState.h"
 #include "ExchangeRequestCache.h"
 #include "Plan.h"
 #include "PlanModel.h"
@@ -20,7 +19,16 @@ namespace planner {
 
 StepItemDelegate::StepItemDelegate(QObject* parent)
     : QStyledItemDelegate{parent}
-{}
+{
+    connect(this, &QStyledItemDelegate::closeEditor, this, [this](QWidget* editor) {
+        if (auto edit = qobject_cast<QLineEdit*>(editor); edit && edit->completer()) {
+            disconnect(edit->completer(),
+                       qOverload<const QModelIndex&>(&QCompleter::activated),
+                       this,
+                       &StepItemDelegate::commitAndCloseCompleterEditor);
+        }
+    });
+}
 
 QWidget* StepItemDelegate::createEditor(QWidget* parent,
                                         const QStyleOptionViewItem& option,
@@ -135,10 +143,6 @@ void StepItemDelegate::setModelData(QWidget* editor,
     case StepItemColumn::Name:
         if (item.type() == StepItemType::Exchange) {
             auto edit = static_cast<QLineEdit*>(editor);
-            disconnect(edit->completer(),
-                       qOverload<const QModelIndex&>(&QCompleter::activated),
-                       this,
-                       &StepItemDelegate::commitAndCloseCompleterEditor);
             auto selected_index = edit->property("index").toModelIndex();
             model->setData(index, selected_index);
             return;
@@ -152,20 +156,12 @@ void StepItemDelegate::setModelData(QWidget* editor,
     case StepItemColumn::Link:
         if (item.type() == StepItemType::Trade) {
             auto edit = static_cast<QLineEdit*>(editor);
-            disconnect(edit->completer(),
-                       qOverload<const QModelIndex&>(&QCompleter::activated),
-                       this,
-                       &StepItemDelegate::commitAndCloseCompleterEditor);
             auto selected_index = edit->property("index").toModelIndex();
             model->setData(index, selected_index);
             return;
         }
         if (item.type() == StepItemType::Plan) {
             auto edit = static_cast<QLineEdit*>(editor);
-            disconnect(edit->completer(),
-                       qOverload<const QModelIndex&>(&QCompleter::activated),
-                       this,
-                       &StepItemDelegate::commitAndCloseCompleterEditor);
             auto selected_index = edit->property("index").toModelIndex();
             if (!selected_index.isValid())
                 return;
@@ -177,10 +173,6 @@ void StepItemDelegate::setModelData(QWidget* editor,
         break;
     case StepItemColumn::CostCurrency: {
         auto edit = static_cast<QLineEdit*>(editor);
-        disconnect(edit->completer(),
-                   qOverload<const QModelIndex&>(&QCompleter::activated),
-                   this,
-                   &StepItemDelegate::commitAndCloseCompleterEditor);
         auto selected_index = edit->property("index").toModelIndex();
         model->setData(index, selected_index);
         return;
@@ -280,7 +272,7 @@ QLineEdit* StepItemDelegate::createPlanEdit(QWidget* parent, const StepItemModel
 {
     auto edit = new QLineEdit{parent};
 
-    edit->setCompleter(AppState::planModel(model->game())->search_model->completer);
+    edit->setCompleter(model->plan_model->search_model->completer);
     connect(edit->completer(),
             qOverload<const QModelIndex&>(&QCompleter::activated),
             this,
