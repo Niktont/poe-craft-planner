@@ -51,7 +51,7 @@ UpdateCostDialog::UpdateCostDialog(QWidget* parent)
 
 void UpdateCostDialog::updatePlan(Plan* plan, bool send_requests)
 {
-    if (!plan || plan->locked || !this->isHidden())
+    if (!plan || plan->locked || plan_)
         return;
 
     plan_ = plan;
@@ -93,6 +93,7 @@ void UpdateCostDialog::updatePlan(Plan* plan, bool send_requests)
     if (!trade_finished) {
         checkCurrency({"chaos"}, now, *exchange_cache);
         if (!is_active_trade) {
+            is_active_trade = true;
             QTimer::singleShot(AppState::state.trade_manager->searchDelay(),
                                this,
                                &UpdateCostDialog::requestTradeSearch);
@@ -373,7 +374,7 @@ void UpdateCostDialog::updateProgress()
 
 void UpdateCostDialog::calculateCost()
 {
-    if (!plan_ || !trade_finished || !exchange_finished || plan_->locked)
+    if (!plan_ || !trade_finished || !exchange_finished)
         return;
 
     auto plan_model = AppState::planModel(plan_->game);
