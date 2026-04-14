@@ -524,7 +524,7 @@ void MainWindow::setupActions()
             &PlanWidget::hideNotUsedItems);
 
     use_query_as_description_action = new QAction{tr("Use Search Query As Description"), this};
-    use_query_as_description_action->setToolTip(
+    use_query_as_description_action->setWhatsThis(
         tr("Parsed search query will be shown in the tooltip of Name cell for Trade items"));
     use_query_as_description_action->setCheckable(true);
     connect(use_query_as_description_action, &QAction::triggered, this, [](bool checked) {
@@ -533,12 +533,14 @@ void MainWindow::setupActions()
 
     back_action = new QAction{style()->standardIcon(QStyle::SP_ArrowLeft), tr("Go Back"), this};
     back_action->setShortcut(Qt::AltModifier | Qt::Key_Left);
+    back_action->setAutoRepeat(true);
     connect(back_action, &QAction::triggered, planWidget(), &PlanWidget::goBack);
 
     forward_action = new QAction{style()->standardIcon(QStyle::SP_ArrowRight),
                                  tr("Go Forward"),
                                  this};
     forward_action->setShortcut(Qt::AltModifier | Qt::Key_Right);
+    forward_action->setAutoRepeat(true);
     connect(forward_action, &QAction::triggered, planWidget(), &PlanWidget::goForward);
 
     hide_title_currency_name_action = new QAction{tr("Hide Currency Name In Titles"), this};
