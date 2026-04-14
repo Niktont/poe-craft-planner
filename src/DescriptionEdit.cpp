@@ -89,6 +89,7 @@ void DescriptionTextEdit::insertPlanLink(Game game, const QMimeData& source)
                           % link_format.arg(plan->name, plan->id().toString(QUuid::WithoutBraces)));
 
     cursor.endEditBlock();
+    setFocus();
 }
 
 void DescriptionTextEdit::insertStepItem(Game game, const QMimeData& source)
@@ -110,6 +111,7 @@ void DescriptionTextEdit::insertStepItem(Game game, const QMimeData& source)
 
     auto cursor = textCursor();
     cursor.insertText(links.join(u", "_s));
+    setFocus();
 }
 
 DescriptionBrowser::DescriptionBrowser(QWidget* parent)
