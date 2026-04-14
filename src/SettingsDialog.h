@@ -30,11 +30,6 @@ public slots:
 
 private slots:
     void save();
-    void setRequestsChanged();
-    void setLeagueChanged();
-    void setImportChanged();
-    void setLanguageChanged();
-    void setHotkeysChanged();
 
 private:
     QListView* tab_view;
@@ -93,6 +88,14 @@ private:
     void setupHotkeysTab();
     void resetHotkeys();
     void saveHotkeys(QSettings& settings);
+
+    enum Tab : unsigned;
+
+    template<Tab tab>
+    void setChanged()
+    {
+        is_changed[tab] = true;
+    }
 
     std::array<bool, 5> is_changed{};
     std::array<bool, 5> needs_reset;

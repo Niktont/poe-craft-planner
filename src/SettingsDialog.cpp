@@ -23,7 +23,7 @@ using namespace std::chrono;
 using namespace Qt::StringLiterals;
 
 namespace planner {
-enum Tab {
+enum SettingsDialog::Tab : unsigned {
     Requests,
     League,
     Import,
@@ -103,17 +103,19 @@ SettingsDialog::SettingsDialog(QWidget* parent)
     edit_layout->addWidget(tabs_widget, 0, Qt::AlignTop | Qt::AlignLeft);
 
     auto buttons = new QDialogButtonBox{};
-
-    auto button = buttons->addButton(QDialogButtonBox::Ok);
-    connect(button, &QPushButton::clicked, this, [this] {
+    connect(buttons->addButton(QDialogButtonBox::Ok), &QPushButton::clicked, this, [this] {
         save();
         accept();
     });
-    button = buttons->addButton(QDialogButtonBox::Cancel);
-    connect(button, &QPushButton::clicked, this, &QDialog::reject);
+    connect(buttons->addButton(QDialogButtonBox::Cancel),
+            &QPushButton::clicked,
+            this,
+            &QDialog::reject);
 
-    button = buttons->addButton(QDialogButtonBox::Apply);
-    connect(button, &QPushButton::clicked, this, &SettingsDialog::save);
+    connect(buttons->addButton(QDialogButtonBox::Apply),
+            &QPushButton::clicked,
+            this,
+            &SettingsDialog::save);
     main_layout->addWidget(buttons);
 
     connect(this, &QDialog::rejected, this, [this] {
@@ -125,8 +127,7 @@ SettingsDialog::SettingsDialog(QWidget* parent)
 
 void SettingsDialog::openSettings()
 {
-    auto current = tabs_widget->currentIndex();
-    resetTab(current);
+    resetTab(tabs_widget->currentIndex());
 
     open();
 }
@@ -146,31 +147,6 @@ void SettingsDialog::save()
         saveHotkeys(settings);
 
     is_changed.fill(false);
-}
-
-void SettingsDialog::setRequestsChanged()
-{
-    is_changed[Requests] = true;
-}
-
-void SettingsDialog::setLeagueChanged()
-{
-    is_changed[League] = true;
-}
-
-void SettingsDialog::setImportChanged()
-{
-    is_changed[Import] = true;
-}
-
-void SettingsDialog::setLanguageChanged()
-{
-    is_changed[Language] = true;
-}
-
-void SettingsDialog::setHotkeysChanged()
-{
-    is_changed[Hotkeys] = true;
 }
 
 void SettingsDialog::resetTab(int index)
@@ -246,13 +222,16 @@ void SettingsDialog::setupRequestsTab()
 
     auto val_edits = requests_tab->findChildren<QAbstractSpinBox*>();
     for (auto edit : std::as_const(val_edits)) {
-        connect(edit, &QAbstractSpinBox::editingFinished, this, &SettingsDialog::setRequestsChanged);
+        connect(edit,
+                &QAbstractSpinBox::editingFinished,
+                this,
+                &SettingsDialog::setChanged<Requests>);
         edit->setButtonSymbols(QAbstractSpinBox::NoButtons);
     }
 
     auto checkboxes = requests_tab->findChildren<QCheckBox*>();
     for (auto cb : std::as_const(checkboxes))
-        connect(cb, &QCheckBox::checkStateChanged, this, &SettingsDialog::setRequestsChanged);
+        connect(cb, &QCheckBox::checkStateChanged, this, &SettingsDialog::setChanged<Requests>);
 }
 
 void SettingsDialog::resetRequests()
@@ -304,11 +283,11 @@ void SettingsDialog::setupLeagueTab()
     league_tab->setLayout(form);
 
     league_poe1 = new QComboBox{};
-    connect(league_poe1, &QComboBox::currentIndexChanged, this, &SettingsDialog::setLeagueChanged);
+    connect(league_poe1, &QComboBox::currentIndexChanged, this, &SettingsDialog::setChanged<League>);
     form->addRow(tr("PoE 1 league:"), league_poe1);
 
     league_poe2 = new QComboBox{};
-    connect(league_poe2, &QComboBox::currentIndexChanged, this, &SettingsDialog::setLeagueChanged);
+    connect(league_poe2, &QComboBox::currentIndexChanged, this, &SettingsDialog::setChanged<League>);
     form->addRow(tr("PoE 2 league:"), league_poe2);
 
     snapshot_use_current_data = new QCheckBox{
@@ -316,7 +295,7 @@ void SettingsDialog::setupLeagueTab()
     connect(snapshot_use_current_data,
             &QCheckBox::checkStateChanged,
             this,
-            &SettingsDialog::setLeagueChanged);
+            &SettingsDialog::setChanged<League>);
     form->addRow(snapshot_use_current_data);
 }
 
@@ -358,18 +337,21 @@ void SettingsDialog::setupImportTab()
     import_tab->setLayout(layout);
 
     overwrite_names = new QCheckBox{tr("Take names from imported plans on overwriting")};
-    connect(overwrite_names, &QCheckBox::checkStateChanged, this, &SettingsDialog::setImportChanged);
+    connect(overwrite_names,
+            &QCheckBox::checkStateChanged,
+            this,
+            &SettingsDialog::setChanged<Import>);
     layout->addWidget(overwrite_names);
 
     add_prefix = new QCheckBox{tr("Add prefix to imported plans or folders")};
-    connect(add_prefix, &QCheckBox::checkStateChanged, this, &SettingsDialog::setImportChanged);
+    connect(add_prefix, &QCheckBox::checkStateChanged, this, &SettingsDialog::setChanged<Import>);
     layout->addWidget(add_prefix);
 
     add_prefix_requests = new QCheckBox{tr("Add prefix to imported searches")};
     connect(add_prefix_requests,
             &QCheckBox::checkStateChanged,
             this,
-            &SettingsDialog::setImportChanged);
+            &SettingsDialog::setChanged<Import>);
     layout->addWidget(add_prefix_requests);
 
     layout->addStretch(1);
@@ -412,7 +394,7 @@ void SettingsDialog::setupLanguageTab()
     connect(currency_language,
             &QComboBox::currentIndexChanged,
             this,
-            &SettingsDialog::setLanguageChanged);
+            &SettingsDialog::setChanged<Language>);
     layout->addRow(tr("Language for names of Exchange items:"), currency_language);
 
     trade_query_language = new QComboBox{};
@@ -420,7 +402,7 @@ void SettingsDialog::setupLanguageTab()
     connect(trade_query_language,
             &QComboBox::currentIndexChanged,
             this,
-            &SettingsDialog::setLanguageChanged);
+            &SettingsDialog::setChanged<Language>);
     layout->addRow(tr("Language for trade search query tooltip:"), trade_query_language);
 }
 
@@ -494,7 +476,7 @@ void SettingsDialog::setupHotkeysTab()
         connect(edit,
                 &QKeySequenceEdit::keySequenceChanged,
                 this,
-                &SettingsDialog::setHotkeysChanged);
+                &SettingsDialog::setChanged<Hotkeys>);
     }
 }
 
