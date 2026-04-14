@@ -119,10 +119,20 @@ MainWindow::MainWindow(QWidget* parent)
             &SnapshotModel::dataChanged,
             this,
             &MainWindow::updateSnapshotName);
+    connect(AppState::state.snapshots_poe1,
+            &SnapshotModel::currentChanged,
+            this,
+            &MainWindow::checkDeletedSnapshot);
+    connect(AppState::state.snapshots_poe2,
+            &SnapshotModel::currentChanged,
+            this,
+            &MainWindow::checkDeletedSnapshot);
 
     connect(snapshot_edit, &QLineEdit::editingFinished, this, [this] {
-        if (!current_snapshot_model)
+        if (!current_snapshot_model) {
+            snapshot_edit->clear();
             return;
+        }
 
         if (snapshot_edit->text().isEmpty())
             current_snapshot_model->clearCurrent();
@@ -374,6 +384,14 @@ void MainWindow::updateSnapshotName(const QModelIndex& idx)
     auto changed_it = changed_model->snapshots.nth(idx.row());
     if (changed_model->current && changed_model->current->id == changed_it->first)
         snapshot_edit->setText(changed_it->second.name);
+}
+
+void MainWindow::checkDeletedSnapshot(Game game, Snapshot* snapshot)
+{
+    if (snapshot || !current_snapshot_model || current_snapshot_model->game != game)
+        return;
+
+    snapshot_edit->clear();
 }
 
 void MainWindow::setupDockWidgets()

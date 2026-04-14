@@ -20,6 +20,7 @@ class ShoppingSetupDialog;
 class SearchesDialog;
 class SnapshotsDialog;
 class SnapshotModel;
+class Snapshot;
 
 class MainWindow : public QMainWindow
 {
@@ -100,6 +101,7 @@ private slots:
     bool importItem(const QJsonDocument& json);
     void openShoppingDialog();
     void updateSnapshotName(const QModelIndex& idx);
+    void checkDeletedSnapshot(planner::Game game, planner::Snapshot* snapshot);
 
 private:
     void setupDockWidgets();
