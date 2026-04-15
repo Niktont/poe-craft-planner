@@ -30,7 +30,7 @@ class PlanModel : public QAbstractItemModel
     Q_OBJECT
 public:
     PlanModel(Game game, QObject* parent = nullptr);
-    ~PlanModel();
+    ~PlanModel() noexcept;
 
     using Plans = boost::unordered::unordered_node_map<QUuid, Plan>;
     Plans plans;

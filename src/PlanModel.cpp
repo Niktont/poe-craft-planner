@@ -34,10 +34,9 @@ PlanModel::PlanModel(Game game, QObject* parent)
     , base_folder_name{tr("New folder")}
 {}
 
-PlanModel::~PlanModel()
+PlanModel::~PlanModel() noexcept
 {
     saveFoldersTransaction();
-    search_model->plans.clear();
 }
 
 QModelIndex PlanModel::insertPlan(const QModelIndex& dest)

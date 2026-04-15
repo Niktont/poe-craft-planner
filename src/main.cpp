@@ -32,7 +32,8 @@ int main(int argc, char* argv[])
     Settings::offline_mode = parser.isSet(offline_o);
     Settings::initCache();
 
-    MainWindow mw;
+    QObject parent;
+    MainWindow mw{parent};
 
     auto init_dialog = new InitializationDialog{mw};
     init_dialog->open();

@@ -149,12 +149,6 @@ PlanItem& PlanItem::operator=(PlanItem&& item)
     return *this;
 }
 
-PlanItem::~PlanItem()
-{
-    if (model->item_copy_state == this)
-        model->item_copy_state = nullptr;
-}
-
 QJsonObject PlanItem::saveJson() const
 {
     if (isFolder()) {
@@ -449,6 +443,8 @@ void PlanItem::remove(QSqlQuery& delete_query)
             model->plans.erase(it);
         }
     }
+    if (model->item_copy_state == this)
+        model->item_copy_state = nullptr;
 
     delete_query.addBindValue(id.toString());
     delete_query.exec();

@@ -63,6 +63,7 @@ PlanWidget::PlanWidget(MainWindow& mw)
 
     auto steps_layout = new QVBoxLayout{};
     steps_layout->setVerticalSizeConstraint(QLayout::SetFixedSize);
+    steps_layout->setSpacing(0);
     steps_widget->setLayout(steps_layout);
     steps_layout->setContentsMargins(0, 0, 0, 0);
     steps_layout->addStretch(1);

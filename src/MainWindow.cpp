@@ -48,7 +48,7 @@ using namespace Qt::Literals;
 
 namespace planner {
 
-MainWindow::MainWindow(QWidget* parent)
+MainWindow::MainWindow(QObject& object_parent, QWidget* parent)
     : QMainWindow{parent}
 {
     auto settings = Settings::get();
@@ -65,23 +65,23 @@ MainWindow::MainWindow(QWidget* parent)
     auto plan_widget = new PlanWidget{*this};
     setCentralWidget(plan_widget);
 
-    AppState::state.exchange_cache_poe1 = new ExchangeRequestCache{Game::Poe1, this};
-    AppState::state.exchange_cache_poe2 = new ExchangeRequestCache{Game::Poe2, this};
+    AppState::state.exchange_cache_poe1 = new ExchangeRequestCache{Game::Poe1, &object_parent};
+    AppState::state.exchange_cache_poe2 = new ExchangeRequestCache{Game::Poe2, &object_parent};
     AppState::state.trade_cache_poe1 = new TradeRequestCache{Game::Poe1,
                                                              *AppState::state.exchange_cache_poe1,
-                                                             this};
+                                                             &object_parent};
     AppState::state.trade_cache_poe2 = new TradeRequestCache{Game::Poe2,
                                                              *AppState::state.exchange_cache_poe2,
-                                                             this};
+                                                             &object_parent};
 
     AppState::state.snapshots_poe1 = new SnapshotModel{*AppState::state.exchange_cache_poe1,
                                                        *AppState::state.trade_cache_poe1,
-                                                       this};
+                                                       &object_parent};
     AppState::state.snapshots_poe2 = new SnapshotModel{*AppState::state.exchange_cache_poe2,
                                                        *AppState::state.trade_cache_poe2,
-                                                       this};
+                                                       &object_parent};
 
-    setupDockWidgets();
+    setupDockWidgets(object_parent);
 
     setupNetwork();
 
@@ -394,7 +394,7 @@ void MainWindow::checkDeletedSnapshot(Game game, Snapshot* snapshot)
     snapshot_edit->clear();
 }
 
-void MainWindow::setupDockWidgets()
+void MainWindow::setupDockWidgets(QObject& object_parent)
 {
     plans_widget_poe1 = new QDockWidget{this};
     plans_widget_poe1->setObjectName("poe1_dock");
@@ -402,8 +402,8 @@ void MainWindow::setupDockWidgets()
     plans_widget_poe1->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
     plans_widget_poe1->setWindowTitle(tr("PoE 1"));
 
-    AppState::state.plan_model_poe1 = new PlanModel{Game::Poe1, this};
-    plan_view_poe1 = new PlanTreeView{*AppState::state.plan_model_poe1, this};
+    AppState::state.plan_model_poe1 = new PlanModel{Game::Poe1, &object_parent};
+    plan_view_poe1 = new PlanTreeView{*AppState::state.plan_model_poe1};
     plans_widget_poe1->setWidget(plan_view_poe1);
 
     plans_widget_poe2 = new QDockWidget{this};
@@ -412,8 +412,8 @@ void MainWindow::setupDockWidgets()
     plans_widget_poe2->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
     plans_widget_poe2->setWindowTitle(tr("PoE 2"));
 
-    AppState::state.plan_model_poe2 = new PlanModel{Game::Poe2, this};
-    plan_view_poe2 = new PlanTreeView{*AppState::state.plan_model_poe2, this};
+    AppState::state.plan_model_poe2 = new PlanModel{Game::Poe2, &object_parent};
+    plan_view_poe2 = new PlanTreeView{*AppState::state.plan_model_poe2};
     plans_widget_poe2->setWidget(plan_view_poe2);
 
     setDockOptions(ForceTabbedDocks | AnimatedDocks | GroupedDragging);
@@ -631,8 +631,10 @@ void MainWindow::setupActions()
 
     auto toolbar = addToolBar(tr("Toolbar"));
     toolbar->setIconSize({16, 16});
-
+    toolbar->setMovable(false);
+    toolbar->setFloatable(false);
     toolbar->setObjectName("toolbar");
+
     toolbar->addAction(back_action);
     toolbar->addAction(forward_action);
     toolbar->addSeparator();

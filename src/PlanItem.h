@@ -28,8 +28,6 @@ public:
     PlanItem& operator=(const PlanItem& item) = delete;
     PlanItem& operator=(PlanItem&& item);
 
-    ~PlanItem();
-
     QJsonObject saveJson() const;
     QJsonObject exportJson(const ExchangeRequestCache& cache,
                            TradeRequestCache& trade_cache,

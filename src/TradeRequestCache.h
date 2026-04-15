@@ -37,7 +37,7 @@ class TradeRequestCache : public QAbstractTableModel
     Q_OBJECT
 public:
     TradeRequestCache(Game game, ExchangeRequestCache& exchange_cache, QObject* parent = nullptr);
-    ~TradeRequestCache() { saveCostCache(); }
+    ~TradeRequestCache() noexcept { saveCostCache(); }
 
     bool readDatabase();
     bool readAdditionalDatabase();

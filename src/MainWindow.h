@@ -26,7 +26,7 @@ class MainWindow : public QMainWindow
 {
     Q_OBJECT
 public:
-    explicit MainWindow(QWidget* parent = nullptr);
+    explicit MainWindow(QObject& object_parent, QWidget* parent = nullptr);
 
     QDockWidget* plans_widget_poe1;
     PlanTreeView* plan_view_poe1;
@@ -104,7 +104,7 @@ private slots:
     void checkDeletedSnapshot(planner::Game game, planner::Snapshot* snapshot);
 
 private:
-    void setupDockWidgets();
+    void setupDockWidgets(QObject& object_parent);
     void setupNetwork();
     void setupAboutDialog();
     void setupActions();
