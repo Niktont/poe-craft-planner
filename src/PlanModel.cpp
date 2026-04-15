@@ -750,7 +750,7 @@ void PlanModel::savePlanItem(const PlanItem& item, QSqlQuery& save_query)
 }
 
 bool PlanModel::gatherDependencies(QJsonObject& export_o,
-                                   const QJsonObject& item_o,
+                                   QJsonObject& item_o,
                                    std::vector<QUuid>& dependencies) const
 {
     size_t export_end = dependencies.size();
@@ -782,16 +782,25 @@ bool PlanModel::gatherDependencies(QJsonObject& export_o,
     dependencies_o["name"] = "Dependencies";
     dependencies_o["childs"] = dependencies_a;
 
-    QJsonArray childs_a;
-    childs_a.push_back(item_o);
-    childs_a.push_back(dependencies_o);
+    if (item_o["is_folder"].toBool()) {
+        auto childs_a = item_o.take("childs").toArray();
+        childs_a.append(dependencies_o);
+        item_o["childs"] = childs_a;
 
-    QJsonObject export_folder;
-    export_folder["is_folder"] = true;
-    export_folder["name"] = "";
-    export_folder["childs"] = childs_a;
+        export_o["folder"] = item_o;
+    } else {
+        QJsonArray childs_a;
+        childs_a.push_back(item_o);
+        childs_a.push_back(dependencies_o);
 
-    export_o["folder"] = export_folder;
+        QJsonObject export_folder;
+        export_folder["is_folder"] = true;
+        export_folder["name"] = item_o["name"];
+        export_folder["childs"] = childs_a;
+
+        export_o["folder"] = export_folder;
+    }
+
     return true;
 }
 

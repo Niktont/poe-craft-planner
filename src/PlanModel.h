@@ -142,7 +142,7 @@ private:
     void savePlanItem(const PlanItem& item, QSqlQuery& save_query);
 
     bool gatherDependencies(QJsonObject& export_o,
-                            const QJsonObject& item_o,
+                            QJsonObject& item_o,
                             std::vector<QUuid>& dependencies) const;
 
     bool handleOverwrite(QWidget* dialog_parent);
