@@ -13,7 +13,7 @@ class QRestAccessManager;
 class QAction;
 
 namespace planner {
-class PlanWidget;
+class MainWidget;
 class PlanTreeView;
 class SettingsDialog;
 class ShoppingSetupDialog;
@@ -109,7 +109,7 @@ private:
     void setupAboutDialog();
     void setupActions();
 
-    PlanWidget* planWidget() const;
+    MainWidget* mainWidget() const;
 
     bool haveUnsavedPlans() const;
 

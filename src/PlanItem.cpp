@@ -323,6 +323,17 @@ QString PlanItem::shortPath() const
     return parent_->name() % u'/' % name();
 }
 
+int PlanItem::isAncestor(const PlanItem& item) const
+{
+    auto parent = this->parent_;
+    auto child = this;
+    while (parent && parent != &item) {
+        child = parent;
+        parent = parent->parent_;
+    }
+    return parent != nullptr ? child->row() : -1;
+}
+
 bool PlanItem::isDescendant(const PlanItem& item) const
 {
     auto parent = item.parent_;
@@ -333,15 +344,12 @@ bool PlanItem::isDescendant(const PlanItem& item) const
     return parent != nullptr;
 }
 
-int PlanItem::isAncestor(const PlanItem& item) const
+bool PlanItem::isDescendantDeleting(const PlanItem& item,
+                                    int first_deleting,
+                                    int last_deleting) const
 {
-    auto parent = this->parent_;
-    auto child = this;
-    while (parent && parent != &item) {
-        child = parent;
-        parent = parent->parent_;
-    }
-    return parent != nullptr ? child->row() : -1;
+    auto descent_row = item.isAncestor(*this);
+    return descent_row != -1 && first_deleting <= descent_row && descent_row <= last_deleting;
 }
 
 QModelIndex PlanItem::insertPlan(Plan& child, int row, const QModelIndex& index)

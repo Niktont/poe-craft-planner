@@ -4,13 +4,13 @@
 #include "CustomEditDialog.h"
 #include "ExchangeRequestCache.h"
 #include "ExchangeRequestManager.h"
+#include "MainWidget.h"
 #include "Plan.h"
 #include "PlanItem.h"
 #include "PlanModel.h"
 #include "PlanSearchDialog.h"
 #include "PlanSearchView.h"
 #include "PlanTreeView.h"
-#include "PlanWidget.h"
 #include "RequestEditDialog.h"
 #include "SearchesDialog.h"
 #include "Settings.h"
@@ -62,8 +62,9 @@ MainWindow::MainWindow(QObject& object_parent, QWidget* parent)
 
     setAcceptDrops(true);
 
-    auto plan_widget = new PlanWidget{*this};
-    setCentralWidget(plan_widget);
+    auto main_widget = new MainWidget{this};
+    AppState::state.main_widget = main_widget;
+    setCentralWidget(main_widget);
 
     AppState::state.exchange_cache_poe1 = new ExchangeRequestCache{Game::Poe1, &object_parent};
     AppState::state.exchange_cache_poe2 = new ExchangeRequestCache{Game::Poe2, &object_parent};
@@ -92,21 +93,21 @@ MainWindow::MainWindow(QObject& object_parent, QWidget* parent)
     AppState::state.update_cost_dialog = new UpdateCostDialog{this};
     connect(AppState::state.update_cost_dialog,
             &UpdateCostDialog::costUpdated,
-            plan_widget,
-            &PlanWidget::updateCost);
+            main_widget,
+            &MainWidget::updateCost);
     AppState::state.shopping_dialog = new ShoppingDialog{this};
     shopping_setup = new ShoppingSetupDialog{this};
     AppState::state.custom_edit_dialog = new CustomEditDialog{this};
     AppState::state.plan_search_dialog = new PlanSearchDialog{this};
     connect(AppState::state.plan_search_dialog->view,
             &PlanSearchView::planClicked,
-            plan_widget,
-            &PlanWidget::openPlan);
+            main_widget,
+            &MainWidget::openPlan);
 
     snapshot_edit = new QLineEdit{};
     snapshot_edit->setPlaceholderText(tr("Snapshot"));
     snapshot_edit->setFixedWidth(80);
-    connect(plan_widget, &PlanWidget::gameChanged, this, [this](Game game) {
+    connect(main_widget, &MainWidget::gameChanged, this, [this](Game game) {
         current_snapshot_model = AppState::snapshots(game);
         snapshot_edit->setText(current_snapshot_model->currentName());
         snapshot_edit->setCompleter(current_snapshot_model->completer);
@@ -147,7 +148,7 @@ MainWindow::MainWindow(QObject& object_parent, QWidget* parent)
 
     setupAboutDialog();
 
-    plan_widget->connectSignals();
+    main_widget->connectSignals();
 
     setupActions();
 
@@ -176,9 +177,9 @@ MainWindow::MainWindow(QObject& object_parent, QWidget* parent)
         restoreState(state.toByteArray());
 }
 
-PlanWidget* MainWindow::planWidget() const
+MainWidget* MainWindow::mainWidget() const
 {
-    return static_cast<PlanWidget*>(centralWidget());
+    return static_cast<MainWidget*>(centralWidget());
 }
 
 void MainWindow::restoreSession()
@@ -257,7 +258,7 @@ void MainWindow::closeEvent(QCloseEvent* event)
     Settings::save<settings::trade_use_query_as_description>(settings);
 
     settings.setValue(Settings::windows_main_last_plan,
-                      planWidget()->plan() ? planWidget()->plan()->id().toString() : QString{});
+                      mainWidget()->plan() ? mainWidget()->plan()->id().toString() : QString{});
 
     event->accept();
 }
@@ -353,7 +354,7 @@ bool MainWindow::importItem(const QJsonDocument& json)
 
 void MainWindow::openShoppingDialog()
 {
-    auto plan = planWidget()->plan();
+    auto plan = mainWidget()->plan();
     if (!plan || plan->steps.empty())
         return;
 
@@ -463,7 +464,7 @@ void MainWindow::setupActions()
     save_action = new QAction{tr("Save"), this};
     save_action->setShortcut(QKeySequence::Save);
     connect(save_action, &QAction::triggered, this, [this] {
-        if (auto plan = planWidget()->plan()) {
+        if (auto plan = mainWidget()->plan()) {
             AppState::planModel(plan->game)->savePlan(*plan->item());
         }
     });
@@ -478,7 +479,7 @@ void MainWindow::setupActions()
     plan_search_action = new QAction{tr("Find Plan")};
     plan_search_action->setShortcut(Qt::ControlModifier | Qt::Key_F);
     connect(plan_search_action, &QAction::triggered, this, [this] {
-        AppState::state.plan_search_dialog->openGame(planWidget()->game());
+        AppState::state.plan_search_dialog->openGame(mainWidget()->game());
     });
 
 #ifndef PLANNER_NO_BROWSER
@@ -498,30 +499,30 @@ void MainWindow::setupActions()
     hide_descriptions_action->setCheckable(true);
     connect(hide_descriptions_action,
             &QAction::toggled,
-            planWidget(),
-            &PlanWidget::hideDescriptions);
+            mainWidget(),
+            &MainWidget::hideDescriptions);
 
     hide_empty_resources_action = new QAction{tr("Hide Empty Resources"), this};
     hide_empty_resources_action->setCheckable(true);
     connect(hide_empty_resources_action,
             &QAction::toggled,
-            planWidget(),
-            &PlanWidget::hideEmptyResources);
+            mainWidget(),
+            &MainWidget::hideEmptyResources);
 
     hide_empty_results_action = new QAction{tr("Hide Empty Results"), this};
     hide_empty_results_action->setCheckable(true);
     connect(hide_empty_results_action,
             &QAction::toggled,
-            planWidget(),
-            &PlanWidget::hideEmptyResults);
+            mainWidget(),
+            &MainWidget::hideEmptyResults);
 
     hide_not_used_items_action = new QAction{tr("Hide Unused Items"), this};
     hide_not_used_items_action->setShortcut(Qt::AltModifier | Qt::Key_I);
     hide_not_used_items_action->setCheckable(true);
     connect(hide_not_used_items_action,
             &QAction::toggled,
-            planWidget(),
-            &PlanWidget::hideNotUsedItems);
+            mainWidget(),
+            &MainWidget::hideNotUsedItems);
 
     use_query_as_description_action = new QAction{tr("Use Search Query As Description"), this};
     use_query_as_description_action->setWhatsThis(
@@ -534,28 +535,28 @@ void MainWindow::setupActions()
     back_action = new QAction{style()->standardIcon(QStyle::SP_ArrowLeft), tr("Go Back"), this};
     back_action->setShortcut(Qt::AltModifier | Qt::Key_Left);
     back_action->setAutoRepeat(true);
-    connect(back_action, &QAction::triggered, planWidget(), &PlanWidget::goBack);
+    connect(back_action, &QAction::triggered, mainWidget(), &MainWidget::goBack);
 
     forward_action = new QAction{style()->standardIcon(QStyle::SP_ArrowRight),
                                  tr("Go Forward"),
                                  this};
     forward_action->setShortcut(Qt::AltModifier | Qt::Key_Right);
     forward_action->setAutoRepeat(true);
-    connect(forward_action, &QAction::triggered, planWidget(), &PlanWidget::goForward);
+    connect(forward_action, &QAction::triggered, mainWidget(), &MainWidget::goForward);
 
     hide_title_currency_name_action = new QAction{tr("Hide Currency Name In Titles"), this};
     hide_title_currency_name_action->setCheckable(true);
     connect(hide_title_currency_name_action,
             &QAction::toggled,
-            planWidget(),
-            &PlanWidget::hideTitleCurrencyName);
+            mainWidget(),
+            &MainWidget::hideTitleCurrencyName);
 
     add_step_action = new QAction{tr("Add Step"), this};
-    connect(add_step_action, &QAction::triggered, planWidget(), &PlanWidget::addStep);
+    connect(add_step_action, &QAction::triggered, mainWidget(), &MainWidget::addStep);
 
     searches_action = new QAction{tr("Searches"), this};
     connect(searches_action, &QAction::triggered, this, [this] {
-        searches_dialog->openGame(planWidget()->game());
+        searches_dialog->openGame(mainWidget()->game());
     });
 
     searches_poe1_action = new QAction{tr("Searches (PoE 1)"), this};
@@ -581,7 +582,7 @@ void MainWindow::setupActions()
     connect(update_cost_action, &QAction::triggered, this, [this] {
         auto modifiers = QGuiApplication::keyboardModifiers();
         bool send_requests = !Settings::offline_mode && !modifiers.testFlag(Qt::ShiftModifier);
-        AppState::state.update_cost_dialog->updatePlan(planWidget()->plan(), send_requests);
+        AppState::state.update_cost_dialog->updatePlan(mainWidget()->plan(), send_requests);
     });
 
     shopping_mode_action = new QAction{tr("Shopping Mode"), this};

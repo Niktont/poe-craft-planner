@@ -46,7 +46,7 @@ Step::Step(const Step& o)
     , results{o.results}
 {}
 
-Step& Step::operator=(Step o)
+Step& Step::operator=(Step o) noexcept
 {
     using std::swap;
     swap(id, o.id);

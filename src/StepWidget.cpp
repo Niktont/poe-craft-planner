@@ -2,6 +2,7 @@
 #include "AppState.h"
 #include "CostWidget.h"
 #include "DescriptionEdit.h"
+#include "MainWidget.h"
 #include "Plan.h"
 #include "PlanWidget.h"
 #include "Settings.h"
@@ -98,7 +99,10 @@ StepWidget::StepWidget(PlanWidget* plan_widget, QWidget* parent)
     step_layout->setContentsMargins(0, 0, 0, 0);
 
     description = new DescriptionEdit{};
-    connect(description, &DescriptionEdit::planLinkClicked, plan_widget, &PlanWidget::openPlan);
+    connect(description,
+            &DescriptionEdit::planLinkClicked,
+            AppState::state.main_widget,
+            &MainWidget::openPlan);
 
     step_layout->addWidget(description);
 
@@ -113,8 +117,15 @@ StepWidget::StepWidget(PlanWidget* plan_widget, QWidget* parent)
     results_model = new StepItemModel{false, this};
     results_widget = new StepItemsWidget{*AppState::state.custom_edit_dialog, *results_model};
 
-    connect(resources_model, &StepItemModel::planLinkClicked, plan_widget, &PlanWidget::openPlan);
-    connect(results_model, &StepItemModel::planLinkClicked, plan_widget, &PlanWidget::openPlan);
+    connect(resources_model,
+            &StepItemModel::planLinkClicked,
+            AppState::state.main_widget,
+            &MainWidget::openPlan);
+    connect(results_model,
+            &StepItemModel::planLinkClicked,
+            AppState::state.main_widget,
+            &MainWidget::openPlan);
+
     connect(resources_model,
             &StepItemModel::stepLinkClicked,
             plan_widget,

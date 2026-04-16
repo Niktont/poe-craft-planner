@@ -53,8 +53,10 @@ public:
     QString path() const;
     QString shortPath() const;
 
-    bool isDescendant(const PlanItem& item) const;
     int isAncestor(const PlanItem& item) const;
+    bool isDescendant(const PlanItem& item) const;
+    bool isDescendantDeleting(const PlanItem& item, int first_deleting, int last_deleting) const;
+
     PlanItem* parent() { return parent_; }
     const PlanItem* parent() const { return parent_; }
 

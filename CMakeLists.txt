@@ -100,6 +100,7 @@ qt_add_executable(${PROJECT_NAME}
     src/StepItemCopyState.h src/StepItemCopyState.cpp
     src/AppState.h src/AppState.cpp
     src/PlanTitleWidget.h src/PlanTitleWidget.cpp
+    src/MainWidget.h src/MainWidget.cpp
 )
 
 if(MSVC)

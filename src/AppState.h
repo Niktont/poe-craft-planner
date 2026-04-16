@@ -5,6 +5,7 @@
 
 namespace planner {
 class MainWindow;
+class MainWidget;
 class TradeRequestManager;
 class ExchangeRequestManager;
 
@@ -26,6 +27,7 @@ class AppState
 {
 public:
     MainWindow* mw{};
+    MainWidget* main_widget{};
 
     PlanModel* plan_model_poe1{};
     PlanModel* plan_model_poe2{};
