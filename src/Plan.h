@@ -21,8 +21,8 @@ public:
     Plan(QUuid id, const Plan& o);
     Plan(const Plan&) = delete;
     Plan& operator=(const Plan&) = delete;
-    Plan(Plan&&) = default;
-    Plan& operator=(Plan&&) = default;
+    Plan(Plan&&) noexcept = default;
+    Plan& operator=(Plan&&) noexcept = default;
 
     QJsonObject saveJson() const;
     QJsonObject exportJson(const ExchangeRequestCache& cache,

@@ -128,7 +128,7 @@ PlanItem::PlanItem(const PlanItem& item)
     }
 }
 
-PlanItem& PlanItem::operator=(PlanItem&& item)
+PlanItem& PlanItem::operator=(PlanItem&& item) noexcept
 {
     if (plan_ && item.plan_ != plan_ && model)
         model->plans.erase(plan_->id());

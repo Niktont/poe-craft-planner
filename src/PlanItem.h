@@ -26,7 +26,7 @@ public:
     explicit PlanItem(const PlanItem& item);
     explicit PlanItem(PlanItem&& item) = delete;
     PlanItem& operator=(const PlanItem& item) = delete;
-    PlanItem& operator=(PlanItem&& item);
+    PlanItem& operator=(PlanItem&& item) noexcept;
 
     QJsonObject saveJson() const;
     QJsonObject exportJson(const ExchangeRequestCache& cache,

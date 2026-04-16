@@ -28,6 +28,11 @@ public:
     CustomCalcData(const QJsonObject& custom_o)
         : text{custom_o["text"].toString()}
     {}
+    CustomCalcData(const CustomCalcData&) = default;
+    CustomCalcData(CustomCalcData&&) noexcept = default;
+    CustomCalcData& operator=(const CustomCalcData&) = default;
+    CustomCalcData& operator=(CustomCalcData&&) noexcept = default;
+
     QJsonObject toJson() const
     {
         QJsonObject custom_o;
@@ -51,8 +56,8 @@ public:
     Step(const QJsonObject& step_o, const ExchangeRequestCache& cache);
 
     Step(const Step& o);
-    Step(Step&&) = default;
-    Step& operator=(Step o);
+    Step(Step&&) noexcept = default;
+    Step& operator=(Step o) noexcept;
 
     QJsonObject saveJson() const;
     QJsonObject exportJson(const ExchangeRequestCache& cache, TradeRequestCache& trade_cache) const;
