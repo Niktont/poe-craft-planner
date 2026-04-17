@@ -192,7 +192,7 @@ void PlanItem::replacePlan(int row, Plan&& new_plan)
     child->plan_->setChanged();
 }
 
-PlanItem* PlanItem::restoreChild(int row)
+PlanItem* PlanItem::restorePlan(int row)
 {
     auto& child = childs[row];
 
@@ -206,6 +206,7 @@ PlanItem* PlanItem::restoreChild(int row)
         return nullptr;
 
     *child = {child->id, select, *model, this};
+    model->changed_plans.erase(child.get());
 
     return child.get();
 }
@@ -214,6 +215,7 @@ void PlanItem::insertCopy(int row, const PlanItem& copy_item)
 {
     auto& child = *childs.emplace(childs.begin() + row, std::make_unique<PlanItem>(copy_item));
     child->parent_ = this;
+    model->changed_folders.insert(this);
     child->setName(child->name() + PlanModel::tr(" - Copy"));
 }
 
@@ -381,6 +383,7 @@ QModelIndex PlanItem::insertFolder(QString folder_name, int row, const QModelInd
 void PlanItem::appendChild(std::unique_ptr<PlanItem> item)
 {
     item->parent_ = this;
+    model->changed_folders.insert(this);
     childs.push_back(std::move(item));
 }
 

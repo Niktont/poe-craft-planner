@@ -33,11 +33,6 @@ public:
                            TradeRequestCache& trade_cache,
                            std::vector<QUuid>* plans_to_check) const;
 
-    void replacePlan(int row, Plan&& new_plan);
-
-    PlanItem* restoreChild(int row);
-    void insertCopy(int row, const PlanItem& copy_item);
-
     QModelIndex index(int column = 0) const;
 
     PlanItem& child(int row) { return *childs[row]; }
@@ -57,14 +52,6 @@ public:
     bool isDescendant(const PlanItem& item) const;
     bool isDescendantDeleting(const PlanItem& item, int first_deleting, int last_deleting) const;
 
-    PlanItem* parent() { return parent_; }
-    const PlanItem* parent() const { return parent_; }
-
-    QModelIndex insertPlan(Plan& child, int row, const QModelIndex& index);
-    QModelIndex insertFolder(QString folder_name, int row, const QModelIndex& index);
-
-    void appendChild(std::unique_ptr<PlanItem> item);
-
     bool checkPlanName(const QString& name) const;
     bool checkFolderName(const QString& name) const;
 
@@ -72,7 +59,6 @@ public:
     const Plan* plan() const { return plan_; }
 
     QString name() const;
-    void setName(QString name);
 
     bool isFolder() const { return plan_ == nullptr; }
 
@@ -87,6 +73,19 @@ private:
     void setItemChanged(bool new_item);
     void setPlanChanged();
     void remove(QSqlQuery& delete_query);
+
+    void replacePlan(int row, Plan&& new_plan);
+
+    PlanItem* restorePlan(int row);
+    void insertCopy(int row, const PlanItem& copy_item);
+    PlanItem* parent() { return parent_; }
+    const PlanItem* parent() const { return parent_; }
+
+    QModelIndex insertPlan(Plan& child, int row, const QModelIndex& index);
+    QModelIndex insertFolder(QString folder_name, int row, const QModelIndex& index);
+
+    void appendChild(std::unique_ptr<PlanItem> item);
+    void setName(QString name);
 
     static QString formatCost(double value);
 

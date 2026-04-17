@@ -134,7 +134,7 @@ bool PlanModel::moveRows(const QModelIndex& source_idx,
     auto dest = destination->childs.begin() + dest_row;
     int type;
     if (source != destination) {
-        if (destination->parent_ == source) {
+        if (destination->parent() == source) {
             auto row = destination->row();
             if (source_row <= row && row < source_row + count)
                 return false;
@@ -448,7 +448,6 @@ bool PlanModel::importItem(const QJsonObject& export_o, QWidget* dialog_parent)
         plans.merge(std::move(import_plans));
         beginInsertRows({}, root->childCount(), root->childCount());
         root->appendChild(std::move(import_root));
-        changed_folders.insert(root.get());
         endInsertRows();
     }
 
@@ -627,9 +626,7 @@ void PlanModel::restorePlan(const QModelIndex& index)
     saveFoldersTransaction();
 
     auto parent_item = item->parent();
-    if (auto new_item = parent_item->restoreChild(index.row())) {
-        changed_plans.erase(item);
-
+    if (auto new_item = parent_item->restorePlan(index.row())) {
         search_model->updatePath(*new_item->plan());
         emit dataChanged(index,
                          index.siblingAtColumn(static_cast<int>(PlanItemColumn::Cost)),
