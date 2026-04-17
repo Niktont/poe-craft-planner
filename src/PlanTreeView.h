@@ -13,7 +13,7 @@ class PlanTreeView : public QTreeView
 {
     Q_OBJECT
 public:
-    PlanTreeView(PlanModel& model, QWidget* parent = nullptr);
+    PlanTreeView(QWidget* parent = nullptr);
 
     PlanModel* planModel();
 

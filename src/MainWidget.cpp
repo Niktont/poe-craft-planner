@@ -26,15 +26,6 @@ MainWidget::MainWidget(QWidget* parent)
 
 void MainWidget::connectSignals()
 {
-    connect(AppState::state.plan_model_poe1,
-            &PlanModel::rowsAboutToBeRemoved,
-            this,
-            &MainWidget::checkDeletingPlans);
-    connect(AppState::state.plan_model_poe2,
-            &PlanModel::rowsAboutToBeRemoved,
-            this,
-            &MainWidget::checkDeletingPlans);
-
     connect(AppState::state.mw->plan_view_poe1,
             &QTreeView::clicked,
             this,
@@ -272,15 +263,43 @@ void MainWidget::checkDeletingPlans(const QModelIndex& parent, int first, int la
     if (check_updating)
         AppState::state.update_cost_dialog->reject();
 
-    if (!plan_widget->checkDeletingPlans(*model, *parent_item, first, last))
-        return;
+    bool current_is_deleting = plan_widget->checkDeletingPlans(*model, *parent_item, first, last);
+    if (current_is_deleting) {
+        auto isValid = [&](const std::pair<QUuid, Game>& p) {
+            auto model = AppState::planModel(p.second);
+            if (auto it = model->plans.find(p.first); it != model->plans.end()) {
+                auto res = parent_item->isDescendantDeleting(*it->second.item(), first, last);
+                return !res;
+            }
+            return false;
+        };
 
-    history_it = navigation_history.erase(history_it, navigation_history.end());
-    updateBack();
-    updateForward();
+        auto reverse_it = std::find_if(std::make_reverse_iterator(history_it),
+                                       navigation_history.rend(),
+                                       isValid);
+        history_it = navigation_history.erase(reverse_it.base(), std::next(history_it));
+
+        if (history_it == navigation_history.begin()) {
+            history_it = std::find_if(history_it, navigation_history.end(), isValid);
+            history_it = navigation_history.erase(navigation_history.begin(), history_it);
+
+            if (history_it == navigation_history.end()) {
+                plan_widget->setPlan(model, nullptr);
+                updateBack();
+                updateForward();
+                return;
+            }
+        } else
+            history_it = std::prev(history_it);
+
+        auto new_model = AppState::planModel(history_it->second);
+        setPlan(new_model, &new_model->plans.at(history_it->first), false);
+        reselectCurrent(plan()->game);
+    } else if (plan() && plan()->game == model->game)
+        reselectCurrent(plan()->game);
 }
 
-void MainWidget::setPlan(const PlanModel* model, Plan* new_plan)
+void MainWidget::setPlan(const PlanModel* model, Plan* new_plan, bool update_history)
 {
     auto prev_game = game();
     plan_widget->setPlan(model, new_plan);
@@ -288,14 +307,18 @@ void MainWidget::setPlan(const PlanModel* model, Plan* new_plan)
     if (prev_game != plan()->game)
         emit gameChanged(plan()->game);
 
-    if (history_it == navigation_history.end())
-        history_it = navigation_history.emplace(history_it, plan()->id(), plan()->game);
-    else if (history_it->first != plan()->id()) {
-        history_it = navigation_history.emplace(navigation_history.erase(std::next(history_it),
-                                                                         navigation_history.end()),
-                                                plan()->id(),
-                                                plan()->game);
+    if (update_history) {
+        if (history_it == navigation_history.end())
+            history_it = navigation_history.emplace(history_it, plan()->id(), plan()->game);
+        else if (history_it->first != plan()->id()) {
+            history_it = navigation_history
+                             .emplace(navigation_history.erase(std::next(history_it),
+                                                               navigation_history.end()),
+                                      plan()->id(),
+                                      plan()->game);
+        }
     }
+
     updateBack();
     updateForward();
 }

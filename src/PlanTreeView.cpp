@@ -13,11 +13,9 @@
 
 namespace planner {
 
-PlanTreeView::PlanTreeView(PlanModel& model, QWidget* parent)
+PlanTreeView::PlanTreeView(QWidget* parent)
     : QTreeView{parent}
 {
-    setModel(&model);
-
     setDragDropMode(QAbstractItemView::DragDrop);
     setDragEnabled(true);
     setAcceptDrops(true);

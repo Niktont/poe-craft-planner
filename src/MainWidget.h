@@ -41,6 +41,8 @@ public slots:
     void hideNotUsedItems(bool hide);
     void hideTitleCurrencyName(bool hide);
 
+    void checkDeletingPlans(const QModelIndex& parent, int first, int last);
+
     void goBack();
     void goForward();
 
@@ -51,16 +53,16 @@ private slots:
 
     void reselectCurrent(planner::Game game);
 
-    void checkDeletingPlans(const QModelIndex& parent, int first, int last);
-
-    void setPlan(const planner::PlanModel* model, planner::Plan* new_plan);
+    void setPlan(const planner::PlanModel* model,
+                 planner::Plan* new_plan,
+                 bool update_history = true);
 
 private:
     PlanWidget* plan_widget;
 
     using History = std::vector<std::pair<QUuid, Game>>;
     History navigation_history;
-    History::const_iterator history_it{navigation_history.end()};
+    History::iterator history_it{navigation_history.end()};
 
     void updateBack();
     void updateForward();

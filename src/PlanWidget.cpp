@@ -688,7 +688,8 @@ void PlanWidget::checkDeletingItems(const QModelIndex& parent, int first, int la
     auto model = static_cast<PlanModel*>(sender());
     auto parent_item = model->internalPtr(parent);
 
-    checkDeletingPlans(*model, *parent_item, first, last);
+    if (checkDeletingPlans(*model, *parent_item, first, last))
+        setPlan(model, nullptr);
 }
 
 bool PlanWidget::checkDeletingPlans(const PlanModel& model,
@@ -696,18 +697,8 @@ bool PlanWidget::checkDeletingPlans(const PlanModel& model,
                                     int first,
                                     int last)
 {
-    bool check_current = plan_ && plan_->game == model.game;
-    if (!check_current)
-        return false;
-
-    check_current = check_current && parent_item.isDescendantDeleting(*plan_->item(), first, last);
-
-    if (!check_current)
-        return false;
-
-    setPlan(&model, nullptr);
-
-    return true;
+    return plan_ && plan_->game == model.game
+           && parent_item.isDescendantDeleting(*plan_->item(), first, last);
 }
 
 void PlanWidget::setPlan(const PlanModel* model, Plan* plan, bool is_update)

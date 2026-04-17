@@ -148,6 +148,17 @@ MainWindow::MainWindow(QObject& object_parent, QWidget* parent)
 
     setupAboutDialog();
 
+    connect(AppState::state.plan_model_poe1,
+            &PlanModel::rowsAboutToBeRemoved,
+            main_widget,
+            &MainWidget::checkDeletingPlans);
+    connect(AppState::state.plan_model_poe2,
+            &PlanModel::rowsAboutToBeRemoved,
+            main_widget,
+            &MainWidget::checkDeletingPlans);
+    plan_view_poe1->setModel(AppState::state.plan_model_poe1);
+    plan_view_poe2->setModel(AppState::state.plan_model_poe2);
+
     main_widget->connectSignals();
 
     setupActions();
@@ -404,7 +415,7 @@ void MainWindow::setupDockWidgets(QObject& object_parent)
     plans_widget_poe1->setWindowTitle(tr("PoE 1"));
 
     AppState::state.plan_model_poe1 = new PlanModel{Game::Poe1, &object_parent};
-    plan_view_poe1 = new PlanTreeView{*AppState::state.plan_model_poe1};
+    plan_view_poe1 = new PlanTreeView{};
     plans_widget_poe1->setWidget(plan_view_poe1);
 
     plans_widget_poe2 = new QDockWidget{this};
@@ -414,7 +425,7 @@ void MainWindow::setupDockWidgets(QObject& object_parent)
     plans_widget_poe2->setWindowTitle(tr("PoE 2"));
 
     AppState::state.plan_model_poe2 = new PlanModel{Game::Poe2, &object_parent};
-    plan_view_poe2 = new PlanTreeView{*AppState::state.plan_model_poe2};
+    plan_view_poe2 = new PlanTreeView{};
     plans_widget_poe2->setWidget(plan_view_poe2);
 
     setDockOptions(ForceTabbedDocks | AnimatedDocks | GroupedDragging);
