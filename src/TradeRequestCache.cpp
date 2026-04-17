@@ -527,6 +527,9 @@ QJsonArray TradeRequestCache::exportRequests()
 
 void TradeRequestCache::mergeImportRequests(Cache&& import_requests)
 {
+    if (import_requests.empty())
+        return;
+
     if (Settings::get<Settings::import_add_prefix_requests>()) {
         for (auto& [request, data] : import_requests) {
             if (!data.name_.startsWith("(I) "))

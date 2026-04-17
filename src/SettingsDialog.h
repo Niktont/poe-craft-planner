@@ -50,10 +50,12 @@ private:
     QComboBox* league_poe2;
     QCheckBox* snapshot_use_current_data;
 
-    QWidget* import_tab;
+    QWidget* import_export_tab;
     QCheckBox* overwrite_names;
     QCheckBox* add_prefix;
     QCheckBox* add_prefix_requests;
+    QCheckBox* with_dependencies;
+    QCheckBox* with_requests;
 
     QWidget* language_tab;
     QComboBox* currency_language;
@@ -78,8 +80,8 @@ private:
     void saveLeague(QSettings& settings);
 
     void setupImportTab();
-    void resetImport();
-    void saveImport(QSettings& settings);
+    void resetImportExport();
+    void saveImportExport(QSettings& settings);
 
     void setupLanguageTab();
     void resetLanguage();

@@ -34,6 +34,8 @@ enum SettingsKey {
     import_overwrite_names,
     import_add_prefix,
     import_add_prefix_requests,
+    export_with_dependencies,
+    export_with_requests,
 
     language_exchange_items,
     language_trade_query,
@@ -182,6 +184,16 @@ template<>
 struct KeyTraits<import_add_prefix_requests> : BoolValue
 {
     static inline const std::string key{"import/add_prefix_requests"};
+};
+template<>
+struct KeyTraits<export_with_dependencies> : BoolValue
+{
+    static inline const std::string key{"export/with_dependencies"};
+};
+template<>
+struct KeyTraits<export_with_requests> : BoolValue
+{
+    static inline const std::string key{"export/with_requests"};
 };
 
 template<>

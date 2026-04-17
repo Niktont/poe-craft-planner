@@ -26,7 +26,7 @@ namespace planner {
 enum SettingsDialog::Tab : unsigned {
     Requests,
     League,
-    Import,
+    ImportExport,
     Language,
     Hotkeys,
 };
@@ -68,7 +68,7 @@ SettingsDialog::SettingsDialog(QWidget* parent)
     QStringList tabs;
     tabs.append(tr("Requests"));
     tabs.append(tr("League"));
-    tabs.append(tr("Import"));
+    tabs.append(tr("Import/Export"));
     tabs.append(tr("Language"));
     tabs.append(tr("Hotkeys"));
     tab_model->setStringList(tabs);
@@ -97,7 +97,7 @@ SettingsDialog::SettingsDialog(QWidget* parent)
     tabs_widget = new QStackedWidget{};
     tabs_widget->addWidget(requests_tab);
     tabs_widget->addWidget(league_tab);
-    tabs_widget->addWidget(import_tab);
+    tabs_widget->addWidget(import_export_tab);
     tabs_widget->addWidget(language_tab);
     tabs_widget->addWidget(hotkeys_tab);
     edit_layout->addWidget(tabs_widget, 0, Qt::AlignTop | Qt::AlignLeft);
@@ -139,8 +139,8 @@ void SettingsDialog::save()
         saveRequests(settings);
     if (is_changed[League])
         saveLeague(settings);
-    if (is_changed[Import])
-        saveImport(settings);
+    if (is_changed[ImportExport])
+        saveImportExport(settings);
     if (is_changed[Language])
         saveLanguage(settings);
     if (is_changed[Hotkeys])
@@ -159,8 +159,8 @@ void SettingsDialog::resetTab(int index)
         case League:
             resetLeague();
             break;
-        case Import:
-            resetImport();
+        case ImportExport:
+            resetImportExport();
             break;
         case Language:
             resetLanguage();
@@ -332,45 +332,50 @@ void SettingsDialog::saveLeague(QSettings& settings)
 
 void SettingsDialog::setupImportTab()
 {
-    import_tab = new QWidget{};
+    import_export_tab = new QWidget{};
     auto layout = new QVBoxLayout{};
-    import_tab->setLayout(layout);
+    import_export_tab->setLayout(layout);
 
     overwrite_names = new QCheckBox{tr("Take names from imported plans on overwriting")};
-    connect(overwrite_names,
-            &QCheckBox::checkStateChanged,
-            this,
-            &SettingsDialog::setChanged<Import>);
     layout->addWidget(overwrite_names);
 
     add_prefix = new QCheckBox{tr("Add prefix to imported plans or folders")};
-    connect(add_prefix, &QCheckBox::checkStateChanged, this, &SettingsDialog::setChanged<Import>);
     layout->addWidget(add_prefix);
 
     add_prefix_requests = new QCheckBox{tr("Add prefix to imported searches")};
-    connect(add_prefix_requests,
-            &QCheckBox::checkStateChanged,
-            this,
-            &SettingsDialog::setChanged<Import>);
     layout->addWidget(add_prefix_requests);
+
+    with_dependencies = new QCheckBox{tr("Include plan dependencies for export")};
+    layout->addWidget(with_dependencies);
+
+    with_requests = new QCheckBox{tr("Include trade searches for export")};
+    layout->addWidget(with_requests);
+
+    auto checkboxes = import_export_tab->findChildren<QCheckBox*>();
+    for (auto cb : std::as_const(checkboxes))
+        connect(cb, &QCheckBox::checkStateChanged, this, &SettingsDialog::setChanged<ImportExport>);
 
     layout->addStretch(1);
 }
 
-void SettingsDialog::resetImport()
+void SettingsDialog::resetImportExport()
 {
     overwrite_names->setChecked(Settings::get<import_overwrite_names>());
     add_prefix->setChecked(Settings::get<import_add_prefix>());
     add_prefix_requests->setChecked(Settings::get<import_add_prefix_requests>());
+    with_dependencies->setChecked(Settings::get<export_with_dependencies>());
+    with_requests->setChecked(Settings::get<export_with_requests>());
 
-    is_changed[Import] = false;
+    is_changed[ImportExport] = false;
 }
 
-void SettingsDialog::saveImport(QSettings& settings)
+void SettingsDialog::saveImportExport(QSettings& settings)
 {
     Settings::set<import_overwrite_names>(overwrite_names->isChecked(), settings);
     Settings::set<import_add_prefix>(add_prefix->isChecked(), settings);
     Settings::set<import_add_prefix_requests>(add_prefix_requests->isChecked(), settings);
+    Settings::set<export_with_dependencies>(with_dependencies->isChecked(), settings);
+    Settings::set<export_with_requests>(with_requests->isChecked(), settings);
 }
 
 void SettingsDialog::setupLanguageTab()

@@ -50,6 +50,8 @@ void Settings::initCache()
     read<import_overwrite_names>(settings, true);
     read<import_add_prefix>(settings, true);
     read<import_add_prefix_requests>(settings, true);
+    read<export_with_dependencies>(settings, true);
+    read<export_with_requests>(settings, true);
 
     read<language_exchange_items>(settings, u"en"_s);
     read<language_trade_query>(settings, u"en"_s);

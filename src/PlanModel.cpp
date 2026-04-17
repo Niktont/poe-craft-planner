@@ -465,27 +465,38 @@ QString PlanModel::exportFileName(const QModelIndex& index) const
     return name;
 }
 
-QJsonDocument PlanModel::exportItem(const QModelIndex& index) const
+QJsonDocument PlanModel::exportItem(const QModelIndex& index,
+                                    bool without_deps,
+                                    bool without_requests) const
 {
     auto item = internalPtr(index);
-
-    auto trade_cache = AppState::tradeCache(game);
 
     emit descriptionsNeeded(game, nullptr);
 
     QJsonObject export_o;
     export_o["game"] = gameStr(game);
 
+    auto trade_cache = AppState::tradeCache(game);
+    trade_cache->include_requests_for_export = without_requests
+                                                   ? false
+                                                   : Settings::get<settings::export_with_requests>();
+
+    QJsonObject item_o;
     std::vector<QUuid> dependencies;
-    auto item_o = item->exportJson(*AppState::exchangeCache(game), *trade_cache, &dependencies);
-    if (!gatherDependencies(export_o, item_o, dependencies)) {
+    if (without_deps ? false : Settings::get<settings::export_with_dependencies>())
+        item_o = item->exportJson(*AppState::exchangeCache(game), *trade_cache, &dependencies);
+    else
+        item_o = item->exportJson(*AppState::exchangeCache(game), *trade_cache, nullptr);
+
+    if (dependencies.empty() || !gatherDependencies(export_o, item_o, dependencies)) {
         if (item->isFolder())
             export_o["folder"] = item_o;
         else
             export_o["plan"] = item_o;
     }
 
-    export_o["trade_requests"] = trade_cache->exportRequests();
+    if (trade_cache->include_requests_for_export)
+        export_o["trade_requests"] = trade_cache->exportRequests();
 
     QJsonDocument json;
     json.setObject(export_o);
@@ -756,9 +767,6 @@ bool PlanModel::gatherDependencies(QJsonObject& export_o,
                                    std::vector<QUuid>& dependencies) const
 {
     size_t export_end = dependencies.size();
-    if (export_end == 0)
-        return false;
-
     for (size_t i = 0; i < export_end; ++i) {
         if (auto it = plans.find(dependencies[i]); it != plans.end())
             it->second.gatherDependencies(dependencies);

@@ -49,6 +49,8 @@ private:
     QAction* export_file_action;
 
     std::optional<QModelIndex> context_index;
+
+    void exportItem();
 };
 
 } // namespace planner

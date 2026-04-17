@@ -98,6 +98,7 @@ public:
     bool setData(const QModelIndex& index, const QVariant& value, int role = Qt::EditRole) override;
     Qt::ItemFlags flags(const QModelIndex& index) const override;
 
+    bool include_requests_for_export{};
     boost::unordered::unordered_flat_set<TradeRequestKey> export_requests;
     QJsonArray exportRequests();
 

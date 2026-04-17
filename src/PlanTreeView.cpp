@@ -73,12 +73,9 @@ PlanTreeView::PlanTreeView(QWidget* parent)
     delete_action->setShortcuts({{Qt::Key_Delete}, {Qt::ShiftModifier | Qt::Key_Delete}});
     delete_action->setShortcutContext(Qt::WidgetShortcut);
 
-    export_clipboard_action = addAction(tr("Export (Clipboard)"), this, [this] {
-        qApp->clipboard()->setText(
-            planModel()->exportItem(selectionModel()->currentIndex()).toJson(QJsonDocument::Compact));
-    });
+    export_clipboard_action = addAction(tr("Export (Clipboard)"), this, &PlanTreeView::exportItem);
 
-    export_file_action = addAction(tr("Export (File)"), this, &PlanTreeView::exportToFile);
+    export_file_action = addAction(tr("Export (File)"), this, &PlanTreeView::exportItem);
 }
 
 PlanModel* PlanTreeView::planModel()
@@ -191,11 +188,24 @@ void PlanTreeView::deleteItem()
         planModel()->removeRows(current.row(), 1, current.parent());
 }
 
-void PlanTreeView::exportToFile()
+void PlanTreeView::exportToFile() {}
+
+void PlanTreeView::exportItem()
 {
     auto current = selectionModel()->currentIndex();
-    auto name = planModel()->exportFileName(current);
 
+    auto modifiers = QGuiApplication::keyboardModifiers();
+    bool without_deps = modifiers.testFlag(Qt::ShiftModifier);
+    bool without_requests = modifiers.testFlag(Qt::ControlModifier);
+
+    bool is_clipboard = sender() == export_clipboard_action;
+    if (is_clipboard) {
+        auto json = planModel()->exportItem(current, without_deps, without_requests);
+        qApp->clipboard()->setText(json.toJson(QJsonDocument::Compact));
+        return;
+    }
+
+    auto name = planModel()->exportFileName(current);
     auto file_name = QFileDialog::getSaveFileName(this,
                                                   tr("Export"),
                                                   name + ".json",
@@ -203,12 +213,9 @@ void PlanTreeView::exportToFile()
     if (file_name.isEmpty())
         return;
 
-    auto json = planModel()->exportItem(current);
-
-    QFile file{file_name};
-    if (file.open(QFile::WriteOnly))
-        file.write(json.toJson(QJsonDocument::Compact));
-    else {
+    auto json = planModel()->exportItem(current, without_deps, without_requests);
+    if (QFile file{file_name};
+        !file.open(QFile::WriteOnly) || file.write(json.toJson(QJsonDocument::Compact)) == -1) {
         auto msg = new QMessageBox{this};
         msg->setAttribute(Qt::WA_DeleteOnClose);
         msg->setWindowTitle(tr("Export Failed"));

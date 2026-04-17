@@ -6,7 +6,8 @@ namespace planner {
 void TradeItemData::exportJson(QJsonObject& item_o, TradeRequestCache& cache) const
 {
     toJson(item_o);
-    cache.export_requests.emplace(request_key);
+    if (cache.include_requests_for_export)
+        cache.export_requests.emplace(request_key);
     if (name.isEmpty()) {
         if (auto it = cache.requestData(request_key); it != cache.cache.end())
             item_o["name"] = it->second.name();

@@ -93,7 +93,9 @@ public:
 
     bool importItem(const QJsonObject& export_o, QWidget* dialog_parent = nullptr);
     QString exportFileName(const QModelIndex& index) const;
-    QJsonDocument exportItem(const QModelIndex& index) const;
+    QJsonDocument exportItem(const QModelIndex& index,
+                             bool without_deps,
+                             bool without_requests) const;
 
     void savePlan(const PlanItem& item);
     void savePlan(const QModelIndex& index);
