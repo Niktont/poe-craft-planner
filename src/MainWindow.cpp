@@ -591,9 +591,11 @@ void MainWindow::setupActions()
     update_cost_action = new QAction{tr("Update Costs"), this};
     update_cost_action->setShortcuts({Qt::Key_F5, Qt::ShiftModifier | Qt::Key_F5});
     connect(update_cost_action, &QAction::triggered, this, [this] {
-        auto modifiers = QGuiApplication::keyboardModifiers();
-        bool send_requests = !Settings::offline_mode && !modifiers.testFlag(Qt::ShiftModifier);
-        AppState::state.update_cost_dialog->updatePlan(mainWidget()->plan(), send_requests);
+        if (!mainWidget()->plan())
+            return;
+
+        bool send_requests = !QGuiApplication::keyboardModifiers().testFlag(Qt::ShiftModifier);
+        AppState::state.update_cost_dialog->updatePlan(*mainWidget()->plan(), send_requests);
     });
 
     shopping_mode_action = new QAction{tr("Shopping Mode"), this};

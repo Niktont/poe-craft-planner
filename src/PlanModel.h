@@ -111,6 +111,8 @@ public:
 
     bool haveUnsavedPlans() const { return !changed_plans.empty(); }
 
+    void updateCosts(const QModelIndex& index, bool send_requests);
+
     void updateCost(const QModelIndex& index);
 
 signals:

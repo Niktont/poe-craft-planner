@@ -405,6 +405,30 @@ bool PlanItem::checkFolderName(const QString& name) const
     return true;
 }
 
+Game PlanItem::game() const
+{
+    return model->game;
+}
+
+void PlanItem::gatherCostDependencies(std::vector<QUuid>& dependencies) const
+{
+    if (isFolder()) {
+        for (auto& child : childs) {
+            if (child->isFolder())
+                continue;
+
+            auto prev_deps_last = dependencies.size();
+            child->gatherCostDependencies(dependencies);
+            std::rotate(dependencies.begin(),
+                        dependencies.begin() + prev_deps_last,
+                        dependencies.end());
+        }
+    } else if (!plan_->locked) {
+        dependencies.push_back(plan_->id());
+        plan_->gatherDependencies(*model, dependencies);
+    }
+}
+
 QString PlanItem::name() const
 {
     return plan_ ? plan_->name : name_;

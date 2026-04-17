@@ -38,10 +38,13 @@ private:
     QAction* copy_action;
     QAction* paste_action;
 
+    QAction* update_action;
+
     QAction* save_action;
     QAction* restore_action;
 
     QAction* delete_action;
+
     QAction* export_clipboard_action;
     QAction* export_file_action;
 

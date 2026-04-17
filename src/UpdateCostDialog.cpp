@@ -4,6 +4,7 @@
 #include "ExchangeRequestCache.h"
 #include "ExchangeRequestManager.h"
 #include "Plan.h"
+#include "PlanItem.h"
 #include "PlanModel.h"
 #include "Settings.h"
 #include "SnapshotModel.h"
@@ -49,70 +50,37 @@ UpdateCostDialog::UpdateCostDialog(QWidget* parent)
     empty_results_view->hide();
 }
 
-void UpdateCostDialog::updatePlan(Plan* plan, bool send_requests)
+void UpdateCostDialog::updatePlanItem(PlanItem& item, bool send_requests)
 {
-    if (!plan || plan->locked || plan_)
+    if (isUpdateActive())
         return;
-
-    plan_ = plan;
-    setWindowTitle(tr("%1 - Update").arg(plan_->name));
 
     dependencies.clear();
-    dependencies.push_back(plan->id());
-    auto plan_model = AppState::planModel(plan->game);
-    plan->gatherDependencies(*plan_model, dependencies);
+    item.gatherCostDependencies(dependencies);
+    if (!dependencies.empty()) {
+        game_ = item.game();
+        setWindowTitle(tr("%1 - Update").arg(item.name()));
+        startUpdate(send_requests);
+    }
+}
 
-    if (!send_requests || AppState::snapshots(plan->game)->current) {
-        trade_finished = true;
-        exchange_finished = true;
-        calculateCost();
+void UpdateCostDialog::updatePlan(Plan& plan, bool send_requests)
+{
+    if (isUpdateActive())
         return;
+
+    dependencies.clear();
+    plan.item()->gatherCostDependencies(dependencies);
+    if (!dependencies.empty()) {
+        game_ = plan.game;
+        setWindowTitle(tr("%1 - Update").arg(plan.name));
+        startUpdate(send_requests);
     }
-
-    cancel_button->setText(tr("Cancel"));
-    progress_label->setText(tr("Requesting data..."));
-
-    auto trade_cache = AppState::tradeCache(plan->game);
-    auto exchange_cache = AppState::exchangeCache(plan->game);
-
-    auto now = QDateTime::currentDateTimeUtc();
-    for (auto& id : dependencies) {
-        auto it = plan_model->plans.find(id);
-        if (it == plan_model->plans.end() || it->second.locked)
-            continue;
-
-        for (auto& step : it->second.steps) {
-            for (auto& item : step.resources)
-                checkItem(item, now, *exchange_cache, *trade_cache);
-            for (auto& item : step.results)
-                checkItem(item, now, *exchange_cache, *trade_cache);
-        }
-    }
-
-    trade_finished = trade_requests.empty();
-    if (!trade_finished) {
-        checkCurrency({"chaos"}, now, *exchange_cache);
-        if (!is_active_trade) {
-            is_active_trade = true;
-            QTimer::singleShot(AppState::state.trade_manager->searchDelay(),
-                               this,
-                               &UpdateCostDialog::requestTradeSearch);
-        }
-    }
-
-    exchange_finished = exchange_requests.empty();
-    if (!exchange_finished && !is_active_exchange)
-        requestExchangeCost();
-
-    if (trade_finished && exchange_finished && !is_active_trade && !is_active_exchange)
-        calculateCost();
-    else
-        show();
 }
 
 void UpdateCostDialog::cancelUpdate()
 {
-    plan_ = nullptr;
+    game_ = Game::Unknown;
     clearRequests();
     dependencies.clear();
 }
@@ -120,14 +88,13 @@ void UpdateCostDialog::cancelUpdate()
 void UpdateCostDialog::closeEvent(QCloseEvent* event)
 {
     event->accept();
-    if (plan_)
-        cancelUpdate();
+    cancelUpdate();
 }
 
 void UpdateCostDialog::requestTradeSearch()
 {
     is_active_trade = false;
-    if (!plan_)
+    if (!isUpdateActive())
         return;
 
     if (trade_requests.empty()) {
@@ -136,7 +103,7 @@ void UpdateCostDialog::requestTradeSearch()
         return;
     }
 
-    auto trade_cache = AppState::tradeCache(plan_->game);
+    auto trade_cache = AppState::tradeCache(game_);
 
     auto node = trade_requests.extract(trade_requests.begin());
     auto it = trade_cache->requestData(node.value());
@@ -151,21 +118,18 @@ void UpdateCostDialog::requestTradeSearch()
     }
 
     is_active_trade = true;
-    auto reply = AppState::state.trade_manager->postSearchRequest(plan_->game,
+    auto reply = AppState::state.trade_manager->postSearchRequest(game_,
                                                                   it->first,
                                                                   it->second.query());
-    connect(reply,
-            &QNetworkReply::finished,
-            this,
-            [=, this, game = plan_->game, request = it->first] {
-                parseTradeSearch(game, request, reply);
-            });
+    connect(reply, &QNetworkReply::finished, this, [this, game = game_, request = it->first, reply] {
+        parseTradeSearch(game, request, reply);
+    });
 }
 
 void UpdateCostDialog::requestExchangeCost()
 {
     is_active_exchange = false;
-    if (!plan_)
+    if (!isUpdateActive())
         return;
 
     if (exchange_requests.empty()) {
@@ -176,8 +140,8 @@ void UpdateCostDialog::requestExchangeCost()
 
     is_active_exchange = true;
     auto type{std::move(exchange_requests.extract(exchange_requests.begin()).value())};
-    auto reply = AppState::state.exchange_manager->getOverview(plan_->game, type);
-    connect(reply, &QNetworkReply::finished, this, [this, game = plan_->game, reply] {
+    auto reply = AppState::state.exchange_manager->getOverview(game_, type);
+    connect(reply, &QNetworkReply::finished, this, [this, game = game_, reply] {
         parseExchangeCostData(game, reply);
     });
 }
@@ -218,8 +182,7 @@ void UpdateCostDialog::parseTradeSearch(Game game,
                                &UpdateCostDialog::requestTradeSearch);
         } else {
             trade_finished = true;
-            if (plan_)
-                calculateCost();
+            calculateCost();
         }
     } else {
         is_active_trade = true;
@@ -268,8 +231,7 @@ void UpdateCostDialog::parseFetchSearch(Game game,
                            &UpdateCostDialog::requestTradeSearch);
     } else {
         trade_finished = true;
-        if (plan_)
-            calculateCost();
+        calculateCost();
     }
 }
 
@@ -303,9 +265,59 @@ void UpdateCostDialog::parseExchangeCostData(Game game, QNetworkReply* reply)
                            &UpdateCostDialog::requestExchangeCost);
     } else {
         exchange_finished = true;
-        if (plan_)
-            calculateCost();
+        calculateCost();
     }
+}
+
+void UpdateCostDialog::startUpdate(bool send_requests)
+{
+    if (Settings::offline_mode || !send_requests || AppState::snapshots(game_)->current) {
+        trade_finished = true;
+        exchange_finished = true;
+        calculateCost();
+        return;
+    }
+
+    cancel_button->setText(tr("Cancel"));
+    progress_label->setText(tr("Requesting data..."));
+
+    auto plan_model = AppState::planModel(game_);
+    auto trade_cache = AppState::tradeCache(game_);
+    auto exchange_cache = AppState::exchangeCache(game_);
+
+    auto now = QDateTime::currentDateTimeUtc();
+    for (auto& id : dependencies) {
+        auto it = plan_model->plans.find(id);
+        if (it == plan_model->plans.end() || it->second.locked)
+            continue;
+
+        for (auto& step : it->second.steps) {
+            for (auto& item : step.resources)
+                checkItem(item, now, *exchange_cache, *trade_cache);
+            for (auto& item : step.results)
+                checkItem(item, now, *exchange_cache, *trade_cache);
+        }
+    }
+
+    trade_finished = trade_requests.empty();
+    if (!trade_finished) {
+        checkCurrency({"chaos"}, now, *exchange_cache);
+        if (!is_active_trade) {
+            is_active_trade = true;
+            QTimer::singleShot(AppState::state.trade_manager->searchDelay(),
+                               this,
+                               &UpdateCostDialog::requestTradeSearch);
+        }
+    }
+
+    exchange_finished = exchange_requests.empty();
+    if (!exchange_finished && !is_active_exchange)
+        requestExchangeCost();
+
+    if (trade_finished && exchange_finished && !is_active_trade && !is_active_exchange)
+        calculateCost();
+    else
+        show();
 }
 
 void UpdateCostDialog::checkCurrency(const Currency& currency,
@@ -374,10 +386,10 @@ void UpdateCostDialog::updateProgress()
 
 void UpdateCostDialog::calculateCost()
 {
-    if (!plan_ || !trade_finished || !exchange_finished)
+    if (!isUpdateActive() || !trade_finished || !exchange_finished)
         return;
 
-    auto plan_model = AppState::planModel(plan_->game);
+    auto plan_model = AppState::planModel(game_);
 
     std::vector<std::pair<Plan*, bool>> plans;
     for (auto& id : std::views::reverse(dependencies)) {
@@ -393,7 +405,7 @@ void UpdateCostDialog::calculateCost()
         }
     }
 
-    auto snapshot_name = AppState::snapshots(plan_->game)->currentName();
+    auto snapshot_name = AppState::snapshots(game_)->currentName();
     bool parse_failed = false;
     for (auto& [plan, final_changed] : plans) {
         if (!parse_failed) {
@@ -413,7 +425,7 @@ void UpdateCostDialog::calculateCost()
 
         plan->setChanged();
     }
-    emit costUpdated(plan_->game, plans);
+    emit costUpdated(game_, plans);
 
     if (empty_search_results.empty()) {
         if (parse_failed)

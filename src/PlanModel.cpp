@@ -10,6 +10,7 @@
 #include "PlanTreeView.h"
 #include "Settings.h"
 #include "TradeRequestCache.h"
+#include "UpdateCostDialog.h"
 #include <boost/container/flat_set.hpp>
 #include <QGuiApplication>
 #include <QMessageBox>
@@ -663,6 +664,11 @@ QModelIndex PlanModel::pasteItem(const QModelIndex& idx)
     auto copy_row = idx.isValid() ? idx.row() + 1 : root->childCount();
     auto parent = idx.parent();
     return insertCopy(parent, copy_row, *item_copy_state);
+}
+
+void PlanModel::updateCosts(const QModelIndex& index, bool send_requests)
+{
+    AppState::state.update_cost_dialog->updatePlanItem(*internalPtr(index), send_requests);
 }
 
 bool PlanModel::isNewPlan(const QModelIndex& index) const

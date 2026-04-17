@@ -1,6 +1,7 @@
 #ifndef PLANITEM_H
 #define PLANITEM_H
 
+#include "Game.h"
 #include <memory>
 #include <vector>
 #include <QSqlQuery>
@@ -57,6 +58,9 @@ public:
 
     Plan* plan() { return plan_; }
     const Plan* plan() const { return plan_; }
+    Game game() const;
+
+    void gatherCostDependencies(std::vector<QUuid>& dependencies) const;
 
     QString name() const;
 

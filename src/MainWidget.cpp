@@ -7,7 +7,6 @@
 #include "PlanTreeView.h"
 #include "PlanWidget.h"
 #include "Settings.h"
-#include "UpdateCostDialog.h"
 #include <QGuiApplication>
 #include <QVBoxLayout>
 
@@ -252,18 +251,9 @@ void MainWidget::reselectCurrent(Game game)
 void MainWidget::checkDeletingPlans(const QModelIndex& parent, int first, int last)
 {
     auto model = static_cast<PlanModel*>(sender());
-    auto updating_plan = AppState::state.update_cost_dialog->plan();
-
-    bool check_updating = updating_plan && updating_plan->game == model->game;
-
     auto parent_item = model->internalPtr(parent);
-    check_updating = check_updating
-                     && parent_item->isDescendantDeleting(*updating_plan->item(), first, last);
 
-    if (check_updating)
-        AppState::state.update_cost_dialog->reject();
-
-    bool current_is_deleting = plan_widget->checkDeletingPlans(*model, *parent_item, first, last);
+    bool current_is_deleting = plan_widget->checkDeletingPlans(*parent_item, first, last);
     if (current_is_deleting) {
         auto isValid = [&](const std::pair<QUuid, Game>& p) {
             auto model = AppState::planModel(p.second);

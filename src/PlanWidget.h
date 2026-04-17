@@ -100,10 +100,7 @@ private:
     void setPlan(const planner::PlanModel* model, planner::Plan* plan, bool is_update = false);
     void clear();
 
-    bool checkDeletingPlans(const PlanModel& model,
-                            const PlanItem& parent_item,
-                            int first,
-                            int last);
+    bool checkDeletingPlans(const PlanItem& parent_item, int first, int last);
 
     void emplaceStepWidget(size_t i);
 

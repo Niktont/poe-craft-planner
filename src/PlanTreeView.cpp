@@ -55,6 +55,13 @@ PlanTreeView::PlanTreeView(QWidget* parent)
         context_index.reset();
     });
 
+    update_action = addAction(tr("Update Costs"), this, [this] {
+        auto current = context_index ? *context_index : selectionModel()->currentIndex();
+        bool send_requests = !QGuiApplication::keyboardModifiers().testFlag(Qt::ShiftModifier);
+        planModel()->updateCosts(current, send_requests);
+        context_index.reset();
+    });
+
     save_action = addAction(tr("Save"), this, [this] {
         planModel()->savePlan(selectionModel()->currentIndex());
     });
@@ -109,6 +116,9 @@ void PlanTreeView::contextMenuEvent(QContextMenuEvent* event)
         if (planModel()->haveCopy())
             menu->addAction(paste_action);
 
+        menu->addSeparator();
+        menu->addAction(update_action);
+
         auto item = planModel()->internalPtr(*context_index);
         if (!item->isFolder() && item->plan()->is_changed) {
             menu->addSeparator();
@@ -118,8 +128,13 @@ void PlanTreeView::contextMenuEvent(QContextMenuEvent* event)
         }
         menu->addSeparator();
         menu->addAction(delete_action);
-    } else if (planModel()->haveCopy())
-        menu->addAction(paste_action);
+    } else {
+        if (planModel()->haveCopy())
+            menu->addAction(paste_action);
+
+        menu->addSeparator();
+        menu->addAction(update_action);
+    }
 
     menu->addSeparator();
     menu->addAction(export_clipboard_action);

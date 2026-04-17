@@ -13,6 +13,7 @@ class QNetworkReply;
 
 namespace planner {
 class Plan;
+class PlanItem;
 class ExchangeRequestCache;
 class Currency;
 class Step;
@@ -26,13 +27,13 @@ class UpdateCostDialog : public QDialog
 public:
     UpdateCostDialog(QWidget* parent = nullptr);
 
-    Plan* plan() const { return plan_; }
+    void updatePlanItem(PlanItem& item, bool send_requests);
+    void updatePlan(Plan& plan, bool send_requests);
 
 signals:
     void costUpdated(planner::Game game, const std::vector<std::pair<Plan*, bool>>& updated_plans);
 
 public slots:
-    void updatePlan(planner::Plan* plan, bool send_requests);
     void cancelUpdate();
 
 protected:
@@ -47,7 +48,9 @@ private:
     QPushButton* cancel_button;
     QListView* empty_results_view;
 
-    Plan* plan_{};
+    bool isUpdateActive() const { return game_ != Game::Unknown; }
+    Game game_{Game::Unknown};
+
     std::vector<QUuid> dependencies;
 
     void parseTradeSearch(Game game, const TradeRequestKey& request, QNetworkReply* reply);
@@ -67,6 +70,8 @@ private:
 
     bool trade_finished{false};
     bool exchange_finished{false};
+
+    void startUpdate(bool send_requests);
 
     void checkCurrency(const Currency& currency,
                        QDateTime now,
