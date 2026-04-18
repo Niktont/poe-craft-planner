@@ -11,12 +11,12 @@ namespace planner {
 SearchesDialog::SearchesDialog(QWidget* parent)
     : QDialog{parent}
 {
-    request_view = new TradeRequestView{};
+    request_view = new TradeRequestView{this};
 
     auto layout = new QVBoxLayout{};
     setLayout(layout);
 
-    filter_edit = new QLineEdit{};
+    filter_edit = new QLineEdit{this};
     filter_edit->setPlaceholderText(tr("Name filter"));
     filter_edit->setMinimumWidth(200);
 

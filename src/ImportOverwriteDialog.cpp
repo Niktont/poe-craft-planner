@@ -15,7 +15,7 @@ ImportOverwriteDialog::ImportOverwriteDialog(ImportOverwriteModel& model, QWidge
     auto main_layout = new QVBoxLayout{};
     setLayout(main_layout);
 
-    auto button_box = new QDialogButtonBox{};
+    auto button_box = new QDialogButtonBox{this};
     auto button = button_box->addButton(QDialogButtonBox::Yes);
     connect(button, &QPushButton::clicked, this, [this] { done(QDialogButtonBox::YesRole); });
     button = button_box->addButton(QDialogButtonBox::No);
@@ -24,8 +24,8 @@ ImportOverwriteDialog::ImportOverwriteDialog(ImportOverwriteModel& model, QWidge
     connect(button, &QPushButton::clicked, this, [this] { done(QDialog::Rejected); });
     main_layout->addWidget(button_box);
 
-    main_layout->addWidget(new QLabel{tr("Overwrite existing plans?")});
-    auto view = new QListView{};
+    main_layout->addWidget(new QLabel{tr("Overwrite existing plans?"), this});
+    auto view = new QListView{this};
     view->setModel(&model);
     main_layout->addWidget(view);
 }

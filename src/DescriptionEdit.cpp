@@ -152,13 +152,13 @@ DescriptionEdit::DescriptionEdit(QWidget* parent)
     setLayout(new QVBoxLayout{});
     layout()->setContentsMargins(0, 0, 0, 0);
 
-    edit = new DescriptionTextEdit{};
+    edit = new DescriptionTextEdit{this};
     edit->setLineWrapMode(QPlainTextEdit::WidgetWidth);
     edit->setPlaceholderText(tr("Description"));
     edit->setFixedWidth(760);
     edit->setFixedHeight(400);
 
-    browser = new DescriptionBrowser{};
+    browser = new DescriptionBrowser{this};
     browser->setOpenLinks(false);
     browser->setOpenExternalLinks(false);
     browser->setPlaceholderText(tr("Description"));

@@ -14,27 +14,27 @@ PlanTitleWidget::PlanTitleWidget(QWidget* parent)
     layout->setContentsMargins(0, 0, 0, 0);
     setLayout(layout);
 
-    name_label = new QLabel{};
+    name_label = new QLabel{this};
     auto f = name_label->font();
     f.setBold(true);
     name_label->setFont(f);
     layout->addWidget(name_label);
 
-    is_auto_final_cb = new QCheckBox{tr("Auto")};
+    is_auto_final_cb = new QCheckBox{tr("Auto"), this};
     is_auto_final_cb->setToolTip(tr("On costs update, set step with max profit as Final"));
     layout->addWidget(is_auto_final_cb);
 
-    locked_cb = new QCheckBox{tr("Lock")};
+    locked_cb = new QCheckBox{tr("Lock"), this};
     locked_cb->setToolTip(tr("Steps costs of locked plan won't be updated"));
     layout->addWidget(locked_cb);
 
-    league_label = new QLabel{};
+    league_label = new QLabel{this};
     f = league_label->font();
     f.setItalic(true);
     league_label->setFont(f);
     layout->addWidget(league_label);
 
-    cost_widget = new CostWidget{};
+    cost_widget = new CostWidget{this};
     layout->addWidget(cost_widget);
 
     layout->addStretch(1);

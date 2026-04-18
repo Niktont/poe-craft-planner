@@ -36,12 +36,12 @@ WebViewDialog::WebViewDialog(const QString& user_agent, QWidget* parent)
     web_profile->settings()->setAttribute(QWebEngineSettings::LocalContentCanAccessFileUrls, false);
     web_profile->setHttpUserAgent(user_agent);
 
-    web_view = new QWebEngineView{};
+    web_view = new QWebEngineView{this};
     web_view->setPage(new WebPage{web_profile.get(), web_view});
     web_view->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     connect(web_view->page(), &QWebEnginePage::titleChanged, this, &QDialog::setWindowTitle);
 
-    url_edit = new QLineEdit{};
+    url_edit = new QLineEdit{this};
     connect(url_edit, &QLineEdit::returnPressed, this, [this] {
         web_view->setUrl(QUrl::fromUserInput(url_edit->text()));
     });
@@ -49,7 +49,7 @@ WebViewDialog::WebViewDialog(const QString& user_agent, QWidget* parent)
         url_edit->setText(url.toDisplayString());
     });
 
-    auto button = new QPushButton{tr("Clear cookies")};
+    auto button = new QPushButton{tr("Clear cookies"), this};
     connect(button, &QPushButton::clicked, this, [this] {
         web_profile->cookieStore()->deleteAllCookies();
     });

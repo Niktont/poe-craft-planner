@@ -22,21 +22,21 @@ ShoppingSetupDialog::ShoppingSetupDialog(QWidget* parent)
     auto form = new QFormLayout{};
     main_layout->addLayout(form);
 
-    step_combo = new QComboBox{};
+    step_combo = new QComboBox{this};
     step_combo->setSizeAdjustPolicy(QComboBox::AdjustToContents);
     form->addRow(tr("Step:"), step_combo);
 
-    amount_edit = new QDoubleSpinBox{};
+    amount_edit = new QDoubleSpinBox{this};
     amount_edit->setMaximum(9999.999999);
     amount_edit->setValue(1.0);
     amount_edit->setDecimals(6);
     form->addRow(tr("Amount:"), amount_edit);
 
-    dependencies_cb = new QCheckBox{tr("Include dependencies")};
+    dependencies_cb = new QCheckBox{tr("Include dependencies"), this};
     dependencies_cb->setChecked(true);
     main_layout->addWidget(dependencies_cb);
 
-    auto button = new QPushButton{tr("Continue")};
+    auto button = new QPushButton{tr("Continue"), this};
     connect(button, &QPushButton::clicked, this, &ShoppingSetupDialog::openShoppingList);
     main_layout->addWidget(button, 0, Qt::AlignRight | Qt::AlignVCenter);
 }

@@ -28,14 +28,14 @@ SnapshotsDialog::SnapshotsDialog(QWidget* parent)
     auto create_form = new QFormLayout{};
     create_dialog_layout->addLayout(create_form);
 
-    name_edit = new QLineEdit{};
+    name_edit = new QLineEdit{create_snapshot_dialog};
     create_form->addRow(tr("Name:"), name_edit);
 
-    league_combo = new QComboBox{};
+    league_combo = new QComboBox{create_snapshot_dialog};
     league_combo->setSizeAdjustPolicy(QComboBox::AdjustToContents);
     create_form->addRow(tr("League:"), league_combo);
 
-    auto buttons = new QDialogButtonBox{};
+    auto buttons = new QDialogButtonBox{create_snapshot_dialog};
     auto ok_button = buttons->addButton(QDialogButtonBox::Ok);
     connect(ok_button, &QPushButton::clicked, this, [this] {
         if (AppState::snapshots(game)->createSnapshot(name_edit->text(),

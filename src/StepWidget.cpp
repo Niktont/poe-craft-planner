@@ -38,17 +38,17 @@ StepWidget::StepWidget(PlanWidget& plan_widget, QWidget* parent)
     auto title_layout = new QHBoxLayout{};
     layout->addLayout(title_layout);
 
-    name_edit = new QLineEdit{};
+    name_edit = new QLineEdit{this};
     name_edit->setMaxLength(30);
     title_layout->addWidget(name_edit);
     auto name_fm = name_edit->fontMetrics();
     name_edit->setFixedWidth(name_fm.averageCharWidth() * (name_edit->maxLength() + 3));
     connect(name_edit, &QLineEdit::editingFinished, this, &StepWidget::setNameFromEdit);
 
-    cost_widget = new CostWidget{};
+    cost_widget = new CostWidget{this};
     title_layout->addWidget(cost_widget);
 
-    auto toolbar = new QToolBar{};
+    auto toolbar = new QToolBar{this};
     toolbar->setIconSize({16, 16});
 
     duplicate_action = addAction(tr("Duplicate"), this, [this]() {
@@ -60,7 +60,7 @@ StepWidget::StepWidget(PlanWidget& plan_widget, QWidget* parent)
     });
     paste_action = addAction(tr("Paste"), this, [this]() { this->plan_widget.pasteStep(step_pos); });
 
-    final_step_cb = new QCheckBox{};
+    final_step_cb = new QCheckBox{this};
     final_step_cb->setToolTip(tr("Final"));
     toolbar->addWidget(final_step_cb);
     connect(final_step_cb, &QCheckBox::clicked, this, [this](bool checked) {
@@ -89,31 +89,31 @@ StepWidget::StepWidget(PlanWidget& plan_widget, QWidget* parent)
 
     title_layout->addWidget(toolbar);
 
-    edit_widget = new QWidget{};
-    auto step_layout = new QVBoxLayout{};
-    step_layout->setVerticalSizeConstraint(QLayout::SetFixedSize);
-    step_layout->setContentsMargins(0, 0, 0, 0);
-    edit_widget->setLayout(step_layout);
+    edit_widget = new QWidget{this};
+    auto edit_layout = new QVBoxLayout{};
+    edit_layout->setVerticalSizeConstraint(QLayout::SetFixedSize);
+    edit_layout->setContentsMargins(0, 0, 0, 0);
+    edit_widget->setLayout(edit_layout);
     layout->addWidget(edit_widget);
 
-    description = new DescriptionEdit{};
+    description = new DescriptionEdit{edit_widget};
     connect(description,
             &DescriptionEdit::planLinkClicked,
             AppState::state.main_widget,
             &MainWidget::openPlanLink);
 
-    step_layout->addWidget(description);
+    edit_layout->addWidget(description);
 
     auto table_layout = new QVBoxLayout{};
     table_layout->setVerticalSizeConstraint(QLayout::SetFixedSize);
-    step_layout->addLayout(table_layout);
+    edit_layout->addLayout(table_layout);
     table_layout->setContentsMargins(5, 0, 0, 0);
 
     resources_model = new StepItemModel{true, this};
-    resources_widget = new StepItemsWidget{*resources_model, plan_widget};
+    resources_widget = new StepItemsWidget{*resources_model, plan_widget, edit_widget};
 
     results_model = new StepItemModel{false, this};
-    results_widget = new StepItemsWidget{*results_model, plan_widget};
+    results_widget = new StepItemsWidget{*results_model, plan_widget, edit_widget};
 
     connect(resources_model,
             &StepItemModel::planLinkClicked,

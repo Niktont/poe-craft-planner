@@ -64,7 +64,7 @@ SettingsDialog::SettingsDialog(QWidget* parent)
     auto edit_layout = new QHBoxLayout{};
     main_layout->addLayout(edit_layout);
 
-    tab_model = new QStringListModel{};
+    tab_model = new QStringListModel{this};
     QStringList tabs;
     tabs.append(tr("Requests"));
     tabs.append(tr("League"));
@@ -73,7 +73,7 @@ SettingsDialog::SettingsDialog(QWidget* parent)
     tabs.append(tr("Hotkeys"));
     tab_model->setStringList(tabs);
 
-    tab_view = new QListView{};
+    tab_view = new QListView{this};
     tab_view->setModel(tab_model);
     tab_view->setMaximumWidth(tab_view->sizeHintForColumn(0) + tab_view->lineWidth() * 2
                               + tab_view->verticalScrollBar()->sizeHint().width());
@@ -88,13 +88,14 @@ SettingsDialog::SettingsDialog(QWidget* parent)
 
     edit_layout->addWidget(tab_view);
 
+    tabs_widget = new QStackedWidget{this};
+
     setupRequestsTab();
     setupLeagueTab();
     setupImportTab();
     setupLanguageTab();
     setupHotkeysTab();
 
-    tabs_widget = new QStackedWidget{};
     tabs_widget->addWidget(requests_tab);
     tabs_widget->addWidget(league_tab);
     tabs_widget->addWidget(import_export_tab);
@@ -102,7 +103,7 @@ SettingsDialog::SettingsDialog(QWidget* parent)
     tabs_widget->addWidget(hotkeys_tab);
     edit_layout->addWidget(tabs_widget, 0, Qt::AlignTop | Qt::AlignLeft);
 
-    auto buttons = new QDialogButtonBox{};
+    auto buttons = new QDialogButtonBox{this};
     connect(buttons->addButton(QDialogButtonBox::Ok), &QPushButton::clicked, this, [this] {
         save();
         accept();
@@ -175,7 +176,7 @@ void SettingsDialog::resetTab(int index)
 
 void SettingsDialog::setupRequestsTab()
 {
-    requests_tab = new QWidget{};
+    requests_tab = new QWidget{tabs_widget};
     requests_tab->setLayout(new QVBoxLayout{});
 
     auto trade_group = new QGroupBox{tr("Trade")};
@@ -278,7 +279,7 @@ void SettingsDialog::saveRequests(QSettings& settings)
 
 void SettingsDialog::setupLeagueTab()
 {
-    league_tab = new QWidget{};
+    league_tab = new QWidget{tabs_widget};
     auto form = new QFormLayout{};
     league_tab->setLayout(form);
 
@@ -332,7 +333,7 @@ void SettingsDialog::saveLeague(QSettings& settings)
 
 void SettingsDialog::setupImportTab()
 {
-    import_export_tab = new QWidget{};
+    import_export_tab = new QWidget{tabs_widget};
     auto layout = new QVBoxLayout{};
     import_export_tab->setLayout(layout);
 
@@ -380,7 +381,7 @@ void SettingsDialog::saveImportExport(QSettings& settings)
 
 void SettingsDialog::setupLanguageTab()
 {
-    language_tab = new QWidget{};
+    language_tab = new QWidget{tabs_widget};
     auto layout = new QFormLayout{};
     language_tab->setLayout(layout);
 
@@ -450,7 +451,7 @@ void SettingsDialog::saveLanguage(QSettings& settings)
 
 void SettingsDialog::setupHotkeysTab()
 {
-    hotkeys_tab = new QWidget{};
+    hotkeys_tab = new QWidget{tabs_widget};
     auto layout = new QFormLayout{};
     hotkeys_tab->setLayout(layout);
 

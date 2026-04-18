@@ -11,7 +11,7 @@
 namespace planner {
 
 SnapshotView::SnapshotView(SnapshotsDialog& snapshots_dialog, SnapshotModel& model)
-    : QTableView{}
+    : QTableView{&snapshots_dialog}
     , snapshots_dialog{snapshots_dialog}
 {
     setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);

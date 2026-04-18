@@ -41,10 +41,10 @@ PlanWidget::PlanWidget(bool is_main, QWidget* parent, Qt::WindowFlags flags)
         setAttribute(Qt::WA_QuitOnClose, false);
     }
 
-    auto main_layout = new QVBoxLayout{};
-    setLayout(main_layout);
+    auto layout = new QVBoxLayout{};
+    setLayout(layout);
 
-    title_widget = new PlanTitleWidget{};
+    title_widget = new PlanTitleWidget{this};
     connect(title_widget->is_auto_final_cb, &QCheckBox::clicked, this, [this](bool checked) {
         if (!plan_)
             return;
@@ -60,23 +60,23 @@ PlanWidget::PlanWidget(bool is_main, QWidget* parent, Qt::WindowFlags flags)
         plan_->setChanged();
     });
     title_widget->hide();
-    main_layout->addWidget(title_widget);
+    layout->addWidget(title_widget);
 
-    steps_scroll = new QScrollArea{};
+    steps_scroll = new QScrollArea{this};
     steps_scroll->setWidgetResizable(true);
     steps_scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     steps_scroll->setFrameShape(QFrame::Box);
     steps_scroll->setFrameShadow(QFrame::Plain);
     steps_scroll->setContentsMargins(0, 0, 0, 0);
-    layout()->addWidget(steps_scroll);
+    layout->addWidget(steps_scroll);
 
     steps_widget = new QWidget{steps_scroll};
-
     auto steps_layout = new QVBoxLayout{};
     steps_layout->setVerticalSizeConstraint(QLayout::SetFixedSize);
     steps_layout->setSpacing(0);
     steps_layout->setContentsMargins(0, 0, 0, 0);
     steps_widget->setLayout(steps_layout);
+
     steps_layout->addStretch(1);
 
     steps_scroll->setWidget(steps_widget);

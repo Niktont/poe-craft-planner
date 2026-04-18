@@ -26,14 +26,15 @@ StepItemsWidget::StepItemsWidget(StepItemModel& model, PlanWidget& plan_widget, 
     title_layout->setContentsMargins(0, 0, 0, 0);
     main_layout->addLayout(title_layout);
 
-    title_layout->addWidget(new QLabel{is_resources_widget ? tr("Resources:") : tr("Results:")});
+    title_layout->addWidget(
+        new QLabel{is_resources_widget ? tr("Resources:") : tr("Results:"), this});
 
-    method_combo = new QComboBox{};
+    method_combo = new QComboBox{this};
     method_combo->addItems(is_resources_widget ? resourceMethods() : resultMethods());
     connect(method_combo, &QComboBox::activated, this, &StepItemsWidget::setMethod);
     title_layout->addWidget(method_combo);
 
-    custom_button = new QPushButton{tr("Edit")};
+    custom_button = new QPushButton{tr("Edit"), this};
     auto sp = custom_button->sizePolicy();
     sp.setRetainSizeWhenHidden(true);
     custom_button->setSizePolicy(sp);
@@ -43,7 +44,7 @@ StepItemsWidget::StepItemsWidget(StepItemModel& model, PlanWidget& plan_widget, 
 
     title_layout->addStretch(1);
 
-    view = new StepItemView{model, plan_widget};
+    view = new StepItemView{model, plan_widget, this};
     delegate = new StepItemDelegate{this};
     view->setItemDelegate(delegate);
     main_layout->addWidget(view);

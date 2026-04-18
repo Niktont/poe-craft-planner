@@ -34,15 +34,15 @@ UpdateCostDialog::UpdateCostDialog(QWidget* parent)
 
     setMinimumWidth(300);
 
-    progress_label = new QLabel{};
+    progress_label = new QLabel{this};
     layout()->addWidget(progress_label);
 
-    cancel_button = new QPushButton{};
+    cancel_button = new QPushButton{this};
     layout()->addWidget(cancel_button);
     connect(cancel_button, &QPushButton::clicked, this, &QDialog::reject);
     connect(this, &QDialog::finished, this, &UpdateCostDialog::cancelUpdate);
 
-    empty_results_view = new QListView{};
+    empty_results_view = new QListView{this};
     layout()->addWidget(empty_results_view);
     empty_results_view->setModel(new QStringListModel{this});
     empty_results_view->setEditTriggers(QAbstractItemView::NoEditTriggers);

@@ -38,7 +38,7 @@ InitializationDialog::InitializationDialog(MainWindow& mw)
     setLayout(main_layout);
     setMinimumWidth(300);
 
-    progress_label = new QLabel{};
+    progress_label = new QLabel{this};
     progress_label->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     progress_label->setWordWrap(true);
     layout()->addWidget(progress_label);
@@ -46,7 +46,7 @@ InitializationDialog::InitializationDialog(MainWindow& mw)
     auto buttons_layout = new QHBoxLayout{};
     main_layout->addLayout(buttons_layout);
 
-    offline_button = new QPushButton{tr("Offline mode")};
+    offline_button = new QPushButton{tr("Offline mode"), this};
     offline_button->setEnabled(false);
     connect(offline_button, &QPushButton::clicked, this, [this] {
         is_data_needed_poe1 = false;
@@ -56,23 +56,23 @@ InitializationDialog::InitializationDialog(MainWindow& mw)
     });
     buttons_layout->addWidget(offline_button);
 
-    continue_button = new QPushButton{tr("Continue")};
+    continue_button = new QPushButton{tr("Continue"), this};
     continue_button->setEnabled(false);
     connect(continue_button, &QPushButton::clicked, this, &InitializationDialog::updateCacheData);
     buttons_layout->addWidget(continue_button);
 
-    select_league_widget = new QWidget{};
+    select_league_widget = new QWidget{this};
     select_league_widget->setLayout(new QVBoxLayout{});
     layout()->addWidget(select_league_widget);
     select_league_widget->hide();
 
     select_league_widget->layout()->addWidget(new QLabel{tr("Select league for PoE 1:")});
-    league_combo_poe1 = new QComboBox{};
+    league_combo_poe1 = new QComboBox{select_league_widget};
     league_combo_poe1->setEnabled(false);
     select_league_widget->layout()->addWidget(league_combo_poe1);
 
     select_league_widget->layout()->addWidget(new QLabel{tr("Select league for PoE 2:")});
-    league_combo_poe2 = new QComboBox{};
+    league_combo_poe2 = new QComboBox{select_league_widget};
     league_combo_poe2->setEnabled(false);
     select_league_widget->layout()->addWidget(league_combo_poe2);
 

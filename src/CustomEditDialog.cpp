@@ -17,7 +17,7 @@ CustomEditDialog::CustomEditDialog(QWidget* parent)
     layout->setVerticalSizeConstraint(QLayout::SetFixedSize);
     setLayout(layout);
 
-    custom_edit = new QLineEdit{};
+    custom_edit = new QLineEdit{this};
     custom_edit->setPlaceholderText("(1 + 2) | (3 + 4)");
     custom_edit->setMinimumWidth(200);
     connect(custom_edit, &QLineEdit::textChanged, this, [this](const QString& text) {
@@ -27,7 +27,7 @@ CustomEditDialog::CustomEditDialog(QWidget* parent)
 
     layout->addWidget(custom_edit, 1);
 
-    ok_button = new QPushButton{tr("Ok")};
+    ok_button = new QPushButton{tr("Ok"), this};
     connect(ok_button, &QPushButton::clicked, this, &CustomEditDialog::saveCustomString);
     layout->addWidget(ok_button);
 }

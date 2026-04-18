@@ -36,11 +36,11 @@ RequestEditDialog::RequestEditDialog(QWidget* parent)
     auto form = new QFormLayout{};
     main_layout->addLayout(form);
 
-    name_edit = new QLineEdit{};
+    name_edit = new QLineEdit{this};
     connect(name_edit, &QLineEdit::editingFinished, this, &RequestEditDialog::checkName);
     form->addRow(tr("Name:"), name_edit);
 
-    link_edit = new QLineEdit{};
+    link_edit = new QLineEdit{this};
     connect(link_edit, &QLineEdit::editingFinished, this, &RequestEditDialog::checkLink);
     form->addRow(tr("Request link:"), link_edit);
 
@@ -48,17 +48,17 @@ RequestEditDialog::RequestEditDialog(QWidget* parent)
     query_layout->setContentsMargins(0, 0, 0, 0);
     form->addRow(tr("Query:"), query_layout);
 
-    query_cb = new QCheckBox{};
+    query_cb = new QCheckBox{this};
     query_cb->setEnabled(false);
     query_layout->addWidget(query_cb);
 
-    paste_button = new QPushButton{tr("Paste")};
+    paste_button = new QPushButton{tr("Paste"), this};
     connect(paste_button, &QPushButton::clicked, this, &RequestEditDialog::checkQuery);
     query_layout->addWidget(paste_button);
     paste_button->setAutoDefault(false);
 
 #ifndef PLANNER_NO_BROWSER
-    load_button = new QPushButton{tr("Load")};
+    load_button = new QPushButton{tr("Load"), this};
     connect(load_button, &QPushButton::clicked, this, &RequestEditDialog::loadQuery);
     load_button->setToolTip(tr("If you are adding a lot of searches, load one every 5+ seconds to "
                                "not exceed rate limits."));
@@ -68,15 +68,15 @@ RequestEditDialog::RequestEditDialog(QWidget* parent)
 
     query_layout->addStretch(1);
 
-    regex_edit = new QLineEdit{};
+    regex_edit = new QLineEdit{this};
     connect(regex_edit, &QLineEdit::editingFinished, this, &RequestEditDialog::checkChange);
     form->addRow(tr("Regex:"), regex_edit);
 
-    description_edit = new QLineEdit{};
+    description_edit = new QLineEdit{this};
     connect(description_edit, &QLineEdit::editingFinished, this, &RequestEditDialog::checkChange);
     form->addRow(tr("Description:"), description_edit);
 
-    auto buttons = new QDialogButtonBox{};
+    auto buttons = new QDialogButtonBox{this};
     ok_button = buttons->addButton(QDialogButtonBox::Ok);
     connect(ok_button, &QPushButton::clicked, this, [this] {
         saveRequest();

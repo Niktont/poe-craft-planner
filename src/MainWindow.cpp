@@ -104,28 +104,6 @@ MainWindow::MainWindow(QObject& object_parent, QWidget* parent)
     snapshot_edit = new QLineEdit{};
     snapshot_edit->setPlaceholderText(tr("Snapshot"));
     snapshot_edit->setFixedWidth(80);
-    connect(main_widget, &MainWidget::gameChanged, this, [this](Game game) {
-        current_snapshot_model = AppState::snapshots(game);
-        snapshot_edit->setText(current_snapshot_model->currentName());
-        snapshot_edit->setCompleter(current_snapshot_model->completer);
-    });
-    connect(AppState::state.snapshots_poe1,
-            &SnapshotModel::dataChanged,
-            this,
-            &MainWindow::updateSnapshotName);
-    connect(AppState::state.snapshots_poe2,
-            &SnapshotModel::dataChanged,
-            this,
-            &MainWindow::updateSnapshotName);
-    connect(AppState::state.snapshots_poe1,
-            &SnapshotModel::currentChanged,
-            this,
-            &MainWindow::checkDeletedSnapshot);
-    connect(AppState::state.snapshots_poe2,
-            &SnapshotModel::currentChanged,
-            this,
-            &MainWindow::checkDeletedSnapshot);
-
     connect(snapshot_edit, &QLineEdit::editingFinished, this, [this] {
         if (!current_snapshot_model) {
             snapshot_edit->clear();
@@ -138,10 +116,32 @@ MainWindow::MainWindow(QObject& object_parent, QWidget* parent)
             snapshot_edit->setText(current_snapshot_model->currentName());
     });
     connect(snapshot_edit, &QLineEdit::textChanged, this, [this](const QString& text) {
-        auto fm = snapshot_edit->fontMetrics();
-        auto width = fm.horizontalAdvance(text) + 15;
+        auto width = snapshot_edit->fontMetrics().horizontalAdvance(text) + 15;
         snapshot_edit->setFixedWidth(std::max(80, width));
     });
+
+    connect(main_widget, &MainWidget::gameChanged, this, [this](Game game) {
+        current_snapshot_model = AppState::snapshots(game);
+        snapshot_edit->setText(current_snapshot_model->currentName());
+        snapshot_edit->setCompleter(current_snapshot_model->completer);
+    });
+
+    connect(AppState::state.snapshots_poe1,
+            &SnapshotModel::dataChanged,
+            this,
+            &MainWindow::updateSnapshotName);
+    connect(AppState::state.snapshots_poe2,
+            &SnapshotModel::dataChanged,
+            this,
+            &MainWindow::updateSnapshotName);
+    connect(AppState::state.snapshots_poe1,
+            &SnapshotModel::currentChanged,
+            this,
+            &MainWindow::checkDeletedSnapshot);
+    connect(AppState::state.snapshots_poe2,
+            &SnapshotModel::currentChanged,
+            this,
+            &MainWindow::checkDeletedSnapshot);
 
     setupAboutDialog();
 

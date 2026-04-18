@@ -20,22 +20,22 @@ CostWidget::CostWidget(QWidget* parent)
     main_layout->setContentsMargins(0, 0, 0, 0);
     setLayout(main_layout);
 
-    cost_label = new QLabel{};
+    cost_label = new QLabel{this};
     layout()->addWidget(cost_label);
 
-    profit_label = new QLabel{};
+    profit_label = new QLabel{this};
     layout()->addWidget(profit_label);
 
-    currency_icon_label = new QLabel{};
+    currency_icon_label = new QLabel{this};
     layout()->addWidget(currency_icon_label);
 
-    currency_label = new QLabel{};
+    currency_label = new QLabel{this};
     layout()->addWidget(currency_label);
 
-    gold_label = new QLabel{};
+    gold_label = new QLabel{this};
     layout()->addWidget(gold_label);
 
-    time_label = new QLabel{};
+    time_label = new QLabel{this};
     layout()->addWidget(time_label);
 
     hide();

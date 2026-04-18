@@ -18,7 +18,7 @@ ShoppingDialog::ShoppingDialog(QWidget* parent)
     : QDialog{parent}
 {
     model = new ShoppingModel{this};
-    view = new ShoppingView{*model};
+    view = new ShoppingView{*model, this};
 
     auto main_layout = new QVBoxLayout{};
     setLayout(main_layout);

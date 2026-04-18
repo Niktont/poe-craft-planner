@@ -8,8 +8,8 @@ namespace planner {
 
 PlanSearchDialog::PlanSearchDialog(QWidget* parent)
     : QDialog{parent}
-    , view{new PlanSearchView{}}
-    , filter_edit{new QLineEdit{}}
+    , view{new PlanSearchView{this}}
+    , filter_edit{new QLineEdit{this}}
 {
     auto layout = new QVBoxLayout{};
     setLayout(layout);
