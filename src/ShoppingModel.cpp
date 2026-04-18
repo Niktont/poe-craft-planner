@@ -2,8 +2,8 @@
 #include "AppState.h"
 #include "Plan.h"
 #include "PlanModel.h"
-#include "QFont"
 #include "TradeRequestCache.h"
+#include <QFont>
 
 namespace planner {
 
@@ -89,7 +89,7 @@ QVariant ShoppingModel::data(const QModelIndex& index, int role) const
             case Qt::DisplayRole:
                 return tr("Link");
             case Qt::ToolTipRole:
-                if (auto url = trade->request.toUrl(plan_->game); !url.isEmpty())
+                if (auto url = trade->request.toUrl(game_); !url.isEmpty())
                     return url;
                 return {};
             case Qt::ForegroundRole:
@@ -116,10 +116,10 @@ bool ShoppingModel::setPlan(const Plan& plan,
 
     beginResetModel();
     items.clear();
-    plan_ = &plan;
+    game_ = plan.game;
     include_dependencies = include_dependencies_;
 
-    if (plan_->game == Game::Poe1) {
+    if (game_ == Game::Poe1) {
         exchange_cache = AppState::state.exchange_cache_poe1;
         trade_cache = AppState::state.trade_cache_poe1;
         plan_model = AppState::state.plan_model_poe1;
@@ -130,22 +130,22 @@ bool ShoppingModel::setPlan(const Plan& plan,
     }
 
     dependencies.clear();
-    bool result = gatherPlanItems(step_pos, amount);
+    bool result = gatherPlanItems(plan, step_pos, amount);
     dependencies.clear();
 
     endResetModel();
     return result;
 }
 
-bool ShoppingModel::gatherPlanItems(size_t step_pos, double amount)
+bool ShoppingModel::gatherPlanItems(const Plan& plan, size_t step_pos, double amount)
 {
-    auto step_it = plan_->steps.begin() + step_pos;
-    if (step_it >= plan_->steps.end() || step_it->resources.empty())
+    auto step_it = plan.steps.begin() + step_pos;
+    if (step_it >= plan.steps.end() || step_it->resources.empty())
         return false;
 
-    auto& plan_data = dependencies.try_emplace(plan_->id()).first->second;
+    auto& plan_data = dependencies.try_emplace(plan.id()).first->second;
     plan_data.addStep(&(*step_it), amount);
-    gatherItems(*plan_, plan_data);
+    gatherItems(plan, plan_data);
 
     if (plan_data.exchange_items.empty() && plan_data.trade_items.empty())
         return false;

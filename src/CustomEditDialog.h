@@ -1,34 +1,28 @@
 #ifndef CUSTOMEDITDIALOG_H
 #define CUSTOMEDITDIALOG_H
 
-#include "CustomCalculation.h"
+#include "CustomExpression.h"
 #include <QDialog>
 
 class QLineEdit;
 class QPushButton;
 
 namespace planner {
-class Plan;
-class StepItemsWidget;
 
 class CustomEditDialog : public QDialog
 {
 public:
-    CustomEditDialog(QWidget* parent);
+    CustomEditDialog(QWidget* parent = nullptr);
 
-    void openCustomEdit(Plan* plan, size_t step_pos, StepItemsWidget* items_widget);
+    void openCustomEdit(QString custom_text);
 
-    CustomCalculation calc;
+    QString custom_text;
+    custom_tree::Expression custom_tree;
 
 private slots:
     void saveCustomString();
 
 private:
-    Plan* plan{};
-    size_t step_pos{};
-    bool is_resource_calc{};
-    StepItemsWidget* items_widget{};
-
     QLineEdit* custom_edit;
     QPushButton* ok_button;
 };

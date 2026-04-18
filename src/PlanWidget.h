@@ -19,12 +19,15 @@ class CostWidget;
 class TradeRequestCache;
 class Currency;
 class PlanTitleWidget;
+class CustomEditDialog;
+class ShoppingSetupDialog;
+class RequestEditDialog;
 
 class PlanWidget : public QWidget
 {
     Q_OBJECT
 public:
-    explicit PlanWidget(bool is_main = false, QWidget* parent = nullptr);
+    explicit PlanWidget(bool is_main, QWidget* parent = nullptr, Qt::WindowFlags flags = {});
 
     void connectSignals();
 
@@ -40,8 +43,13 @@ public:
     void setFinalStep(size_t step_pos, bool checked);
     void pasteStep(size_t step_pos);
 
+    CustomEditDialog& customEdit();
+    ShoppingSetupDialog& shoppingSetup();
+    RequestEditDialog& requestEdit();
+
 signals:
     void gameChanged(planner::Game game);
+    void aboutToClose(planner::PlanWidget& window);
 
 public slots:
     void scrollToStep(const QUuid& step_id);
@@ -59,6 +67,7 @@ public slots:
 
 protected:
     void contextMenuEvent(QContextMenuEvent* event) override;
+    void closeEvent(QCloseEvent* event) override;
 
 private slots:
     void setPlanOnUpdate(planner::Plan& updated_plan);
@@ -78,6 +87,8 @@ private slots:
 
     void updateOnSnapshotChange(planner::Game game);
 
+    void openShoppingDialog();
+
 private:
     PlanTitleWidget* title_widget;
 
@@ -87,7 +98,14 @@ private:
     QAction* add_step_action;
     QAction* paste_step_action;
 
+    QAction* update_costs_action;
+    QAction* shopping_mode_action;
+
     std::vector<StepWidget*> step_widgets;
+
+    CustomEditDialog* custom_edit_dialog{};
+    ShoppingSetupDialog* shopping_setup{};
+    RequestEditDialog* request_edit{};
 
     const PlanModel* current_model{};
     Plan* plan_{};

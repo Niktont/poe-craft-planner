@@ -11,8 +11,6 @@ static constexpr milliseconds min_trade_expiration_time{minutes{10}};
 static constexpr milliseconds min_exchange_expiration_time{minutes{60}};
 static constexpr milliseconds min_exchange_delay{seconds{3}};
 
-bool Settings::offline_mode{false};
-
 QSettings Settings::get()
 {
     static const QString file = qApp->applicationDirPath() + u"/settings.ini";

@@ -19,9 +19,6 @@ public:
     void openPlan(const Plan& plan);
     void openPlan(const Plan& plan, size_t step_pos, double amount, bool include_dependencies);
 
-protected:
-    void closeEvent(QCloseEvent* event) override;
-
 private slots:
     void nextItem();
     void pasteWant();
@@ -34,10 +31,7 @@ private:
     ShoppingView* view;
     ShoppingModel* model;
 
-#ifndef PLANNER_NO_BROWSER
-    bool web_view_dialog_was_shown{false};
-#endif
-    bool plan_search_dialog_was_shown{false};
+    std::set<QWindow*> visible_windows;
 
     keyboard_auto_type::AutoType auto_type;
     QHotkey* next_item_hk;

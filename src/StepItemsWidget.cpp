@@ -1,6 +1,7 @@
 #include "StepItemsWidget.h"
 #include "CustomEditDialog.h"
 #include "Plan.h"
+#include "PlanWidget.h"
 #include "StepItemDelegate.h"
 #include "StepItemModel.h"
 #include "StepItemView.h"
@@ -11,12 +12,10 @@
 
 namespace planner {
 
-StepItemsWidget::StepItemsWidget(CustomEditDialog& custom_edit_dialog,
-                                 StepItemModel& model,
-                                 QWidget* parent)
+StepItemsWidget::StepItemsWidget(StepItemModel& model, PlanWidget& plan_widget, QWidget* parent)
     : QWidget{parent}
     , is_resources_widget{model.is_resource_model}
-    , custom_edit_dialog{custom_edit_dialog}
+    , plan_widget{plan_widget}
 {
     auto main_layout = new QVBoxLayout{};
     main_layout->setVerticalSizeConstraint(QLayout::SetFixedSize);
@@ -39,17 +38,50 @@ StepItemsWidget::StepItemsWidget(CustomEditDialog& custom_edit_dialog,
     sp.setRetainSizeWhenHidden(true);
     custom_button->setSizePolicy(sp);
     custom_button->hide();
-    connect(custom_button, &QPushButton::clicked, this, [this] {
-        this->custom_edit_dialog.openCustomEdit(plan, step_pos, this);
-    });
+    connect(custom_button, &QPushButton::clicked, this, &StepItemsWidget::openCustomEdit);
     title_layout->addWidget(custom_button);
 
     title_layout->addStretch(1);
 
-    view = new StepItemView{model};
+    view = new StepItemView{model, plan_widget};
     delegate = new StepItemDelegate{this};
     view->setItemDelegate(delegate);
     main_layout->addWidget(view);
+}
+
+void StepItemsWidget::openCustomEdit()
+{
+    if (!plan)
+        return;
+
+    auto& edit = plan_widget.customEdit();
+    auto& custom_text = is_resources_widget ? plan->steps[step_pos].custom_resource_data.text
+                                            : plan->steps[step_pos].custom_result_data.text;
+    edit.openCustomEdit(custom_text);
+    connect(
+        &edit,
+        &QDialog::finished,
+        this,
+        [this](int result) {
+            if (!plan || result != QDialog::Accepted)
+                return;
+
+            auto& custom = is_resources_widget ? plan->steps[step_pos].custom_resource_data
+                                               : plan->steps[step_pos].custom_result_data;
+            auto& edit = plan_widget.customEdit();
+            if (custom.text == edit.custom_text)
+                return;
+
+            custom.text = edit.custom_text;
+            if (!custom.text.isEmpty())
+                custom.tree = edit.custom_tree;
+            else
+                custom.tree.reset();
+            plan->setChanged();
+
+            updateCustomText();
+        },
+        Qt::SingleShotConnection);
 }
 
 void StepItemsWidget::updateCustomText()

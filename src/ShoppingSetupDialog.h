@@ -16,13 +16,16 @@ class ShoppingSetupDialog : public QDialog
 public:
     ShoppingSetupDialog(QWidget* parent = nullptr);
 
+    void openPlan(Plan& plan);
+
+private slots:
+    void openShoppingList();
+
+private:
     QComboBox* step_combo;
     QDoubleSpinBox* amount_edit;
     QCheckBox* dependencies_cb;
 
-    void openPlan(Plan& plan);
-
-private:
     Plan* plan{};
 };
 

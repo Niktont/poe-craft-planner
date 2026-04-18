@@ -24,7 +24,7 @@ class StepWidget : public QFrame
 {
     Q_OBJECT
 public:
-    StepWidget(PlanWidget* plan_widget, QWidget* parent = nullptr);
+    StepWidget(PlanWidget& plan_widget, QWidget* parent = nullptr);
 
     size_t stepPos() const { return step_pos; }
     void updatePos(size_t new_pos);
@@ -77,7 +77,7 @@ private:
     StepItemsWidget* resources_widget;
     StepItemsWidget* results_widget;
 
-    PlanWidget* plan_widget;
+    PlanWidget& plan_widget;
 
     QAction* duplicate_action;
     QAction* copy_action;

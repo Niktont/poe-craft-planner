@@ -10,20 +10,18 @@ namespace planner {
 class StepItemView;
 class StepItemDelegate;
 class Plan;
+class PlanWidget;
 class StepItemModel;
-class CustomEditDialog;
 
 class StepItemsWidget : public QWidget
 {
     Q_OBJECT
 public:
-    explicit StepItemsWidget(CustomEditDialog& custom_edit_dialog,
-                             StepItemModel& model,
+    explicit StepItemsWidget(StepItemModel& model,
+                             PlanWidget& plan_widget,
                              QWidget* parent = nullptr);
 
     const bool is_resources_widget;
-
-    void updateCustomText();
 
     void setOtherView(StepItemsWidget& other);
     StepItemView* view;
@@ -34,6 +32,8 @@ public slots:
 
 private slots:
     void setMethod(int index);
+    void openCustomEdit();
+    void updateCustomText();
 
 private:
     Plan* plan{};
@@ -43,7 +43,7 @@ private:
 
     StepItemDelegate* delegate;
 
-    CustomEditDialog& custom_edit_dialog;
+    PlanWidget& plan_widget;
 };
 
 } // namespace planner

@@ -7,7 +7,7 @@
 #include "PlanTreeView.h"
 #include "PlanWidget.h"
 #include "Settings.h"
-#include <QGuiApplication>
+#include <QApplication>
 #include <QVBoxLayout>
 
 namespace planner {
@@ -26,22 +26,13 @@ MainWidget::MainWidget(QWidget* parent)
 void MainWidget::connectSignals()
 {
     connect(AppState::state.mw->plan_view_poe1,
-            &QTreeView::clicked,
+            &PlanTreeView::planWindowRequested,
             this,
-            &MainWidget::setPlanOnClick);
+            &MainWidget::openPlanWindow);
     connect(AppState::state.mw->plan_view_poe2,
-            &QTreeView::clicked,
+            &PlanTreeView::planWindowRequested,
             this,
-            &MainWidget::setPlanOnClick);
-
-    connect(AppState::state.mw->plan_view_poe1->selectionModel(),
-            &QItemSelectionModel::currentRowChanged,
-            this,
-            &MainWidget::setPlanOnCurrentChange);
-    connect(AppState::state.mw->plan_view_poe2->selectionModel(),
-            &QItemSelectionModel::currentRowChanged,
-            this,
-            &MainWidget::setPlanOnCurrentChange);
+            &MainWidget::openPlanWindow);
 
     connect(AppState::state.mw->plan_view_poe1,
             &PlanTreeView::planSelected,
@@ -74,17 +65,101 @@ Plan* MainWidget::plan() const
     return plan_widget->plan();
 }
 
+void MainWidget::openPlanLink(const QUuid& plan_id, Game game, bool need_window)
+{
+    if (need_window)
+        openPlanWindow(plan_id, game);
+    else
+        openPlan(plan_id, game);
+}
+
 void MainWidget::openPlan(const QUuid& plan_id, Game game)
 {
-    if (plan() && plan_id == plan()->id())
-        return;
+    if (isCurrentPlan(plan_id))
+        return raisePlanWindow(*plan_widget);
+    if (auto it = plan_windows.find(plan_id); it != plan_windows.end())
+        return raisePlanWindow(*it->second);
 
     AppState::state.mw->planView(game)->selectPlan(plan_id);
+}
+
+void MainWidget::openPlanWindow(const QUuid& plan_id, Game game)
+{
+    if (isCurrentPlan(plan_id)) {
+        goBack();
+        if (isCurrentPlan(plan_id)) {
+            goForward();
+            if (isCurrentPlan(plan_id))
+                return raisePlanWindow(*plan_widget);
+        }
+    }
+
+    auto model = AppState::planModel(game);
+    auto plan_it = model->plans.find(plan_id);
+    if (plan_it == model->plans.end())
+        return;
+
+    auto [window_it, added] = plan_windows.try_emplace(plan_id);
+    if (!added)
+        return raisePlanWindow(*window_it->second);
+
+    Qt::WindowFlags flags{};
+    if (Settings::stays_on_top)
+        flags |= Qt::WindowStaysOnTopHint;
+    window_it->second = new PlanWidget{false, nullptr, flags};
+    window_it->second->connectSignals();
+    window_it->second->setPlan(model, &plan_it->second);
+
+    auto mouse_pos = QCursor::pos();
+    mouse_pos.rx() -= 5;
+    mouse_pos.ry() += 5;
+    window_it->second->setGeometry({mouse_pos, plan_widget->size()});
+    window_it->second->show();
+
+    connect(window_it->second, &PlanWidget::aboutToClose, this, &MainWidget::eraseWindow);
 }
 
 void MainWidget::addStep()
 {
     plan_widget->addStep();
+}
+
+void MainWidget::savePlan()
+{
+    Plan* plan{};
+    if (auto active_window = QApplication::activeWindow()) {
+        if (auto plan_window = qobject_cast<PlanWidget*>(active_window)) {
+            plan = plan_window->plan();
+        }
+    }
+
+    if (plan || (plan = plan_widget->plan())) {
+        AppState::planModel(plan->game)->savePlan(*plan->item());
+    }
+}
+
+void MainWidget::updateCosts()
+{
+    if (auto active_window = QApplication::activeWindow()) {
+        if (auto plan_window = qobject_cast<PlanWidget*>(active_window)) {
+            plan_window->update_costs_action->trigger();
+            return;
+        }
+    }
+
+    plan_widget->update_costs_action->trigger();
+}
+
+void MainWidget::openShoppingDialog()
+{
+    if (auto active_window = QApplication::activeWindow()) {
+        if (auto plan_window = qobject_cast<PlanWidget*>(active_window)) {
+            plan_window->shopping_mode_action->trigger();
+            return;
+        }
+    }
+
+    plan_widget->shopping_mode_action->trigger();
 }
 
 void MainWidget::updateCost(Game game, const std::vector<std::pair<Plan*, bool> >& updated_plans)
@@ -96,36 +171,48 @@ void MainWidget::updateCost(Game game, const std::vector<std::pair<Plan*, bool> 
     }
 
     plan_widget->updateCost(game, updated_plans);
+    for (auto& p : plan_windows)
+        p.second->updateCost(game, updated_plans);
 }
 
 void MainWidget::hideDescriptions(bool hide)
 {
     Settings::setCache<Settings::windows_main_hide_descriptions>(hide);
     plan_widget->hideDescriptions();
+    for (auto& p : plan_windows)
+        p.second->hideDescriptions();
 }
 
 void MainWidget::hideEmptyResources(bool hide)
 {
     Settings::setCache<Settings::windows_main_hide_empty_resources>(hide);
     plan_widget->hideEmptyResources();
+    for (auto& p : plan_windows)
+        p.second->hideEmptyResources();
 }
 
 void MainWidget::hideEmptyResults(bool hide)
 {
     Settings::setCache<Settings::windows_main_hide_empty_results>(hide);
     plan_widget->hideEmptyResults();
+    for (auto& p : plan_windows)
+        p.second->hideEmptyResults();
 }
 
 void MainWidget::hideNotUsedItems(bool hide)
 {
     Settings::setCache<Settings::windows_main_hide_not_used_items>(hide);
     plan_widget->hideNotUsedItems();
+    for (auto& p : plan_windows)
+        p.second->hideNotUsedItems();
 }
 
 void MainWidget::hideTitleCurrencyName(bool hide)
 {
     Settings::setCache<Settings::windows_main_hide_title_currency_name>(hide);
     plan_widget->hideTitleCurrencyName();
+    for (auto& p : plan_windows)
+        p.second->hideTitleCurrencyName();
 }
 
 void MainWidget::goBack()
@@ -135,28 +222,23 @@ void MainWidget::goBack()
         return;
     }
 
-    auto current_id = history_it != navigation_history.end() ? history_it->first : QUuid{};
+    PlanModel* plan_model{};
+    PlanModel::Plans::iterator plan_it;
+    auto reverse_it = std::find_if(std::make_reverse_iterator(history_it),
+                                   navigation_history.rend(),
+                                   [&](const auto& p) {
+                                       plan_model = AppState::planModel(p.second);
+                                       plan_it = plan_model->plans.find(p.first);
+                                       return plan_it != plan_model->plans.end()
+                                              && !isPlanActive(p.first);
+                                   });
 
-    auto prev_it = std::prev(history_it);
-    auto plan_model = AppState::planModel(prev_it->second);
-    auto plan_it = plan_model->plans.find(prev_it->first);
-    while (prev_it != navigation_history.begin()
-           && (plan_it == plan_model->plans.end() || plan_it->first == current_id)) {
-        prev_it = std::prev(prev_it);
-        plan_model = AppState::planModel(prev_it->second);
-        plan_it = plan_model->plans.find(prev_it->first);
-    }
-
-    if (plan_it == plan_model->plans.end() || plan_it->first == current_id) {
-        history_it = navigation_history.erase(prev_it, history_it);
+    history_it = navigation_history.erase(reverse_it.base(), history_it);
+    if (history_it == navigation_history.begin()) {
         updateBack();
         return;
     }
-
-    if (std::distance(prev_it, history_it) > 1)
-        history_it = std::prev(navigation_history.erase(std::next(prev_it), history_it));
-    else
-        history_it = prev_it;
+    --history_it;
 
     AppState::state.mw->planView(plan_model->game)->selectPlan(plan_it->second);
 }
@@ -168,78 +250,30 @@ void MainWidget::goForward()
         return;
     }
 
-    auto next_it = std::next(history_it);
-    if (next_it == navigation_history.end()) {
+    PlanModel* plan_model{};
+    PlanModel::Plans::iterator plan_it;
+    auto next_it = std::find_if(std::next(history_it), navigation_history.end(), [&](const auto& p) {
+        plan_model = AppState::planModel(p.second);
+        plan_it = plan_model->plans.find(p.first);
+        return plan_it != plan_model->plans.end() && !isPlanActive(p.first);
+    });
+    history_it = navigation_history.erase(std::next(history_it), next_it);
+
+    if (history_it == navigation_history.end()) {
+        --history_it;
         updateForward();
         return;
     }
-
-    auto back_it = std::prev(navigation_history.end());
-
-    auto plan_model = AppState::planModel(next_it->second);
-    auto plan_it = plan_model->plans.find(next_it->first);
-    while (next_it != back_it
-           && (plan_it == plan_model->plans.end() || plan_it->first == history_it->first)) {
-        next_it = std::next(next_it);
-        plan_model = AppState::planModel(next_it->second);
-        plan_it = plan_model->plans.find(next_it->first);
-    }
-
-    if (plan_it == plan_model->plans.end() || plan_it->first == history_it->first) {
-        history_it = std::prev(
-            navigation_history.erase(std::next(history_it), navigation_history.end()));
-        updateForward();
-        return;
-    }
-
-    if (std::distance(history_it, next_it) > 1)
-        history_it = navigation_history.erase(std::next(history_it), next_it);
-    else
-        history_it = next_it;
 
     AppState::state.mw->planView(plan_model->game)->selectPlan(plan_it->second);
 }
 
-void MainWidget::setPlanOnClick(const QModelIndex& index)
-{
-    if (QGuiApplication::keyboardModifiers().testFlag(Qt::AltModifier))
-        return;
-
-    auto plan_model = static_cast<const PlanModel*>(index.model());
-
-    auto item = plan_model->internalPtr(index);
-    if (item->isFolder() || item->plan() == plan())
-        return;
-
-    setPlan(plan_model, item->plan());
-}
-
-void MainWidget::setPlanOnCurrentChange(const QModelIndex& new_current)
-{
-    if (QGuiApplication::keyboardModifiers().testFlag(Qt::AltModifier)
-        && QGuiApplication::mouseButtons().testFlag(Qt::LeftButton))
-        return;
-
-    if (!new_current.isValid())
-        return;
-
-    auto plan_model = static_cast<const PlanModel*>(new_current.model());
-
-    auto item = plan_model->internalPtr(new_current);
-    if (item->isFolder() || item->plan() == plan())
-        return;
-
-    setPlan(plan_model, item->plan());
-}
-
 void MainWidget::selectPlan(PlanModel& model, Plan& selected_plan)
 {
-    if (plan() != &selected_plan) {
-        if (game() != selected_plan.game)
-            AppState::state.mw->raiseDock(selected_plan.game);
+    if (game() != selected_plan.game)
+        AppState::state.mw->raiseDock(selected_plan.game);
 
-        setPlan(&model, &selected_plan);
-    }
+    setPlan(model, selected_plan);
 }
 
 void MainWidget::reselectCurrent(Game game)
@@ -255,13 +289,16 @@ void MainWidget::checkDeletingPlans(const QModelIndex& parent, int first, int la
 
     bool current_is_deleting = plan_widget->checkDeletingPlans(*parent_item, first, last);
     if (current_is_deleting) {
+        PlanModel* plan_model{};
+        PlanModel::Plans::iterator it;
         auto isValid = [&](const std::pair<QUuid, Game>& p) {
-            auto model = AppState::planModel(p.second);
-            if (auto it = model->plans.find(p.first); it != model->plans.end()) {
-                auto res = parent_item->isDescendantDeleting(*it->second.item(), first, last);
-                return !res;
-            }
-            return false;
+            if (plan_windows.contains(p.first))
+                return false;
+
+            plan_model = AppState::planModel(p.second);
+            it = model->plans.find(p.first);
+            return it != model->plans.end()
+                   && !parent_item->isDescendantDeleting(*it->second.item(), first, last);
         };
 
         auto reverse_it = std::find_if(std::make_reverse_iterator(history_it),
@@ -282,17 +319,24 @@ void MainWidget::checkDeletingPlans(const QModelIndex& parent, int first, int la
         } else
             history_it = std::prev(history_it);
 
-        auto new_model = AppState::planModel(history_it->second);
-        setPlan(new_model, &new_model->plans.at(history_it->first), false);
+        setPlan(*plan_model, it->second, false);
+        updateBack();
+        updateForward();
         reselectCurrent(plan()->game);
     } else if (plan() && plan()->game == model->game)
         reselectCurrent(plan()->game);
 }
 
-void MainWidget::setPlan(const PlanModel* model, Plan* new_plan, bool update_history)
+void MainWidget::setPlan(const PlanModel& model, Plan& new_plan, bool update_history)
 {
+    if (plan() == &new_plan)
+        return;
+
+    if (auto it = plan_windows.find(new_plan.id()); it != plan_windows.end())
+        return;
+
     auto prev_game = game();
-    plan_widget->setPlan(model, new_plan);
+    plan_widget->setPlan(&model, &new_plan);
 
     if (prev_game != plan()->game)
         emit gameChanged(plan()->game);
@@ -307,10 +351,42 @@ void MainWidget::setPlan(const PlanModel* model, Plan* new_plan, bool update_his
                                       plan()->id(),
                                       plan()->game);
         }
+
+        if (navigation_history.size() > 500) {
+            auto pos = std::distance(navigation_history.begin(), history_it);
+            auto del_pos = std::min(250ll, pos);
+            navigation_history.erase(navigation_history.begin(),
+                                     navigation_history.begin() + del_pos);
+            history_it = navigation_history.begin() + pos - del_pos;
+        }
     }
 
     updateBack();
     updateForward();
+}
+
+void MainWidget::eraseWindow(PlanWidget& window)
+{
+    if (window.plan())
+        plan_windows.erase(window.plan()->id());
+}
+
+bool MainWidget::isCurrentPlan(const QUuid& id) const
+{
+    return plan() && plan()->id() == id;
+}
+
+bool MainWidget::isPlanActive(const QUuid& id) const
+{
+    return isCurrentPlan(id) || plan_windows.contains(id);
+}
+
+void MainWidget::raisePlanWindow(PlanWidget& window)
+{
+    if (!window.isActiveWindow()) {
+        window.activateWindow();
+        window.raise();
+    }
 }
 
 void MainWidget::updateBack()

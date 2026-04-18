@@ -2,6 +2,7 @@
 #define APPSTATE_H
 
 #include "Game.h"
+#include <memory>
 
 namespace planner {
 class MainWindow;
@@ -14,10 +15,10 @@ class ExchangeRequestCache;
 class TradeRequestCache;
 class SnapshotModel;
 
-class RequestEditDialog;
+class CustomCalculation;
+
 class UpdateCostDialog;
 class ShoppingDialog;
-class CustomEditDialog;
 class PlanSearchDialog;
 #ifndef PLANNER_NO_BROWSER
 class WebViewDialog;
@@ -43,10 +44,10 @@ public:
     SnapshotModel* snapshots_poe1{};
     SnapshotModel* snapshots_poe2{};
 
-    RequestEditDialog* request_edit_dialog{};
+    std::unique_ptr<CustomCalculation> custom_calc{};
+
     UpdateCostDialog* update_cost_dialog{};
     ShoppingDialog* shopping_dialog{};
-    CustomEditDialog* custom_edit_dialog{};
     PlanSearchDialog* plan_search_dialog{};
 #ifndef PLANNER_NO_BROWSER
     WebViewDialog* web_view_dialog;
@@ -68,6 +69,8 @@ public:
     {
         return game == Game::Poe1 ? state.snapshots_poe1 : state.snapshots_poe2;
     }
+
+    ~AppState();
 
     static AppState state;
 };

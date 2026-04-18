@@ -3,8 +3,11 @@
 
 #include <QTableView>
 
+class QSettings;
+
 namespace planner {
 class TradeRequestCache;
+class RequestEditDialog;
 
 class TradeRequestView : public QTableView
 {
@@ -14,6 +17,10 @@ public:
 
 public:
     void setCache(TradeRequestCache& cache);
+
+    RequestEditDialog& requestEdit();
+
+    void saveState(QSettings& settings) const;
 
 public slots:
     void filterName(const QString& filter_str);
@@ -31,6 +38,8 @@ private:
     QAction* edit_action;
     QAction* add_action;
     QAction* delete_action;
+
+    RequestEditDialog* request_edit{};
 };
 
 } // namespace planner

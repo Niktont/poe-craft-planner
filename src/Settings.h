@@ -13,7 +13,8 @@ class Settings
 public:
     using enum settings::SettingsKey;
 
-    static bool offline_mode;
+    static inline bool offline_mode{false};
+    static inline bool stays_on_top{false};
 
     static QSettings get();
 

@@ -1,7 +1,7 @@
 #include "MainWindow.h"
 
 #include "AppState.h"
-#include "CustomEditDialog.h"
+#include "CustomCalculation.h"
 #include "ExchangeRequestCache.h"
 #include "ExchangeRequestManager.h"
 #include "MainWidget.h"
@@ -11,12 +11,10 @@
 #include "PlanSearchDialog.h"
 #include "PlanSearchView.h"
 #include "PlanTreeView.h"
-#include "RequestEditDialog.h"
 #include "SearchesDialog.h"
 #include "Settings.h"
 #include "SettingsDialog.h"
 #include "ShoppingDialog.h"
-#include "ShoppingSetupDialog.h"
 #include "SnapshotModel.h"
 #include "SnapshotsDialog.h"
 #include "TradeRequestCache.h"
@@ -40,6 +38,7 @@
 #include <QRestAccessManager>
 #include <QToolBar>
 #include <QVBoxLayout>
+#include <QWindow>
 #ifndef PLANNER_NO_BROWSER
 #include "WebViewDialog.h"
 #endif
@@ -89,20 +88,18 @@ MainWindow::MainWindow(QObject& object_parent, QWidget* parent)
     settings_dialog = new SettingsDialog{this};
     searches_dialog = new SearchesDialog{this};
     snapshots_dialog = new SnapshotsDialog{this};
-    AppState::state.request_edit_dialog = new RequestEditDialog{this};
     AppState::state.update_cost_dialog = new UpdateCostDialog{this};
+    AppState::state.custom_calc = std::make_unique<CustomCalculation>();
     connect(AppState::state.update_cost_dialog,
             &UpdateCostDialog::costUpdated,
             main_widget,
             &MainWidget::updateCost);
-    AppState::state.shopping_dialog = new ShoppingDialog{this};
-    shopping_setup = new ShoppingSetupDialog{this};
-    AppState::state.custom_edit_dialog = new CustomEditDialog{this};
+    AppState::state.shopping_dialog = new ShoppingDialog{};
     AppState::state.plan_search_dialog = new PlanSearchDialog{this};
     connect(AppState::state.plan_search_dialog->view,
             &PlanSearchView::planClicked,
             main_widget,
-            &MainWidget::openPlan);
+            &MainWidget::openPlanLink);
 
     snapshot_edit = new QLineEdit{};
     snapshot_edit->setPlaceholderText(tr("Snapshot"));
@@ -216,12 +213,9 @@ void MainWindow::restoreSession()
             plan_view_poe2->setCurrentIndex({});
             return;
         }
-        plan_view_poe2->setCurrentIndex(it->second.item()->index());
-        plans_widget_poe2->raise();
-    } else {
-        plan_view_poe1->setCurrentIndex(it->second.item()->index());
-        plans_widget_poe1->raise();
-    }
+        plan_view_poe2->selectPlan(it->second);
+    } else
+        plan_view_poe1->selectPlan(it->second);
 }
 
 void MainWindow::raiseDock(Game game)
@@ -247,8 +241,6 @@ void MainWindow::closeEvent(QCloseEvent* event)
                       AppState::state.shopping_dialog->saveGeometry());
     searches_dialog->saveState(settings);
     snapshots_dialog->saveState(settings);
-    settings.setValue(Settings::windows_request_edit_dialog_size,
-                      AppState::state.request_edit_dialog->size());
     settings.setValue(Settings::windows_plan_search_dialog_size,
                       AppState::state.plan_search_dialog->size());
 
@@ -307,14 +299,13 @@ void MainWindow::dropEvent(QDropEvent* event)
 
 void MainWindow::setAlwaysOnTop(bool checked)
 {
-    auto setStaysOnTop = [](bool checked, QWidget* window) {
-        bool shown = !window->isHidden();
-        window->setWindowFlag(Qt::WindowStaysOnTopHint, checked);
+    for (auto w : QApplication::topLevelWindows()) {
+        bool shown = w->isVisible();
+        w->setFlag(Qt::WindowStaysOnTopHint, checked);
         if (shown)
-            window->show();
-    };
-    setStaysOnTop(checked, this);
-    setStaysOnTop(checked, AppState::state.shopping_dialog);
+            w->show();
+    }
+    Settings::stays_on_top = checked;
 }
 
 void MainWindow::cleanup()
@@ -361,28 +352,6 @@ bool MainWindow::importItem(const QJsonDocument& json)
     }
 
     return AppState::planModel(game)->importItem(export_o);
-}
-
-void MainWindow::openShoppingDialog()
-{
-    auto plan = mainWidget()->plan();
-    if (!plan || plan->steps.empty())
-        return;
-
-    bool have_resources = false;
-    for (auto& step : plan->steps) {
-        if (!step.resources.empty()) {
-            have_resources = true;
-            break;
-        }
-    }
-    if (!have_resources)
-        return;
-
-    if (QGuiApplication::keyboardModifiers().testFlag(Qt::ControlModifier))
-        shopping_setup->openPlan(*plan);
-    else
-        AppState::state.shopping_dialog->openPlan(*plan);
 }
 
 void MainWindow::updateSnapshotName(const QModelIndex& idx)
@@ -474,14 +443,12 @@ void MainWindow::setupActions()
 {
     save_action = new QAction{tr("Save"), this};
     save_action->setShortcut(QKeySequence::Save);
-    connect(save_action, &QAction::triggered, this, [this] {
-        if (auto plan = mainWidget()->plan()) {
-            AppState::planModel(plan->game)->savePlan(*plan->item());
-        }
-    });
+    save_action->setShortcutContext(Qt::ApplicationShortcut);
+    connect(save_action, &QAction::triggered, mainWidget(), &MainWidget::savePlan);
 
     save_all_action = new QAction{tr("Save All"), this};
     save_all_action->setShortcut(Qt::ControlModifier | Qt::ShiftModifier | Qt::Key_S);
+    save_all_action->setShortcutContext(Qt::ApplicationShortcut);
     connect(save_all_action, &QAction::triggered, this, [] {
         AppState::state.plan_model_poe1->saveAllPlans();
         AppState::state.plan_model_poe2->saveAllPlans();
@@ -507,6 +474,7 @@ void MainWindow::setupActions()
 
     hide_descriptions_action = new QAction{tr("Hide Descriptions"), this};
     hide_descriptions_action->setShortcut(Qt::AltModifier | Qt::Key_D);
+    hide_descriptions_action->setShortcutContext(Qt::ApplicationShortcut);
     hide_descriptions_action->setCheckable(true);
     connect(hide_descriptions_action,
             &QAction::toggled,
@@ -529,6 +497,7 @@ void MainWindow::setupActions()
 
     hide_not_used_items_action = new QAction{tr("Hide Unused Items"), this};
     hide_not_used_items_action->setShortcut(Qt::AltModifier | Qt::Key_I);
+    hide_not_used_items_action->setShortcutContext(Qt::ApplicationShortcut);
     hide_not_used_items_action->setCheckable(true);
     connect(hide_not_used_items_action,
             &QAction::toggled,
@@ -590,16 +559,14 @@ void MainWindow::setupActions()
 
     update_cost_action = new QAction{tr("Update Costs"), this};
     update_cost_action->setShortcuts({Qt::Key_F5, Qt::ShiftModifier | Qt::Key_F5});
-    connect(update_cost_action, &QAction::triggered, this, [this] {
-        if (!mainWidget()->plan())
-            return;
-
-        bool send_requests = !QGuiApplication::keyboardModifiers().testFlag(Qt::ShiftModifier);
-        AppState::state.update_cost_dialog->updatePlan(*mainWidget()->plan(), send_requests);
-    });
+    update_cost_action->setShortcutContext(Qt::ApplicationShortcut);
+    connect(update_cost_action, &QAction::triggered, mainWidget(), &MainWidget::updateCosts);
 
     shopping_mode_action = new QAction{tr("Shopping Mode"), this};
-    connect(shopping_mode_action, &QAction::triggered, this, &MainWindow::openShoppingDialog);
+    connect(shopping_mode_action,
+            &QAction::triggered,
+            mainWidget(),
+            &MainWidget::openShoppingDialog);
 
     import_text_action = new QAction{tr("Import (Clipboard)"), this};
     connect(import_text_action, &QAction::triggered, this, [this] { importItem(true); });

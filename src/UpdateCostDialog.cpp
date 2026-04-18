@@ -1,6 +1,6 @@
 #include "UpdateCostDialog.h"
 #include "AppState.h"
-#include "CustomEditDialog.h"
+#include "CustomCalculation.h"
 #include "ExchangeRequestCache.h"
 #include "ExchangeRequestManager.h"
 #include "Plan.h"
@@ -11,7 +11,6 @@
 #include "StepItem.h"
 #include "TradeRequestCache.h"
 #include "TradeRequestManager.h"
-#include <QCloseEvent>
 #include <QLabel>
 #include <QListView>
 #include <QMessageBox>
@@ -83,12 +82,6 @@ void UpdateCostDialog::cancelUpdate()
     game_ = Game::Unknown;
     clearRequests();
     dependencies.clear();
-}
-
-void UpdateCostDialog::closeEvent(QCloseEvent* event)
-{
-    event->accept();
-    cancelUpdate();
 }
 
 void UpdateCostDialog::requestTradeSearch()
@@ -452,7 +445,7 @@ bool UpdateCostDialog::calculateStepCost(const Plan& step_plan, Step& step)
     auto exchange_cache = AppState::exchangeCache(step_plan.game);
     auto plan_model = AppState::planModel(step_plan.game);
 
-    auto& custom_visitor = AppState::state.custom_edit_dialog->calc.visitor;
+    auto& custom_visitor = AppState::state.custom_calc->visitor;
     custom_visitor.setPlan(step_plan);
     custom_visitor.setModels(*exchange_cache, *trade_cache, *plan_model);
 
@@ -575,13 +568,12 @@ bool UpdateCostDialog::calculateStepCustomCost(bool is_resource_cost,
     auto& cost = is_resource_cost ? step.resources_cost : step.results_cost;
     auto& items = is_resource_cost ? step.resources : step.results;
     auto& custom_data = is_resource_cost ? step.custom_resource_data : step.custom_result_data;
-    auto& calc = AppState::state.custom_edit_dialog->calc;
 
-    calc.visitor.setItems(items);
+    AppState::state.custom_calc->visitor.setItems(items);
 
     std::optional<CustomResult> result;
     try {
-        result = calc.calculate(custom_data);
+        result = AppState::state.custom_calc->calculate(custom_data);
     } catch (ParseException&) {
         custom_data.tree.reset();
     }

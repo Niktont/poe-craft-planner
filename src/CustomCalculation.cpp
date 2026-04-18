@@ -4,6 +4,14 @@
 
 namespace planner {
 
+std::pair<bool, std::string::const_iterator> CustomCalculation::parseString(
+    const std::string& text, custom_tree::Expression& tree)
+{
+    auto first = text.cbegin();
+    bool result = qi::phrase_parse(first, text.cend(), parser, qi::space, tree);
+    return {result, first};
+}
+
 std::pair<bool, std::string::const_iterator> CustomCalculation::parseString(const std::string& text,
                                                                             CustomCalcData& custom)
 {
@@ -14,10 +22,8 @@ std::pair<bool, std::string::const_iterator> CustomCalculation::parseString(cons
 
     custom.tree.emplace();
 
-    auto first = text.cbegin();
-    auto last = text.cend();
-    bool result = qi::phrase_parse(first, last, parser, qi::space, *custom.tree);
-    if (!result || first != last)
+    auto [result, first] = parseString(text, *custom.tree);
+    if (!result || first != text.cend())
         custom.tree.reset();
 
     return {result, first};

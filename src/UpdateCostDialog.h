@@ -36,9 +36,6 @@ signals:
 public slots:
     void cancelUpdate();
 
-protected:
-    void closeEvent(QCloseEvent* event) override;
-
 private slots:
     void requestTradeSearch();
     void requestExchangeCost();

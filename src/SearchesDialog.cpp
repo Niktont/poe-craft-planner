@@ -21,9 +21,8 @@ SearchesDialog::SearchesDialog(QWidget* parent)
     filter_edit->setMinimumWidth(200);
 
     connect(filter_edit, &QLineEdit::textChanged, this, [this](const QString& text) {
-        auto fm = filter_edit->fontMetrics();
-        auto width = fm.horizontalAdvance(text) + 15;
-        filter_edit->resize(width, filter_edit->height());
+        auto width = filter_edit->fontMetrics().horizontalAdvance(text) + 15;
+        filter_edit->setMaximumWidth(std::max(filter_edit->minimumWidth(), width));
 
         request_view->filterName(text);
     });
@@ -57,14 +56,13 @@ void SearchesDialog::openGame(Game game_)
         else
             setWindowTitle(tr("PoE 2 Searches"));
     }
-    open();
+    show();
 }
 
 void SearchesDialog::saveState(QSettings& settings) const
 {
     settings.setValue(Settings::windows_searches_dialog_geometry, saveGeometry());
-    settings.setValue(Settings::windows_searches_view_columns,
-                      request_view->horizontalHeader()->saveState());
+    request_view->saveState(settings);
 }
 
 } // namespace planner

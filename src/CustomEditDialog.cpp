@@ -1,8 +1,6 @@
 #include "CustomEditDialog.h"
-#include "Plan.h"
-#include "Step.h"
-#include "StepItemsWidget.h"
-#include <QDialogButtonBox>
+#include "AppState.h"
+#include "CustomCalculation.h"
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QPushButton>
@@ -15,7 +13,7 @@ CustomEditDialog::CustomEditDialog(QWidget* parent)
 {
     setWindowTitle(tr("Custom Expression"));
 
-    auto layout = new QVBoxLayout{};
+    auto layout = new QHBoxLayout{};
     layout->setVerticalSizeConstraint(QLayout::SetFixedSize);
     setLayout(layout);
 
@@ -23,77 +21,72 @@ CustomEditDialog::CustomEditDialog(QWidget* parent)
     custom_edit->setPlaceholderText("(1 + 2) | (3 + 4)");
     custom_edit->setMinimumWidth(200);
     connect(custom_edit, &QLineEdit::textChanged, this, [this](const QString& text) {
-        auto fm = custom_edit->fontMetrics();
-        auto width = fm.horizontalAdvance(text) + 15;
-        custom_edit->resize(width, custom_edit->height());
+        auto width = custom_edit->fontMetrics().horizontalAdvance(text) + 15;
+        custom_edit->setMinimumWidth(std::max(200, width));
     });
 
-    layout->addWidget(custom_edit);
+    layout->addWidget(custom_edit, 1);
 
-    auto buttons = new QDialogButtonBox{};
-
-    ok_button = buttons->addButton(QDialogButtonBox::Ok);
+    ok_button = new QPushButton{tr("Ok")};
     connect(ok_button, &QPushButton::clicked, this, &CustomEditDialog::saveCustomString);
-    layout->addWidget(buttons);
+    layout->addWidget(ok_button);
 }
 
-void CustomEditDialog::openCustomEdit(Plan* plan_, size_t step_pos_, StepItemsWidget* items_widget_)
+void CustomEditDialog::openCustomEdit(QString custom_text_)
 {
-    plan = plan_;
-    step_pos = step_pos_;
-    items_widget = items_widget_;
-    if (!plan)
-        return;
+    custom_text = std::move(custom_text_);
+    custom_edit->setText(custom_text);
 
-    this->is_resource_calc = items_widget;
-
-    auto& string = items_widget ? plan->steps[step_pos].custom_resource_data.text
-                                : plan->steps[step_pos].custom_result_data.text;
-    custom_edit->setText(string);
     open();
+
+    auto title_pos = geometry().topLeft() - pos();
+    auto new_pos = QCursor::pos() - title_pos;
+    move(new_pos);
 }
 
 void CustomEditDialog::saveCustomString()
 {
-    if (!plan) {
-        reject();
+    auto text = custom_edit->text();
+    auto trimmed_text = text.trimmed();
+    if (trimmed_text.isEmpty()) {
+        custom_text.clear();
+        accept();
+        return;
+    }
+    if (trimmed_text == custom_text) {
+        accept();
         return;
     }
 
-    auto& custom = is_resource_calc ? plan->steps[step_pos].custom_resource_data
-                                    : plan->steps[step_pos].custom_result_data;
+    auto std_text = trimmed_text.toStdString();
+    bool success = false;
+    auto first = std_text.cbegin();
+    auto last = std_text.cend();
 
-    auto text = custom_edit->text();
-    auto trimmed_text = text.trimmed();
-    if (trimmed_text != custom.text) {
-        auto std_text = trimmed_text.toStdString();
-        auto first = std_text.cend();
-        auto last = std_text.cend();
-        try {
-            first = calc.parseString(std_text, custom).second;
-        } catch (ParseException& e) {
-            first = e.first;
-            last = e.last;
-            custom.tree.reset();
-        }
-        if (first != last) {
-            if (text != trimmed_text)
-                custom_edit->setText(trimmed_text);
-            custom_edit->setFocus();
-            custom_edit->setCursorPosition(std::distance(std_text.cbegin(), first));
-
-            auto msg = new QMessageBox{this};
-            msg->setAttribute(Qt::WA_DeleteOnClose);
-            msg->setWindowTitle(tr("Parse Failed"));
-            msg->setText(tr("Failed to parse expression."));
-            msg->open();
-            return;
-        }
-
-        custom.text = trimmed_text;
-        plan->setChanged();
-        items_widget->updateCustomText();
+    custom_tree = {};
+    try {
+        std::tie(success, first) = AppState::state.custom_calc->parseString(std_text, custom_tree);
+    } catch (ParseException& e) {
+        first = e.first;
+        last = e.last;
     }
+
+    if (!success || first != last) {
+        if (text != trimmed_text)
+            custom_edit->setText(trimmed_text);
+        custom_edit->setFocus();
+        custom_edit->setCursorPosition(std::distance(std_text.cbegin(), first));
+
+        auto msg = new QMessageBox{this};
+        msg->setAttribute(Qt::WA_DeleteOnClose);
+        msg->setWindowTitle(tr("Parse Failed"));
+        msg->setText(tr("Failed to parse expression."));
+        msg->open();
+        return;
+    }
+
+    custom_text = trimmed_text;
+
     accept();
 }
 

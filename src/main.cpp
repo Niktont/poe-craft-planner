@@ -8,7 +8,7 @@ using namespace planner;
 int main(int argc, char* argv[])
 {
     QCoreApplication::setOrganizationName("CraftPlanner");
-    QCoreApplication::setApplicationName("PoE Craft Planner");
+    QCoreApplication::setApplicationName(APP_NAME);
     QCoreApplication::setApplicationVersion(APP_VERSION);
 
     QLocale::setDefault(QLocale::C);

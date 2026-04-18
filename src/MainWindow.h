@@ -16,7 +16,6 @@ namespace planner {
 class MainWidget;
 class PlanTreeView;
 class SettingsDialog;
-class ShoppingSetupDialog;
 class SearchesDialog;
 class SnapshotsDialog;
 class SnapshotModel;
@@ -47,7 +46,6 @@ public:
 
     SearchesDialog* searches_dialog;
     SnapshotsDialog* snapshots_dialog;
-    ShoppingSetupDialog* shopping_setup;
     SettingsDialog* settings_dialog;
     QDialog* about_dialog;
 
@@ -99,7 +97,6 @@ private slots:
     void cleanup();
     void importItem(bool from_clipboard);
     bool importItem(const QJsonDocument& json);
-    void openShoppingDialog();
     void updateSnapshotName(const QModelIndex& idx);
     void checkDeletedSnapshot(planner::Game game, planner::Snapshot* snapshot);
 

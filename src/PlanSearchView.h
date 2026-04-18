@@ -19,7 +19,10 @@ public slots:
     void filterName(const QString& filter_str);
 
 signals:
-    void planClicked(const QUuid& plan_id, planner::Game game) const;
+    void planClicked(const QUuid& plan_id, planner::Game game, bool need_window) const;
+
+protected:
+    void mousePressEvent(QMouseEvent* event) override;
 
 private slots:
     void indexClicked(const QModelIndex& idx);

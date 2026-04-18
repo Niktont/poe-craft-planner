@@ -1,4 +1,6 @@
 #include "StepItemView.h"
+#include "PlanWidget.h"
+#include "RequestEditDialog.h"
 #include "Settings.h"
 #include "Step.h"
 #include "StepItemCopyState.h"
@@ -18,8 +20,9 @@ static constexpr int min_name_width = 120;
 
 namespace planner {
 
-StepItemView::StepItemView(StepItemModel& model, QWidget* parent)
+StepItemView::StepItemView(StepItemModel& model, PlanWidget& plan_widget, QWidget* parent)
     : QTableView{parent}
+    , plan_widget{plan_widget}
 {
     setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
     setWordWrap(false);
@@ -105,9 +108,7 @@ StepItemView::StepItemView(StepItemModel& model, QWidget* parent)
     });
     copy_regex_action->setShortcutContext(Qt::WidgetShortcut);
 
-    edit_search_action = addAction(tr("Edit Search"), this, [this] {
-        stepModel()->openSearch(selectionModel()->currentIndex());
-    });
+    edit_search_action = addAction(tr("Edit Search"), this, &StepItemView::openSearch);
 
     delete_search_action = addAction(tr("Delete Search"), this, &StepItemView::deleteSearch);
 
@@ -188,6 +189,18 @@ void StepItemView::focusOutEvent(QFocusEvent* event)
     context_menu_shown = false;
 }
 
+void StepItemView::mousePressEvent(QMouseEvent* event)
+{
+    if (event->button() == Qt::MiddleButton) {
+        if (auto idx = indexAt(event->pos());
+            idx.column() == static_cast<int>(StepItemColumn::Link)) {
+            stepModel()->openLink(idx, true);
+            return;
+        }
+    }
+    QTableView::mousePressEvent(event);
+}
+
 QSize StepItemView::sizeHint() const
 {
     return {horizontalHeader()->length() /* + verticalHeader()->sizeHint().width()*/ + lineWidth() * 2,
@@ -258,7 +271,28 @@ void StepItemView::indexClicked(const QModelIndex& idx)
         return;
 
     if (QGuiApplication::keyboardModifiers().testFlag(Qt::AltModifier))
-        stepModel()->openLink(idx);
+        stepModel()->openLink(idx, false);
+}
+
+void StepItemView::openSearch()
+{
+    auto idx = selectionModel()->currentIndex();
+    auto item = stepModel()->stepItem(idx);
+    if (!item)
+        return;
+    if (auto trade = item->trade()) {
+        auto& edit = plan_widget.requestEdit();
+        edit.openRequest(plan_widget.game(), trade->request_key);
+        connect(
+            &edit,
+            &QDialog::finished,
+            this,
+            [this, row = idx.row()](int result) {
+                if (result == QDialog::Accepted)
+                    stepModel()->setTradeRequest(row, plan_widget.requestEdit().edit_request);
+            },
+            Qt::SingleShotConnection);
+    }
 }
 
 void StepItemView::deleteSearch()

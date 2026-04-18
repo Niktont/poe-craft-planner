@@ -3,7 +3,6 @@
 #include "ExchangeRequestCache.h"
 #include "Plan.h"
 #include "PlanModel.h"
-#include "RequestEditDialog.h"
 #include "Step.h"
 #include "StepItemCopyState.h"
 #include "TradeRequestCache.h"
@@ -1438,33 +1437,21 @@ void StepItemModel::copyLink(const QModelIndex& idx)
     }
 }
 
-void StepItemModel::openSearch(const QModelIndex& idx)
+void StepItemModel::setTradeRequest(int row, const TradeRequestKey& request)
 {
-    if (!plan_ || !idx.isValid())
+    if (!plan_)
+        return;
+    auto& items = stepItems();
+    if (row > std::ssize(items))
         return;
 
-    TradeRequestKey request;
-    if (auto trade = stepItems()[idx.row()].trade())
-        request = trade->request_key;
-
-    AppState::state.request_edit_dialog->openRequest(plan_->game, request);
-    connect(
-        AppState::state.request_edit_dialog,
-        &QDialog::finished,
-        this,
-        [this, row = idx.row()](int result) {
-            if (result == QDialog::Accepted) {
-                if (auto trade = stepItems()[row].trade()) {
-                    auto& request = AppState::state.request_edit_dialog->edit_request;
-                    if (trade->request_key != request) {
-                        trade->request_key = request;
-                        auto idx = index(row, StepItemColumn::Name);
-                        emit dataChanged(idx, sibling(idx, StepItemColumn::Time));
-                    }
-                }
-            }
-        },
-        Qt::SingleShotConnection);
+    if (auto trade = items[row].trade()) {
+        if (trade->request_key != request) {
+            trade->request_key = request;
+            auto idx = index(row, StepItemColumn::Name);
+            emit dataChanged(idx, sibling(idx, StepItemColumn::Time));
+        }
+    }
 }
 
 void StepItemModel::deleteSearch(const QModelIndex& idx)
@@ -1490,13 +1477,13 @@ void StepItemModel::setDefaultTime(const QModelIndex& idx)
         exchange_cache->setDefaultTime(exchange->currency, exchange->time);
 }
 
-void StepItemModel::openLink(const QModelIndex& idx)
+void StepItemModel::openLink(const QModelIndex& idx, bool need_window)
 {
     auto& item = stepItems()[idx.row()];
     if (auto step = item.step())
         emit stepLinkClicked(step->step_id);
     else if (auto plan = item.plan())
-        emit planLinkClicked(plan->plan_id, this->plan_->game);
+        emit planLinkClicked(plan->plan_id, this->plan_->game, need_window);
     else {
         auto url = QUrl::fromUserInput(data(idx, Qt::ToolTipRole).toString());
         if (url.isValid())

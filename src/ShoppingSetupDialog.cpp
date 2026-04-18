@@ -37,24 +37,8 @@ ShoppingSetupDialog::ShoppingSetupDialog(QWidget* parent)
     main_layout->addWidget(dependencies_cb);
 
     auto button = new QPushButton{tr("Continue")};
+    connect(button, &QPushButton::clicked, this, &ShoppingSetupDialog::openShoppingList);
     main_layout->addWidget(button, 0, Qt::AlignRight | Qt::AlignVCenter);
-    connect(button, &QPushButton::clicked, this, [this] {
-        auto dialog = AppState::state.shopping_dialog;
-        auto pos = step_combo->currentIndex();
-        if (pos == 0) {
-            auto it = plan->costStepIt();
-            if (it == plan->steps.end()) {
-                reject();
-                return;
-            }
-
-            pos = std::distance(plan->steps.cbegin(), it);
-        } else
-            --pos;
-
-        accept();
-        dialog->openPlan(*plan, pos, amount_edit->value(), dependencies_cb->isChecked());
-    });
 }
 
 void ShoppingSetupDialog::openPlan(Plan& plan_)
@@ -76,6 +60,31 @@ void ShoppingSetupDialog::openPlan(Plan& plan_)
         step_combo->setCurrentIndex(index);
 
     open();
+
+    auto title_pos = geometry().topLeft() - pos();
+    auto new_pos = QCursor::pos() - title_pos - step_combo->pos();
+    move(new_pos);
+}
+
+void ShoppingSetupDialog::openShoppingList()
+{
+    auto pos = step_combo->currentIndex();
+    if (pos == 0) {
+        auto it = plan->costStepIt();
+        if (it == plan->steps.end()) {
+            reject();
+            return;
+        }
+
+        pos = std::distance(plan->steps.cbegin(), it);
+    } else
+        --pos;
+
+    accept();
+    AppState::state.shopping_dialog->openPlan(*plan,
+                                              pos,
+                                              amount_edit->value(),
+                                              dependencies_cb->isChecked());
 }
 
 } // namespace planner

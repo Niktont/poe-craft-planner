@@ -23,11 +23,8 @@ public:
     TradeRequestKey edit_request;
 
 public slots:
-    void openGame(planner::Game game, bool need_clear = false);
+    void openGame(planner::Game game);
     void openRequest(planner::Game game, const planner::TradeRequestKey& request);
-
-protected:
-    void closeEvent(QCloseEvent* event) override;
 
 private slots:
     void checkName();

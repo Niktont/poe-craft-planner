@@ -109,7 +109,9 @@ else()
     # target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
-target_compile_definitions(${PROJECT_NAME} PRIVATE APP_VERSION="${PROJECT_VERSION}")
+set(APP_NAME "PoE Craft Planner")
+target_compile_definitions(${PROJECT_NAME} PRIVATE APP_VERSION="${PROJECT_VERSION}" APP_NAME="${APP_NAME}")
+
 if (PLANNER_NO_BROWSER)
     target_link_libraries(${PROJECT_NAME}
         PRIVATE Qt6::Widgets Qt6::Network Qt6::Sql Boost::headers keyboard-auto-type qhotkey
@@ -139,7 +141,7 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
     WIN32_EXECUTABLE ON
-    OUTPUT_NAME "PoE Craft Planner"
+    OUTPUT_NAME ${APP_NAME}
 )
 
 if(WIN32)

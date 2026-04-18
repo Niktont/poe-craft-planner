@@ -1,18 +1,23 @@
 #include "PlanWidget.h"
 #include "AppState.h"
 #include "CostWidget.h"
+#include "CustomEditDialog.h"
 #include "ExchangeRequestCache.h"
 #include "MainWindow.h"
 #include "Plan.h"
 #include "PlanItem.h"
 #include "PlanModel.h"
 #include "PlanTitleWidget.h"
+#include "RequestEditDialog.h"
 #include "SettingsDialog.h"
+#include "ShoppingDialog.h"
+#include "ShoppingSetupDialog.h"
 #include "SnapshotModel.h"
 #include "StepCopyState.h"
 #include "StepItem.h"
 #include "StepWidget.h"
 #include "TradeRequestCache.h"
+#include "UpdateCostDialog.h"
 #include <QCheckBox>
 #include <QContextMenuEvent>
 #include <QHBoxLayout>
@@ -24,12 +29,17 @@
 #include <QVBoxLayout>
 
 namespace planner {
-PlanWidget::PlanWidget(bool is_main, QWidget* parent)
-    : QWidget{parent}
+PlanWidget::PlanWidget(bool is_main, QWidget* parent, Qt::WindowFlags flags)
+    : QWidget{parent, flags}
     , is_main{is_main}
 {
+    setAttribute(Qt::WA_StyledBackground);
     if (is_main)
         setEnabled(false);
+    else {
+        setAttribute(Qt::WA_DeleteOnClose);
+        setAttribute(Qt::WA_QuitOnClose, false);
+    }
 
     auto main_layout = new QVBoxLayout{};
     setLayout(main_layout);
@@ -60,23 +70,31 @@ PlanWidget::PlanWidget(bool is_main, QWidget* parent)
     steps_scroll->setContentsMargins(0, 0, 0, 0);
     layout()->addWidget(steps_scroll);
 
-    steps_widget = new QWidget{};
+    steps_widget = new QWidget{steps_scroll};
 
     auto steps_layout = new QVBoxLayout{};
     steps_layout->setVerticalSizeConstraint(QLayout::SetFixedSize);
     steps_layout->setSpacing(0);
-    steps_widget->setLayout(steps_layout);
     steps_layout->setContentsMargins(0, 0, 0, 0);
+    steps_widget->setLayout(steps_layout);
     steps_layout->addStretch(1);
 
     steps_scroll->setWidget(steps_widget);
 
     add_step_action = addAction(tr("Add Step"), this, &PlanWidget::addStep);
 
-    paste_step_action = addAction(tr("Paste Step"), this, [this]() {
+    paste_step_action = addAction(tr("Paste Step"), this, [this] {
         if (plan_)
             pasteStep(plan_->steps.size());
     });
+
+    update_costs_action = addAction(tr("Update Costs"), this, [this] {
+        if (!plan_)
+            return;
+        bool send_requests = !QGuiApplication::keyboardModifiers().testFlag(Qt::ShiftModifier);
+        AppState::state.update_cost_dialog->updatePlan(*plan_, send_requests);
+    });
+    shopping_mode_action = addAction(tr("Shopping Mode"), this, &PlanWidget::openShoppingDialog);
 }
 
 void PlanWidget::connectSignals()
@@ -192,7 +210,8 @@ void PlanWidget::addStep()
 
 void PlanWidget::emplaceStepWidget(size_t i)
 {
-    auto step_widget = *step_widgets.emplace(step_widgets.begin() + i, new StepWidget{this});
+    auto step_widget = *step_widgets.emplace(step_widgets.begin() + i,
+                                             new StepWidget{*this, steps_widget});
     step_widget->hideDescription();
     static_cast<QVBoxLayout*>(steps_widget->layout())->insertWidget(i, step_widget);
     step_widget->setStep(plan_, i);
@@ -211,8 +230,12 @@ void PlanWidget::updateCosts(bool current_updated)
 
 void PlanWidget::clear()
 {
-    setEnabled(false);
+    if (!is_main) {
+        close();
+        return;
+    }
 
+    setEnabled(false);
     plan_ = nullptr;
     current_model = nullptr;
 
@@ -446,6 +469,27 @@ void PlanWidget::pasteStep(size_t step_pos)
         updateDisplayedCost();
 }
 
+CustomEditDialog& PlanWidget::customEdit()
+{
+    if (!custom_edit_dialog)
+        custom_edit_dialog = new CustomEditDialog{this};
+    return *custom_edit_dialog;
+}
+
+ShoppingSetupDialog& PlanWidget::shoppingSetup()
+{
+    if (!shopping_setup)
+        shopping_setup = new ShoppingSetupDialog{this};
+    return *shopping_setup;
+}
+
+RequestEditDialog& PlanWidget::requestEdit()
+{
+    if (!request_edit)
+        request_edit = new RequestEditDialog{this};
+    return *request_edit;
+}
+
 void PlanWidget::displayFinalStep()
 {
     for (auto step_widget : step_widgets)
@@ -525,8 +569,11 @@ void PlanWidget::updateStepNames(size_t renamed_step)
 
 void PlanWidget::updatePlanName(const Plan& renamed_plan)
 {
-    if (&renamed_plan == plan_)
+    if (&renamed_plan == plan_) {
         title_widget->name_label->setText(plan_->name);
+        if (!is_main)
+            setWindowTitle(renamed_plan.name + " - " APP_NAME);
+    }
 
     for (size_t i = 0; i < plan_->steps.size(); ++i)
         step_widgets[i]->updatePlanName(renamed_plan.id());
@@ -612,6 +659,25 @@ void PlanWidget::updateOnSnapshotChange(Game game)
         updateCosts(false);
 }
 
+void PlanWidget::openShoppingDialog()
+{
+    if (!plan_ || plan_->steps.empty())
+        return;
+
+    bool have_resources = std::ranges::find_if(plan_->steps,
+                                               [](const auto& step) {
+                                                   return !step.resources.empty();
+                                               })
+                          != plan_->steps.end();
+    if (!have_resources)
+        return;
+
+    if (QGuiApplication::keyboardModifiers().testFlag(Qt::ControlModifier))
+        shoppingSetup().openPlan(*plan_);
+    else
+        AppState::state.shopping_dialog->openPlan(*plan_);
+}
+
 void PlanWidget::hideDescriptions()
 {
     for (auto step : step_widgets)
@@ -666,7 +732,19 @@ void PlanWidget::contextMenuEvent(QContextMenuEvent* event)
     if (StepCopyState::haveCopy(plan_->game))
         menu->addAction(paste_step_action);
 
+    menu->addSeparator();
+    menu->addAction(update_costs_action);
+    menu->addAction(shopping_mode_action);
+
     menu->popup(event->globalPos());
+}
+
+void PlanWidget::closeEvent(QCloseEvent* event)
+{
+    if (!is_main) {
+        emit aboutToClose(*this);
+        event->accept();
+    }
 }
 
 void PlanWidget::setPlanChanged()
@@ -700,6 +778,13 @@ bool PlanWidget::checkDeletingPlans(const PlanItem& parent_item, int first, int 
 
 void PlanWidget::setPlan(const PlanModel* model, Plan* plan, bool is_update)
 {
+    if (shopping_setup && shopping_setup->isVisible())
+        shopping_setup->reject();
+    if (custom_edit_dialog && custom_edit_dialog->isVisible())
+        custom_edit_dialog->reject();
+    if (request_edit && request_edit->isVisible())
+        request_edit->reject();
+
     if (!plan) {
         clear();
         return;
@@ -714,6 +799,8 @@ void PlanWidget::setPlan(const PlanModel* model, Plan* plan, bool is_update)
     setEnabled(true);
 
     title_widget->setPlan(*plan_);
+    if (!is_main)
+        setWindowTitle(plan_->name + " - " APP_NAME);
 
     size_t i = 0;
     size_t steps_size = plan_->steps.size();

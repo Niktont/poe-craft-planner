@@ -9,6 +9,7 @@
 class QAction;
 
 namespace planner {
+class DescriptionEdit;
 
 class DescriptionTextEdit : public QPlainTextEdit
 {
@@ -38,6 +39,11 @@ public:
 
 protected:
     void contextMenuEvent(QContextMenuEvent* event) override;
+
+    void mousePressEvent(QMouseEvent* event) override;
+
+private:
+    DescriptionEdit* widget() const;
 };
 
 class DescriptionEdit : public QWidget
@@ -51,13 +57,13 @@ public:
     void adjustBrowserSize();
 
 signals:
-    void planLinkClicked(const QUuid& id, planner::Game game) const;
+    void planLinkClicked(const QUuid& id, planner::Game game, bool need_window) const;
 
 private slots:
     void displayTooltip(const QUrl& url);
     void handleAnchorClicked(const QUrl& url);
 
-private:
+    friend class DescriptionBrowser;
 };
 
 } // namespace planner

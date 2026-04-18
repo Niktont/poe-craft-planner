@@ -1,6 +1,7 @@
 #ifndef PLANTREEVIEW_H
 #define PLANTREEVIEW_H
 
+#include "Game.h"
 #include <QTreeView>
 
 class QAction;
@@ -20,16 +21,24 @@ public:
     void selectPlan(const QUuid& plan_id);
     void selectPlan(Plan& plan);
 
+    void setModel(QAbstractItemModel* model) override;
+
 signals:
     void planSelected(planner::PlanModel& model, planner::Plan& plan);
+    void planWindowRequested(const QUuid& plan_id, planner::Game game);
 
 protected:
     void contextMenuEvent(QContextMenuEvent* event) override;
+    void mousePressEvent(QMouseEvent* event) override;
 
 private slots:
+    void selectPlanOnClick(const QModelIndex& idx);
+    void selectPlanOnCurrentChange(const QModelIndex& idx);
+
     void restoreItem();
     void deleteItem();
-    void exportToFile();
+
+    void exportItem();
 
 private:
     QAction* add_plan_action;
@@ -49,8 +58,6 @@ private:
     QAction* export_file_action;
 
     std::optional<QModelIndex> context_index;
-
-    void exportItem();
 };
 
 } // namespace planner

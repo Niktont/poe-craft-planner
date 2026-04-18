@@ -3,6 +3,7 @@
 #include "PlanModel.h"
 #include "PlanSearchModel.h"
 #include <QHeaderView>
+#include <QMouseEvent>
 #include <QScrollBar>
 #include <QSortFilterProxyModel>
 
@@ -44,10 +45,23 @@ void PlanSearchView::filterName(const QString& filter_str)
     search_model->proxy_model->setFilterFixedString(filter_str);
 }
 
+void PlanSearchView::mousePressEvent(QMouseEvent* event)
+{
+    if (event->button() == Qt::MiddleButton) {
+        if (auto idx = indexAt(event->pos()); idx.isValid()) {
+            emit planClicked(search_model->planId(search_model->proxy_model->mapToSource(idx)),
+                             game,
+                             true);
+            return;
+        }
+    }
+    QTableView::mousePressEvent(event);
+}
+
 void PlanSearchView::indexClicked(const QModelIndex& idx)
 {
     auto plan_id = search_model->planId(search_model->proxy_model->mapToSource(idx));
-    emit planClicked(plan_id, game);
+    emit planClicked(plan_id, game, false);
 }
 
 } // namespace planner

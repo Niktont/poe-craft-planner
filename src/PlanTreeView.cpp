@@ -76,6 +76,8 @@ PlanTreeView::PlanTreeView(QWidget* parent)
     export_clipboard_action = addAction(tr("Export (Clipboard)"), this, &PlanTreeView::exportItem);
 
     export_file_action = addAction(tr("Export (File)"), this, &PlanTreeView::exportItem);
+
+    connect(this, &PlanTreeView::clicked, this, &PlanTreeView::selectPlanOnClick);
 }
 
 PlanModel* PlanTreeView::planModel()
@@ -96,6 +98,16 @@ void PlanTreeView::selectPlan(Plan& plan)
         setCurrentIndex(idx);
     else
         emit planSelected(*planModel(), plan);
+}
+
+void PlanTreeView::setModel(QAbstractItemModel* model)
+{
+    QTreeView::setModel(model);
+
+    connect(selectionModel(),
+            &QItemSelectionModel::currentRowChanged,
+            this,
+            &PlanTreeView::selectPlanOnCurrentChange);
 }
 
 void PlanTreeView::contextMenuEvent(QContextMenuEvent* event)
@@ -138,6 +150,45 @@ void PlanTreeView::contextMenuEvent(QContextMenuEvent* event)
     menu->addAction(export_file_action);
 
     menu->popup(event->globalPos());
+}
+
+void PlanTreeView::mousePressEvent(QMouseEvent* event)
+{
+    if (event->button() == Qt::MiddleButton) {
+        auto idx = indexAt(event->pos());
+        auto item = planModel()->internalPtr(idx);
+        if (item->plan()) {
+            emit planWindowRequested(item->plan()->id(), planModel()->game);
+            event->accept();
+            return;
+        }
+    }
+    QTreeView::mousePressEvent(event);
+}
+
+void PlanTreeView::selectPlanOnClick(const QModelIndex& idx)
+{
+    if (QGuiApplication::keyboardModifiers().testFlag(Qt::AltModifier))
+        return;
+
+    auto item = planModel()->internalPtr(idx);
+    if (item->isFolder())
+        return;
+
+    emit planSelected(*planModel(), *item->plan());
+}
+
+void PlanTreeView::selectPlanOnCurrentChange(const QModelIndex& idx)
+{
+    if (QGuiApplication::keyboardModifiers().testFlag(Qt::AltModifier)
+        && QGuiApplication::mouseButtons().testFlag(Qt::LeftButton))
+        return;
+
+    auto item = planModel()->internalPtr(idx);
+    if (item->isFolder())
+        return;
+
+    emit planSelected(*planModel(), *item->plan());
 }
 
 void PlanTreeView::restoreItem()
@@ -187,8 +238,6 @@ void PlanTreeView::deleteItem()
     if (delete_item)
         planModel()->removeRows(current.row(), 1, current.parent());
 }
-
-void PlanTreeView::exportToFile() {}
 
 void PlanTreeView::exportItem()
 {

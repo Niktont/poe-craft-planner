@@ -5,7 +5,6 @@
 #include <QAbstractProxyModel>
 #include <QCheckBox>
 #include <QClipboard>
-#include <QCloseEvent>
 #include <QCompleter>
 #include <QDialogButtonBox>
 #include <QFormLayout>
@@ -114,13 +113,12 @@ void RequestEditDialog::setLoadEnabled([[maybe_unused]] bool enabled)
 #endif
 }
 
-void RequestEditDialog::openGame(Game game_, bool need_clear)
+void RequestEditDialog::openGame(Game game_)
 {
     if (game_ >= Game::Unknown)
         return;
 
-    if (need_clear || game != game_)
-        clear();
+    clear();
 
     setGame(game_);
 
@@ -154,12 +152,6 @@ void RequestEditDialog::openRequest(Game game_, const TradeRequestKey& request)
     }
 
     open();
-}
-
-void RequestEditDialog::closeEvent(QCloseEvent* event)
-{
-    event->accept();
-    reject();
 }
 
 void RequestEditDialog::setGame(Game game_)

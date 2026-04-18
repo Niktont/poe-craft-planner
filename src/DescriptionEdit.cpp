@@ -72,6 +72,21 @@ void DescriptionTextEdit::insertFromMimeData(const QMimeData* source)
     QPlainTextEdit::insertFromMimeData(source);
 }
 
+void DescriptionBrowser::mousePressEvent(QMouseEvent* event)
+{
+    if (event->button() == Qt::MiddleButton) {
+        auto str = anchorAt(event->pos());
+        if (!str.isEmpty())
+            return widget()->handleAnchorClicked(str);
+    }
+    QTextBrowser::mousePressEvent(event);
+}
+
+DescriptionEdit* DescriptionBrowser::widget() const
+{
+    return static_cast<DescriptionEdit*>(parent());
+}
+
 void DescriptionTextEdit::insertPlanLink(Game game, const QMimeData& source)
 {
     auto plans = PlanModel::decodeMimeToPlans(game, source);
@@ -215,11 +230,15 @@ void DescriptionEdit::displayTooltip(const QUrl& url)
 void DescriptionEdit::handleAnchorClicked(const QUrl& url)
 {
     if (url.scheme() == plan_link_scheme_poe1) {
-        emit planLinkClicked(idFromLink(url), Game::Poe1);
+        emit planLinkClicked(idFromLink(url),
+                             Game::Poe1,
+                             QGuiApplication::mouseButtons().testFlag(Qt::MiddleButton));
         return;
     }
     if (url.scheme() == plan_link_scheme_poe2) {
-        emit planLinkClicked(idFromLink(url), Game::Poe2);
+        emit planLinkClicked(idFromLink(url),
+                             Game::Poe2,
+                             QGuiApplication::mouseButtons().testFlag(Qt::MiddleButton));
         return;
     }
     if (url.isRelative()) {

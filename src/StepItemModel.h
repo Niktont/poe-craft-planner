@@ -111,11 +111,11 @@ public:
     void copyRegex(const QModelIndex& idx);
     void copyLink(const QModelIndex& idx);
 
-    void openSearch(const QModelIndex& idx);
+    void setTradeRequest(int row, const TradeRequestKey& request);
     void deleteSearch(const QModelIndex& idx);
     void setDefaultTime(const QModelIndex& idx);
 
-    void openLink(const QModelIndex& idx);
+    void openLink(const QModelIndex& idx, bool need_window);
 
     Game game() const;
 
@@ -125,7 +125,7 @@ public:
     PlanModel* planModel() const { return plan_model; }
 
 signals:
-    void planLinkClicked(const QUuid& plan_id, planner::Game game) const;
+    void planLinkClicked(const QUuid& plan_id, planner::Game game, bool need_window) const;
     void stepLinkClicked(const QUuid& step_id) const;
 
 private slots:

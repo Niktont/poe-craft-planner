@@ -5,12 +5,13 @@
 
 namespace planner {
 class StepItemModel;
+class PlanWidget;
 
 class StepItemView : public QTableView
 {
     Q_OBJECT
 public:
-    StepItemView(StepItemModel& model, QWidget* parent = nullptr);
+    StepItemView(StepItemModel& model, PlanWidget& plan_widget, QWidget* parent = nullptr);
 
     void setOtherView(StepItemView& other_view_) { this->other_view = &other_view_; }
 
@@ -25,11 +26,14 @@ protected:
     void contextMenuEvent(QContextMenuEvent* event) override;
     void focusOutEvent(QFocusEvent* event) override;
 
+    void mousePressEvent(QMouseEvent* event) override;
+
 private slots:
     void resizeColumns(const QModelIndex& top_left,
                        const QModelIndex& bottom_right,
                        const QList<int>& roles);
     void indexClicked(const QModelIndex& idx);
+    void openSearch();
     void deleteSearch();
 
 private:
@@ -55,6 +59,8 @@ private:
 
     bool context_menu_shown{};
     std::optional<QModelIndex> context_index;
+
+    PlanWidget& plan_widget;
 
     void syncColumn(int col, int min_width);
     int widthForItemText(QStyleOptionViewItem& option, const QString& text) const;

@@ -25,7 +25,7 @@
 #include <QVBoxLayout>
 
 namespace planner {
-StepWidget::StepWidget(PlanWidget* plan_widget, QWidget* parent)
+StepWidget::StepWidget(PlanWidget& plan_widget, QWidget* parent)
     : QFrame{parent}
     , plan_widget{plan_widget}
 {
@@ -52,33 +52,31 @@ StepWidget::StepWidget(PlanWidget* plan_widget, QWidget* parent)
     toolbar->setIconSize({16, 16});
 
     duplicate_action = addAction(tr("Duplicate"), this, [this]() {
-        this->plan_widget->duplicateStep(step_pos);
+        this->plan_widget.duplicateStep(step_pos);
     });
     copy_action = addAction(tr("Copy Reference"), this, [this]() {
         if (plan)
             StepCopyState::state = {plan->game, plan->id(), plan->steps[step_pos].id};
     });
-    paste_action = addAction(tr("Paste"), this, [this]() {
-        this->plan_widget->pasteStep(step_pos);
-    });
+    paste_action = addAction(tr("Paste"), this, [this]() { this->plan_widget.pasteStep(step_pos); });
 
     final_step_cb = new QCheckBox{};
     final_step_cb->setToolTip(tr("Final"));
     toolbar->addWidget(final_step_cb);
     connect(final_step_cb, &QCheckBox::clicked, this, [this](bool checked) {
-        this->plan_widget->setFinalStep(step_pos, checked);
+        this->plan_widget.setFinalStep(step_pos, checked);
     });
 
     move_up_action = toolbar->addAction(style()->standardIcon(QStyle::SP_ArrowUp),
                                         tr("Move Up"),
                                         this,
-                                        [this] { this->plan_widget->moveStep(step_pos, true); });
+                                        [this] { this->plan_widget.moveStep(step_pos, true); });
     move_up_action->setIconVisibleInMenu(false);
 
     move_down_action = toolbar->addAction(style()->standardIcon(QStyle::SP_ArrowDown),
                                           tr("Move Down"),
                                           this,
-                                          [this] { this->plan_widget->moveStep(step_pos, false); });
+                                          [this] { this->plan_widget.moveStep(step_pos, false); });
     move_down_action->setIconVisibleInMenu(false);
 
     delete_action = toolbar->addAction(style()->standardIcon(QStyle::SP_TitleBarCloseButton),
@@ -94,15 +92,15 @@ StepWidget::StepWidget(PlanWidget* plan_widget, QWidget* parent)
     edit_widget = new QWidget{};
     auto step_layout = new QVBoxLayout{};
     step_layout->setVerticalSizeConstraint(QLayout::SetFixedSize);
+    step_layout->setContentsMargins(0, 0, 0, 0);
     edit_widget->setLayout(step_layout);
     layout->addWidget(edit_widget);
-    step_layout->setContentsMargins(0, 0, 0, 0);
 
     description = new DescriptionEdit{};
     connect(description,
             &DescriptionEdit::planLinkClicked,
             AppState::state.main_widget,
-            &MainWidget::openPlan);
+            &MainWidget::openPlanLink);
 
     step_layout->addWidget(description);
 
@@ -112,25 +110,25 @@ StepWidget::StepWidget(PlanWidget* plan_widget, QWidget* parent)
     table_layout->setContentsMargins(5, 0, 0, 0);
 
     resources_model = new StepItemModel{true, this};
-    resources_widget = new StepItemsWidget{*AppState::state.custom_edit_dialog, *resources_model};
+    resources_widget = new StepItemsWidget{*resources_model, plan_widget};
 
     results_model = new StepItemModel{false, this};
-    results_widget = new StepItemsWidget{*AppState::state.custom_edit_dialog, *results_model};
+    results_widget = new StepItemsWidget{*results_model, plan_widget};
 
     connect(resources_model,
             &StepItemModel::planLinkClicked,
             AppState::state.main_widget,
-            &MainWidget::openPlan);
+            &MainWidget::openPlanLink);
     connect(results_model,
             &StepItemModel::planLinkClicked,
             AppState::state.main_widget,
-            &MainWidget::openPlan);
+            &MainWidget::openPlanLink);
 
     connect(resources_model,
             &StepItemModel::stepLinkClicked,
-            plan_widget,
+            &plan_widget,
             &PlanWidget::scrollToStep);
-    connect(results_model, &StepItemModel::stepLinkClicked, plan_widget, &PlanWidget::scrollToStep);
+    connect(results_model, &StepItemModel::stepLinkClicked, &plan_widget, &PlanWidget::scrollToStep);
 
     results_widget->setOtherView(*resources_widget);
 
@@ -171,8 +169,8 @@ void StepWidget::setStep(Plan* plan_, size_t step_pos_)
     hideEmptyResources();
     hideEmptyResults();
 
-    resources_widget->view->verticalHeader()->reset();
-    results_widget->view->verticalHeader()->reset();
+    // resources_widget->view->verticalHeader()->reset();
+    // results_widget->view->verticalHeader()->reset();
 
     hideNotUsedItems();
 
@@ -309,7 +307,7 @@ void StepWidget::deleteStep()
         delete_step = msg.exec() == QMessageBox::Ok;
     }
     if (delete_step)
-        plan_widget->deleteStep(step_pos);
+        plan_widget.deleteStep(step_pos);
 }
 
 void StepWidget::setNameFromEdit()
@@ -322,14 +320,14 @@ void StepWidget::setNameFromEdit()
     if (name != step.name) {
         step.name = name;
         plan->setChanged();
-        plan_widget->updateStepNames(step_pos);
+        plan_widget.updateStepNames(step_pos);
     }
 }
 
 void StepWidget::setDescriptionChanged()
 {
     if (!is_description_changed) {
-        plan_widget->setPlanChanged();
+        plan_widget.setPlanChanged();
         is_description_changed = true;
     }
 }

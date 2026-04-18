@@ -1,27 +1,21 @@
 #include "ShoppingDialog.h"
-#include "AppState.h"
-#include "MainWindow.h"
 #include "Plan.h"
-#include "PlanSearchDialog.h"
 #include "Settings.h"
 #include "ShoppingModel.h"
 #include "ShoppingView.h"
 #include "TradeRequestCache.h"
+#include <QApplication>
 #include <QClipboard>
-#include <QCloseEvent>
 #include <QDesktopServices>
-#include <QGuiApplication>
 #include <QVBoxLayout>
-#ifndef PLANNER_NO_BROWSER
-#include "WebViewDialog.h"
-#endif
+#include <QWindow>
 
 using namespace keyboard_auto_type;
 
 namespace planner {
 
-ShoppingDialog::ShoppingDialog(QWidget* /*parent*/)
-    : QDialog{}
+ShoppingDialog::ShoppingDialog(QWidget* parent)
+    : QDialog{parent}
 {
     model = new ShoppingModel{this};
     view = new ShoppingView{*model};
@@ -39,17 +33,9 @@ ShoppingDialog::ShoppingDialog(QWidget* /*parent*/)
         restoreGeometry(geometry.toByteArray());
 
     connect(this, &QDialog::finished, this, [this] {
-        AppState::state.mw->show();
-
-#ifndef PLANNER_NO_BROWSER
-        if (web_view_dialog_was_shown)
-            AppState::state.web_view_dialog->show();
-        web_view_dialog_was_shown = false;
-#endif
-
-        if (plan_search_dialog_was_shown)
-            AppState::state.plan_search_dialog->show();
-        plan_search_dialog_was_shown = false;
+        for (auto w : visible_windows)
+            w->show();
+        visible_windows.clear();
 
         removeHotkeys();
     });
@@ -85,17 +71,12 @@ void ShoppingDialog::openPlan(const Plan& plan,
 {
     auto res = model->setPlan(plan, step_pos, amount, include_dependencies);
     if (res) {
-#ifndef PLANNER_NO_BROWSER
-        web_view_dialog_was_shown = !AppState::state.web_view_dialog->isHidden();
-        if (web_view_dialog_was_shown)
-            AppState::state.web_view_dialog->hide();
-#endif
-
-        plan_search_dialog_was_shown = !AppState::state.plan_search_dialog->isHidden();
-        if (plan_search_dialog_was_shown)
-            AppState::state.plan_search_dialog->hide();
-
-        AppState::state.mw->hide();
+        for (auto w : QApplication::topLevelWindows()) {
+            if (w->isVisible()) {
+                visible_windows.insert(w);
+                w->hide();
+            }
+        }
 
         view->adjustNameWidth();
         view->updateGeometry();
@@ -108,12 +89,6 @@ void ShoppingDialog::openPlan(const Plan& plan,
         open();
         registerHotkeys();
     }
-}
-
-void ShoppingDialog::closeEvent(QCloseEvent* event)
-{
-    event->accept();
-    accept();
 }
 
 void ShoppingDialog::nextItem()
@@ -195,8 +170,8 @@ void ShoppingDialog::openLink()
         return;
 
     auto& item = model->item(idx.row());
-    if (auto trade = item.trade(); trade && model->plan())
-        QDesktopServices::openUrl(trade->request.toUrl(model->plan()->game));
+    if (auto trade = item.trade(); trade)
+        QDesktopServices::openUrl(trade->request.toUrl(model->game()));
 }
 
 void ShoppingDialog::registerHotkeys()

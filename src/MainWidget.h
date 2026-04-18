@@ -30,10 +30,14 @@ signals:
     void gameChanged(planner::Game game);
 
 public slots:
+    void openPlanLink(const QUuid& plan_id, planner::Game game, bool need_window);
     void openPlan(const QUuid& plan_id, planner::Game game);
+    void openPlanWindow(const QUuid& plan_id, planner::Game game);
 
     void addStep();
-    void updateCost(planner::Game game, const std::vector<std::pair<Plan*, bool>>& updated_plans);
+    void savePlan();
+    void updateCosts();
+    void openShoppingDialog();
 
     void hideDescriptions(bool hide);
     void hideEmptyResources(bool hide);
@@ -41,24 +45,30 @@ public slots:
     void hideNotUsedItems(bool hide);
     void hideTitleCurrencyName(bool hide);
 
+    void updateCost(planner::Game game, const std::vector<std::pair<Plan*, bool>>& updated_plans);
+
     void checkDeletingPlans(const QModelIndex& parent, int first, int last);
 
     void goBack();
     void goForward();
 
 private slots:
-    void setPlanOnClick(const QModelIndex& index);
-    void setPlanOnCurrentChange(const QModelIndex& new_current);
     void selectPlan(planner::PlanModel& model, planner::Plan& selected_plan);
 
     void reselectCurrent(planner::Game game);
 
-    void setPlan(const planner::PlanModel* model,
-                 planner::Plan* new_plan,
+    void setPlan(const planner::PlanModel& model,
+                 planner::Plan& new_plan,
                  bool update_history = true);
+    void eraseWindow(planner::PlanWidget& window);
 
 private:
     PlanWidget* plan_widget;
+    std::map<QUuid, PlanWidget*> plan_windows;
+    bool isCurrentPlan(const QUuid& id) const;
+    bool isPlanActive(const QUuid& id) const;
+
+    static void raisePlanWindow(PlanWidget& window);
 
     using History = std::vector<std::pair<QUuid, Game>>;
     History navigation_history;

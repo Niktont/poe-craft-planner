@@ -59,12 +59,10 @@ TradeRequestView::TradeRequestView(QWidget* parent)
         current = cache->proxy_model->mapToSource(current);
 
         auto& request = cache->cache.nth(current.row())->first;
-        AppState::state.request_edit_dialog->openRequest(cache->game, request);
+        requestEdit().openRequest(cache->game, request);
     });
 
-    add_action = addAction(tr("Add"), this, [this] {
-        AppState::state.request_edit_dialog->openGame(cache->game, true);
-    });
+    add_action = addAction(tr("Add"), this, [this] { requestEdit().openGame(cache->game); });
 
     delete_action = addAction(tr("Delete"), this, &TradeRequestView::deleteSearch);
     delete_action->setShortcuts({Qt::Key_Delete, Qt::ShiftModifier | Qt::Key_Delete});
@@ -80,6 +78,20 @@ void TradeRequestView::setCache(TradeRequestCache& cache_)
 
     cache = &cache_;
     setModel(cache->proxy_model);
+}
+
+RequestEditDialog& TradeRequestView::requestEdit()
+{
+    if (!request_edit)
+        request_edit = new RequestEditDialog{this};
+    return *request_edit;
+}
+
+void TradeRequestView::saveState(QSettings& settings) const
+{
+    settings.setValue(Settings::windows_searches_view_columns, horizontalHeader()->saveState());
+    if (request_edit)
+        settings.setValue(Settings::windows_request_edit_dialog_size, request_edit->size());
 }
 
 void TradeRequestView::filterName(const QString& filter_str)
