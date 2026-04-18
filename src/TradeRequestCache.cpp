@@ -121,6 +121,7 @@ void TradeRequestCache::saveRequest(const TradeRequestKey& request,
         }
         if (it->second.query() != query) {
             it->second.query_ = query;
+            it->second.description_.query.reset();
             auto idx = index(pos, static_cast<int>(TradeRequestColumn::Query));
             emit dataChanged(idx, idx, {Qt::CheckStateRole});
             is_changed = true;
