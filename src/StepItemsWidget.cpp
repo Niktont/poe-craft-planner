@@ -6,11 +6,45 @@
 #include "StepItemModel.h"
 #include "StepItemView.h"
 #include <QComboBox>
+#include <QContextMenuEvent>
 #include <QLabel>
+#include <QMenu>
 #include <QPushButton>
 #include <QVBoxLayout>
 
 namespace planner {
+
+ExpressionEdit::ExpressionEdit(QWidget* parent)
+    : QLineEdit{parent}
+{
+    edit_action = addAction(tr("Edit"), {Qt::Key_F2}, this, &ExpressionEdit::editRequested);
+
+    connect(this, &QLineEdit::textChanged, this, &ExpressionEdit::adjustSize);
+}
+
+void ExpressionEdit::contextMenuEvent(QContextMenuEvent* event)
+{
+    auto menu = createStandardContextMenu();
+    menu->setAttribute(Qt::WA_DeleteOnClose);
+    menu->addSeparator();
+    menu->addAction(edit_action);
+    menu->popup(event->globalPos());
+}
+
+void ExpressionEdit::adjustSize(const QString& new_text)
+{
+    auto width = fontMetrics().horizontalAdvance(new_text) + 15;
+    if (min_width)
+        width = std::max(*min_width, width);
+    if (max_width) {
+        if (width > max_width) {
+            width = *max_width;
+            setToolTip(new_text);
+        } else
+            setToolTip({});
+    }
+    setFixedWidth(width);
+}
 
 StepItemsWidget::StepItemsWidget(StepItemModel& model, PlanWidget& plan_widget, QWidget* parent)
     : QWidget{parent}
@@ -34,13 +68,27 @@ StepItemsWidget::StepItemsWidget(StepItemModel& model, PlanWidget& plan_widget, 
     connect(method_combo, &QComboBox::activated, this, &StepItemsWidget::setMethod);
     title_layout->addWidget(method_combo);
 
-    custom_button = new QPushButton{tr("Edit"), this};
-    auto sp = custom_button->sizePolicy();
-    sp.setRetainSizeWhenHidden(true);
-    custom_button->setSizePolicy(sp);
-    custom_button->hide();
-    connect(custom_button, &QPushButton::clicked, this, &StepItemsWidget::openCustomEdit);
-    title_layout->addWidget(custom_button);
+    display_edit = new ExpressionEdit{this};
+    display_edit->min_width = 100;
+    display_edit->max_width = 400;
+    display_edit->hide();
+
+    connect(display_edit, &ExpressionEdit::editRequested, this, &StepItemsWidget::openCustomEdit);
+    connect(display_edit, &QLineEdit::editingFinished, this, [this] {
+        if (!plan) {
+            display_edit->clear();
+            return;
+        }
+        auto& custom = is_resources_widget ? plan->steps[step_pos].custom_resource_data
+                                           : plan->steps[step_pos].custom_result_data;
+        if (auto text = display_edit->text().trimmed(); custom.text != text) {
+            custom.text = text;
+            custom.tree.reset();
+            plan->setChanged();
+        }
+    });
+
+    title_layout->addWidget(display_edit);
 
     title_layout->addStretch(1);
 
@@ -55,12 +103,12 @@ void StepItemsWidget::openCustomEdit()
     if (!plan)
         return;
 
-    auto& edit = plan_widget.customEdit();
+    auto& dialog = plan_widget.customEdit();
     auto& custom_text = is_resources_widget ? plan->steps[step_pos].custom_resource_data.text
                                             : plan->steps[step_pos].custom_result_data.text;
-    edit.openCustomEdit(custom_text);
+    dialog.openCustomEdit(custom_text);
     connect(
-        &edit,
+        &dialog,
         &QDialog::finished,
         this,
         [this](int result) {
@@ -69,18 +117,17 @@ void StepItemsWidget::openCustomEdit()
 
             auto& custom = is_resources_widget ? plan->steps[step_pos].custom_resource_data
                                                : plan->steps[step_pos].custom_result_data;
-            auto& edit = plan_widget.customEdit();
-            if (custom.text == edit.custom_text)
-                return;
+            auto& dialog = plan_widget.customEdit();
+            if (custom.text != dialog.custom_text) {
+                custom.text = dialog.custom_text;
+                if (!custom.text.isEmpty())
+                    custom.tree = dialog.custom_tree;
+                else
+                    custom.tree.reset();
+                plan->setChanged();
 
-            custom.text = edit.custom_text;
-            if (!custom.text.isEmpty())
-                custom.tree = edit.custom_tree;
-            else
-                custom.tree.reset();
-            plan->setChanged();
-
-            updateCustomText();
+                updateCustomText();
+            }
         },
         Qt::SingleShotConnection);
 }
@@ -89,7 +136,7 @@ void StepItemsWidget::updateCustomText()
 {
     auto& text = is_resources_widget ? plan->steps[step_pos].custom_resource_data.text
                                      : plan->steps[step_pos].custom_result_data.text;
-    custom_button->setToolTip(text);
+    display_edit->setText(text);
 }
 
 void StepItemsWidget::setOtherView(StepItemsWidget& other)
@@ -108,10 +155,10 @@ void StepItemsWidget::setStep(Plan* plan_, size_t step_pos_)
     auto& step = plan->steps[step_pos];
     if (is_resources_widget) {
         method_combo->setCurrentIndex(static_cast<int>(step.resource_calc));
-        custom_button->setVisible(step.resource_calc == ResourceCalcMethod::Custom);
+        display_edit->setVisible(step.resource_calc == ResourceCalcMethod::Custom);
     } else {
         method_combo->setCurrentIndex(static_cast<int>(step.result_calc));
-        custom_button->setVisible(step.result_calc == ResultCalcMethod::Custom);
+        display_edit->setVisible(step.result_calc == ResultCalcMethod::Custom);
     }
     updateCustomText();
 }
@@ -126,14 +173,14 @@ void StepItemsWidget::setMethod(int index)
         if (method != plan->steps[step_pos].resource_calc) {
             plan->steps[step_pos].resource_calc = method;
             plan->setChanged();
-            custom_button->setVisible(method == ResourceCalcMethod::Custom);
+            display_edit->setVisible(method == ResourceCalcMethod::Custom);
         }
     } else {
         auto method = static_cast<ResultCalcMethod>(index);
         if (method != plan->steps[step_pos].result_calc) {
             plan->steps[step_pos].result_calc = method;
             plan->setChanged();
-            custom_button->setVisible(method == ResultCalcMethod::Custom);
+            display_edit->setVisible(method == ResultCalcMethod::Custom);
         }
     }
 }

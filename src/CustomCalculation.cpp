@@ -5,15 +5,22 @@
 namespace planner {
 
 std::pair<bool, std::string::const_iterator> CustomCalculation::parseString(
-    const std::string& text, custom_tree::Expression& tree)
+    const std::string& text, custom_tree::Expression& tree) const
 {
+    bool success = false;
     auto first = text.cbegin();
-    bool result = qi::phrase_parse(first, text.cend(), parser, qi::space, tree);
-    return {result, first};
+    try {
+        success = qi::phrase_parse(first, text.cend(), parser, qi::space, tree);
+        if (first != text.cend())
+            success = false;
+    } catch (ParseException& e) {
+        first = e.first;
+    }
+    return {success, first};
 }
 
-std::pair<bool, std::string::const_iterator> CustomCalculation::parseString(const std::string& text,
-                                                                            CustomCalcData& custom)
+std::pair<bool, std::string::const_iterator> CustomCalculation::parseString(
+    const std::string& text, CustomCalcData& custom) const
 {
     if (text.empty()) {
         custom.tree.reset();
@@ -22,19 +29,18 @@ std::pair<bool, std::string::const_iterator> CustomCalculation::parseString(cons
 
     custom.tree.emplace();
 
-    auto [result, first] = parseString(text, *custom.tree);
-    if (!result || first != text.cend())
+    auto [success, consumed] = parseString(text, *custom.tree);
+    if (!success)
         custom.tree.reset();
 
-    return {result, first};
+    return {success, consumed};
 }
 
 std::optional<CustomResult> CustomCalculation::calculate(CustomCalcData& custom)
 {
     if (!custom.tree) {
         auto std_string = custom.text.toStdString();
-        auto result = parseString(std_string, custom);
-        if (!result.first || result.second != std_string.cend())
+        if (!parseString(std_string, custom).first)
             return {};
     }
 

@@ -1,10 +1,11 @@
 #ifndef STEPITEMSWIDGET_H
 #define STEPITEMSWIDGET_H
 
+#include <QLineEdit>
 #include <QWidget>
 
 class QComboBox;
-class QPushButton;
+class QAction;
 
 namespace planner {
 class StepItemView;
@@ -12,6 +13,28 @@ class StepItemDelegate;
 class Plan;
 class PlanWidget;
 class StepItemModel;
+
+class ExpressionEdit : public QLineEdit
+{
+    Q_OBJECT
+public:
+    ExpressionEdit(QWidget* parent = nullptr);
+
+    std::optional<int> min_width;
+    std::optional<int> max_width;
+
+signals:
+    void editRequested();
+
+protected:
+    void contextMenuEvent(QContextMenuEvent* event) override;
+
+private slots:
+    void adjustSize(const QString& new_text);
+
+private:
+    QAction* edit_action;
+};
 
 class StepItemsWidget : public QWidget
 {
@@ -38,8 +61,9 @@ private slots:
 private:
     Plan* plan{};
     size_t step_pos{};
+
     QComboBox* method_combo;
-    QPushButton* custom_button;
+    ExpressionEdit* display_edit;
 
     StepItemDelegate* delegate;
 

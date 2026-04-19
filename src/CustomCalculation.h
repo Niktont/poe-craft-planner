@@ -15,9 +15,9 @@ public:
     CustomVisitor visitor;
 
     std::pair<bool, std::string::const_iterator> parseString(const std::string& text,
-                                                             custom_tree::Expression& tree);
+                                                             custom_tree::Expression& tree) const;
     std::pair<bool, std::string::const_iterator> parseString(const std::string& text,
-                                                             CustomCalcData& custom);
+                                                             CustomCalcData& custom) const;
     std::optional<CustomResult> calculate(CustomCalcData& custom);
 };
 

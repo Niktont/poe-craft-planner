@@ -48,34 +48,25 @@ void CustomEditDialog::saveCustomString()
 {
     auto text = custom_edit->text();
     auto trimmed_text = text.trimmed();
-    if (trimmed_text.isEmpty()) {
-        custom_text.clear();
-        accept();
-        return;
-    }
     if (trimmed_text == custom_text) {
         accept();
         return;
     }
 
-    auto std_text = trimmed_text.toStdString();
-    bool success = false;
-    auto first = std_text.cbegin();
-    auto last = std_text.cend();
-
-    custom_tree = {};
-    try {
-        std::tie(success, first) = AppState::state.custom_calc->parseString(std_text, custom_tree);
-    } catch (ParseException& e) {
-        first = e.first;
-        last = e.last;
+    if (trimmed_text.isEmpty()) {
+        custom_text = trimmed_text;
+        accept();
+        return;
     }
 
-    if (!success || first != last) {
+    auto std_text = trimmed_text.toStdString();
+    custom_tree = {};
+    auto [success, consumed] = AppState::state.custom_calc->parseString(std_text, custom_tree);
+    if (!success) {
         if (text != trimmed_text)
             custom_edit->setText(trimmed_text);
         custom_edit->setFocus();
-        custom_edit->setCursorPosition(std::distance(std_text.cbegin(), first));
+        custom_edit->setCursorPosition(std::distance(std_text.cbegin(), consumed));
 
         auto msg = new QMessageBox{this};
         msg->setAttribute(Qt::WA_DeleteOnClose);

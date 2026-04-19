@@ -571,12 +571,7 @@ bool UpdateCostDialog::calculateStepCustomCost(bool is_resource_cost,
 
     AppState::state.custom_calc->visitor.setItems(items);
 
-    std::optional<CustomResult> result;
-    try {
-        result = AppState::state.custom_calc->calculate(custom_data);
-    } catch (ParseException&) {
-        custom_data.tree.reset();
-    }
+    auto result = AppState::state.custom_calc->calculate(custom_data);
     if (!result) {
         auto msg = new QMessageBox{this};
         msg->setAttribute(Qt::WA_DeleteOnClose);
