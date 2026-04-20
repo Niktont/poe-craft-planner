@@ -2,7 +2,7 @@
 #include "AppState.h"
 #include "CustomCalculation.h"
 #include "ExchangeRequestCache.h"
-#include "ExchangeRequestManager.h"
+#include "ExchangeRequester.h"
 #include "Plan.h"
 #include "PlanItem.h"
 #include "PlanModel.h"
@@ -11,6 +11,7 @@
 #include "StepItem.h"
 #include "TradeRequestCache.h"
 #include "TradeRequestManager.h"
+#include "TradeRequester.h"
 #include <QLabel>
 #include <QListView>
 #include <QMessageBox>
@@ -47,6 +48,38 @@ UpdateCostDialog::UpdateCostDialog(QWidget* parent)
     empty_results_view->setModel(new QStringListModel{this});
     empty_results_view->setEditTriggers(QAbstractItemView::NoEditTriggers);
     empty_results_view->hide();
+
+    trade_requester = new TradeRequester{this};
+    connect(trade_requester, &TradeRequester::requestFailed, this, &UpdateCostDialog::requestFailed);
+    connect(trade_requester, &TradeRequester::parseFailed, this, &UpdateCostDialog::parseFailed);
+    connect(trade_requester,
+            &TradeRequester::noResultsFound,
+            this,
+            [this](Game game, const TradeRequestKey& request) {
+                auto trade_cache = AppState::tradeCache(game);
+                if (auto it = trade_cache->requestData(request);
+                    it != trade_cache->cache.end() && !it->second.name().isEmpty())
+                    empty_search_results.insert(it->second.name());
+                updateProgress();
+            });
+    connect(trade_requester,
+            &TradeRequester::requestFinished,
+            this,
+            &UpdateCostDialog::updateProgress);
+
+    exchange_requester = new ExchangeRequester{this};
+    connect(exchange_requester,
+            &ExchangeRequester::requestFailed,
+            this,
+            &UpdateCostDialog::requestFailed);
+    connect(exchange_requester,
+            &ExchangeRequester::parseFailed,
+            this,
+            &UpdateCostDialog::parseFailed);
+    connect(exchange_requester,
+            &ExchangeRequester::requestFinished,
+            this,
+            &UpdateCostDialog::updateProgress);
 }
 
 void UpdateCostDialog::updatePlanItem(PlanItem& item, bool send_requests)
@@ -80,199 +113,21 @@ void UpdateCostDialog::updatePlan(Plan& plan, bool send_requests)
 void UpdateCostDialog::cancelUpdate()
 {
     game_ = Game::Unknown;
-    clearRequests();
     dependencies.clear();
-}
 
-void UpdateCostDialog::requestTradeSearch()
-{
-    is_active_trade = false;
-    if (!isUpdateActive())
-        return;
+    trade_requester->cancelRequests();
+    exchange_requester->cancelRequests();
 
-    if (trade_requests.empty()) {
-        trade_finished = true;
-        calculateCost();
-        return;
-    }
-
-    auto trade_cache = AppState::tradeCache(game_);
-
-    auto node = trade_requests.extract(trade_requests.begin());
-    auto it = trade_cache->requestData(node.value());
-    while (!trade_requests.empty() && it == trade_cache->cache.end()) {
-        node = trade_requests.extract(trade_requests.begin());
-        it = trade_cache->requestData(node.value());
-    }
-    if (it == trade_cache->cache.end()) {
-        trade_finished = true;
-        calculateCost();
-        return;
-    }
-
-    is_active_trade = true;
-    auto reply = AppState::state.trade_manager->postSearchRequest(game_,
-                                                                  it->first,
-                                                                  it->second.query());
-    connect(reply, &QNetworkReply::finished, this, [this, game = game_, request = it->first, reply] {
-        parseTradeSearch(game, request, reply);
-    });
-}
-
-void UpdateCostDialog::requestExchangeCost()
-{
-    is_active_exchange = false;
-    if (!isUpdateActive())
-        return;
-
-    if (exchange_requests.empty()) {
-        exchange_finished = true;
-        calculateCost();
-        return;
-    }
-
-    is_active_exchange = true;
-    auto type{std::move(exchange_requests.extract(exchange_requests.begin()).value())};
-    auto reply = AppState::state.exchange_manager->getOverview(game_, type);
-    connect(reply, &QNetworkReply::finished, this, [this, game = game_, reply] {
-        parseExchangeCostData(game, reply);
-    });
-}
-
-void UpdateCostDialog::parseTradeSearch(Game game,
-                                        const TradeRequestKey& request,
-                                        QNetworkReply* reply)
-{
-    is_active_trade = false;
-
-    QRestReply rest(reply);
-    if (!rest.isSuccess()) {
-        requestFailed();
-        return;
-    }
-    auto json = rest.readJson();
-    if (!json) {
-        parseFailed();
-        return;
-    }
-
-    auto items = AppState::state.trade_manager->parseSearchReply(reply,
-                                                                 json->object(),
-                                                                 trade_requests.size());
-    if (items.first == 0) {
-        auto trade_cache = AppState::tradeCache(game);
-        trade_cache->updateCost(request, {QDateTime::currentDateTimeUtc(), {}});
-
-        if (auto it = trade_cache->requestData(request);
-            it != trade_cache->cache.end() && !it->second.name().isEmpty())
-            empty_search_results.insert(it->second.name());
-
-        if (!trade_requests.empty()) {
-            updateProgress();
-            is_active_trade = true;
-            QTimer::singleShot(AppState::state.trade_manager->searchDelay(),
-                               this,
-                               &UpdateCostDialog::requestTradeSearch);
-        } else {
-            trade_finished = true;
-            calculateCost();
-        }
-    } else {
-        is_active_trade = true;
-        size_t items_to_fetch = std::clamp(items.second.size() / 10, 1ull, 10ull);
-        auto fetch_reply = AppState::state.trade_manager->fetchItems(game,
-                                                                     request,
-                                                                     {items.second.begin(),
-                                                                      items_to_fetch});
-        connect(fetch_reply, &QNetworkReply::finished, this, [=, this, total = items.first] {
-            parseFetchSearch(game, request, total, fetch_reply);
-        });
-    }
-}
-
-void UpdateCostDialog::parseFetchSearch(Game game,
-                                        const TradeRequestKey& request,
-                                        int total,
-                                        QNetworkReply* reply)
-{
-    is_active_trade = false;
-
-    QRestReply rest(reply);
-    if (!rest.isSuccess()) {
-        requestFailed();
-        return;
-    }
-    auto json = rest.readJson();
-    if (!json) {
-        parseFailed();
-        return;
-    }
-    if (!TradeRequestManager::parseFetchReply(json->object(),
-                                              request,
-                                              total,
-                                              *AppState::exchangeCache(game),
-                                              *AppState::tradeCache(game))) {
-        parseFailed();
-        return;
-    }
-
-    if (!trade_requests.empty()) {
-        updateProgress();
-        is_active_trade = true;
-        QTimer::singleShot(AppState::state.trade_manager->searchDelay(),
-                           this,
-                           &UpdateCostDialog::requestTradeSearch);
-    } else {
-        trade_finished = true;
-        calculateCost();
-    }
-}
-
-void UpdateCostDialog::parseExchangeCostData(Game game, QNetworkReply* reply)
-{
-    is_active_exchange = false;
-
-    QRestReply rest(reply);
-    if (!rest.isSuccess()) {
-        requestFailed();
-        return;
-    }
-    auto json = rest.readJson();
-    if (!json) {
-        parseFailed();
-        return;
-    }
-
-    const auto obj = json->object();
-    auto exchange_cache = AppState::exchangeCache(game);
-    if (!ExchangeRequestManager::parseOverviewCosts(obj, *exchange_cache)
-        || !ExchangeRequestManager::parseCore(obj["core"].toObject(), *exchange_cache)) {
-        parseFailed();
-        return;
-    }
-    if (!exchange_requests.empty()) {
-        updateProgress();
-        is_active_exchange = true;
-        QTimer::singleShot(Settings::exchangeRequestDelay(),
-                           this,
-                           &UpdateCostDialog::requestExchangeCost);
-    } else {
-        exchange_finished = true;
-        calculateCost();
-    }
+    empty_search_results.clear();
+    empty_results_view->hide();
 }
 
 void UpdateCostDialog::startUpdate(bool send_requests)
 {
     if (Settings::offline_mode || !send_requests || AppState::snapshots(game_)->current) {
-        trade_finished = true;
-        exchange_finished = true;
         calculateCost();
         return;
     }
-
-    cancel_button->setText(tr("Cancel"));
-    progress_label->setText(tr("Requesting data..."));
 
     auto plan_model = AppState::planModel(game_);
     auto trade_cache = AppState::tradeCache(game_);
@@ -292,25 +147,23 @@ void UpdateCostDialog::startUpdate(bool send_requests)
         }
     }
 
-    trade_finished = trade_requests.empty();
+    bool trade_finished = trade_requester->requests.empty();
     if (!trade_finished) {
         checkCurrency({"chaos"}, now, *exchange_cache);
-        if (!is_active_trade) {
-            is_active_trade = true;
-            QTimer::singleShot(AppState::state.trade_manager->searchDelay(),
-                               this,
-                               &UpdateCostDialog::requestTradeSearch);
-        }
+        trade_requester->startRequests();
     }
 
-    exchange_finished = exchange_requests.empty();
-    if (!exchange_finished && !is_active_exchange)
-        requestExchangeCost();
+    bool exchange_finished = exchange_requester->requests.empty();
+    if (!exchange_finished)
+        exchange_requester->startRequests();
 
-    if (trade_finished && exchange_finished && !is_active_trade && !is_active_exchange)
+    if (trade_finished && exchange_finished)
         calculateCost();
-    else
+    else {
+        cancel_button->setText(tr("Cancel"));
+        progress_label->setText(tr("Requesting data..."));
         show();
+    }
 }
 
 void UpdateCostDialog::checkCurrency(const Currency& currency,
@@ -321,7 +174,7 @@ void UpdateCostDialog::checkCurrency(const Currency& currency,
         return;
 
     if (auto it = exchange_cache.currencyData(currency); it != exchange_cache.cache.end())
-        exchange_requests.insert(it->second.type);
+        exchange_requester->requests.emplace(it->second.type, game_);
 }
 
 void UpdateCostDialog::checkItem(const StepItem& item,
@@ -333,53 +186,50 @@ void UpdateCostDialog::checkItem(const StepItem& item,
         if (!trade_cache.isOutdated(trade->request_key, now))
             return;
         if (auto it = trade_cache.requestData(trade->request_key); it != trade_cache.cache.end())
-            trade_requests.insert(it->first);
+            trade_requester->requests.emplace(it->first, game_);
     } else if (auto exchange = item.exchange())
         checkCurrency(exchange->currency, now, exchange_cache);
     else if (auto custom = item.custom())
         checkCurrency(custom->cost.currency, now, exchange_cache);
 }
 
-void UpdateCostDialog::clearRequests()
-{
-    trade_requests.clear();
-    exchange_requests.clear();
-    empty_search_results.clear();
-    empty_results_view->hide();
-}
-
 void UpdateCostDialog::requestFailed()
 {
-    clearRequests();
+    cancelUpdate();
     progress_label->setText(tr("Request failed."));
     cancel_button->setText(tr("Ok"));
 }
 
 void UpdateCostDialog::parseFailed()
 {
-    clearRequests();
+    cancelUpdate();
     progress_label->setText(tr("Failed to parse reply."));
     cancel_button->setText(tr("Ok"));
 }
 
 void UpdateCostDialog::updateProgress()
 {
-    auto request_count = trade_requests.size() + exchange_requests.size();
+    auto trade_count = std::ssize(trade_requester->requests);
+    auto exchange_count = std::ssize(exchange_requester->requests);
+    if (trade_count == 0 && exchange_count == 0) {
+        QTimer::singleShot(0, this, &UpdateCostDialog::calculateCost);
+        return;
+    }
 
     auto trade_requests_estimation = AppState::state.trade_manager->currentSearchDelay()
-                                     * std::ssize(trade_requests);
-    auto exchange_requests_estimation = Settings::exchangeRequestDelay()
-                                        * std::ssize(exchange_requests);
+                                     * trade_count;
+    auto exchange_requests_estimation = Settings::exchangeRequestDelay() * exchange_count;
     seconds estimation{
         duration_cast<seconds>(std::max(trade_requests_estimation, exchange_requests_estimation))};
 
-    progress_label->setText(
-        tr("%1 requests left (%2 seconds).").arg(request_count).arg(estimation.count()));
+    progress_label->setText(tr("%1 requests left (%2 seconds).")
+                                .arg(trade_count + exchange_count)
+                                .arg(estimation.count()));
 }
 
 void UpdateCostDialog::calculateCost()
 {
-    if (!isUpdateActive() || !trade_finished || !exchange_finished)
+    if (!isUpdateActive())
         return;
 
     auto plan_model = AppState::planModel(game_);
@@ -399,6 +249,7 @@ void UpdateCostDialog::calculateCost()
     }
 
     auto snapshot_name = AppState::snapshots(game_)->currentName();
+    auto league = Settings::currentLeague(game_);
     bool parse_failed = false;
     for (auto& [plan, final_changed] : plans) {
         if (!parse_failed) {
@@ -411,8 +262,8 @@ void UpdateCostDialog::calculateCost()
             final_changed = plan->autoSelectFinalStep();
         }
 
-        if (snapshot_name.isEmpty())
-            plan->league = Settings::currentLeague(plan->game);
+        if (snapshot_name.isNull())
+            plan->league = league;
         else
             plan->league = snapshot_name;
 

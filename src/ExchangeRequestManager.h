@@ -10,6 +10,7 @@ class QJsonObject;
 
 namespace planner {
 class ExchangeRequestCache;
+
 class ExchangeRequestManager : public QObject
 {
     Q_OBJECT

@@ -112,7 +112,7 @@ QString TradeRequestKey::toSearchUrl(Game game) const
                % league;
 }
 
-QUrl TradeRequestKey::toFetchUrl(Game game, const std::span<QString>& items) const
+QUrl TradeRequestKey::toFetchUrl(Game game, std::span<const QString> items) const
 {
     if (!isValid() || items.empty())
         return {};

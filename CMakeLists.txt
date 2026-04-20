@@ -101,6 +101,8 @@ qt_add_executable(${PROJECT_NAME}
     src/AppState.h src/AppState.cpp
     src/PlanTitleWidget.h src/PlanTitleWidget.cpp
     src/MainWidget.h src/MainWidget.cpp
+    src/ExchangeRequester.h src/ExchangeRequester.cpp
+    src/TradeRequester.h src/TradeRequester.cpp
 )
 
 if(MSVC)

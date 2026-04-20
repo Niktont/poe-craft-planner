@@ -3,6 +3,7 @@
 #include "Database.h"
 #include "ExchangeRequestCache.h"
 #include "ExchangeRequestManager.h"
+#include "ExchangeRequester.h"
 #include "MainWindow.h"
 #include "PlanModel.h"
 #include "Settings.h"
@@ -273,90 +274,58 @@ void InitializationDialog::updateCacheData()
         return;
     }
 
+    requestData();
+}
+
+void InitializationDialog::requestData()
+{
+    requester = new ExchangeRequester{this};
+
     if (is_data_needed_poe1) {
         for (auto& type : AppState::state.exchange_cache_poe1->currency_types)
-            currency_types_poe1.push(type.first);
+            requester->requests.emplace(type.first, Game::Poe1);
     }
     if (is_data_needed_poe2) {
         for (auto& type : AppState::state.exchange_cache_poe2->currency_types)
-            currency_types_poe2.push(type.first);
+            requester->requests.emplace(type.first, Game::Poe2);
     }
+    connect(requester, &ExchangeRequester::requestFailed, this, [this] {
+        progress_label->setText(tr("Failed to request currency data."));
+        requester->cancelRequests();
+    });
+    connect(requester, &ExchangeRequester::parseFailed, this, [this] {
+        progress_label->setText(tr("Failed to parse currency data."));
+        requester->cancelRequests();
+    });
+
+    connect(requester, &ExchangeRequester::requestFinished, this, [this](size_t requests_left) {
+        if (requests_left > 0)
+            progress_label->setText(tr("%1 currency types left to load.").arg(requests_left));
+        else {
+            QTimer::singleShot(3000, this, &InitializationDialog::finishInitialization);
+
+            auto div_card_link_poe1 = u"/image/Art/2DItems/Divination/InventoryIcon.png"_s;
+            auto div_card_file_poe1 = AppState::state.exchange_cache_poe1->iconFileName(
+                AppState::state.exchange_cache_poe1->div_card_icon_id);
+            if (!QFile::exists(div_card_file_poe1))
+                AppState::state.exchange_manager->downloadIcon(div_card_link_poe1,
+                                                               div_card_file_poe1);
+        }
+    });
 
     QDir::current().mkpath("currency_icons/poe1");
     QDir::current().mkpath("currency_icons/poe2");
 
     progress_label->setText(tr("Requesting currency data from poe.ninja..."));
 
-    requestData();
-}
-
-void InitializationDialog::requestData()
-{
-    if (!currency_types_poe1.empty()) {
-        auto& type = currency_types_poe1.front();
-        auto reply = AppState::state.exchange_manager->getOverview(Game::Poe1, type);
-        connect(reply, &QNetworkReply::finished, this, [this, type, reply] {
-            parseOverviewData(Game::Poe1, type, reply);
-        });
-
-        currency_types_poe1.pop();
-    } else if (!currency_types_poe2.empty()) {
-        auto& type = currency_types_poe2.front();
-        auto reply = AppState::state.exchange_manager->getOverview(Game::Poe2, type);
-        connect(reply, &QNetworkReply::finished, this, [this, type, reply] {
-            parseOverviewData(Game::Poe2, type, reply);
-        });
-        currency_types_poe2.pop();
-    }
-}
-
-void InitializationDialog::parseOverviewData(Game game, QString type, QNetworkReply* reply)
-{
-    QRestReply rest(reply);
-    if (!rest.isSuccess()) {
-        progress_label->setText(tr("Failed to request currency data."));
-        return;
-    }
-
-    auto cache = AppState::exchangeCache(game);
-    auto json = rest.readJson();
-    if (!json) {
-        progress_label->setText(tr("Failed to parse currency data."));
-        return;
-    }
-    const auto obj = json->object();
-    if (!AppState::state.exchange_manager->parseOverviewItems(obj, type, *cache)
-        || !ExchangeRequestManager::parseOverviewCosts(obj, *cache)
-        || !ExchangeRequestManager::parseCore(obj["core"].toObject(), *cache)) {
-        progress_label->setText(tr("Failed to parse currency data."));
-        return;
-    }
-
-    if (!currency_types_poe1.empty() || !currency_types_poe2.empty()) {
-        progress_label->setText(tr("%1 currency types left to load.")
-                                    .arg(currency_types_poe1.size() + currency_types_poe2.size()));
-        QTimer::singleShot(Settings::exchangeRequestDelay(),
-                           this,
-                           &InitializationDialog::requestData);
-    } else {
-        QTimer::singleShot(3000, this, &InitializationDialog::finishInitialization);
-
-        auto div_card_link_poe1 = u"/image/Art/2DItems/Divination/InventoryIcon.png"_s;
-        auto div_card_file_poe1 = AppState::state.exchange_cache_poe1->iconFileName(
-            AppState::state.exchange_cache_poe1->div_card_icon_id);
-        if (!QFile::exists(div_card_file_poe1))
-            AppState::state.exchange_manager->downloadIcon(div_card_link_poe1, div_card_file_poe1);
-
-        AppState::state.exchange_cache_poe1->saveCache();
-        AppState::state.exchange_cache_poe1->saveCostCache();
-        AppState::state.exchange_cache_poe2->saveCache();
-        AppState::state.exchange_cache_poe2->saveCostCache();
-    }
+    requester->startRequests(true);
 }
 
 void InitializationDialog::finishInitialization()
 {
     if (is_data_needed_poe1) {
+        AppState::state.exchange_cache_poe1->saveCache();
+        AppState::state.exchange_cache_poe1->saveCostCache();
         Settings::set<Settings::poe1_init_needed>(false);
         for (auto& [id, exchange_data] : AppState::state.exchange_cache_poe1->cache) {
             if (exchange_data.icon.isNull())
@@ -364,6 +333,8 @@ void InitializationDialog::finishInitialization()
         }
     }
     if (is_data_needed_poe2) {
+        AppState::state.exchange_cache_poe2->saveCache();
+        AppState::state.exchange_cache_poe2->saveCostCache();
         Settings::set<Settings::poe2_init_needed>(false);
         for (auto& [id, exchange_data] : AppState::state.exchange_cache_poe2->cache) {
             if (exchange_data.icon.isNull())

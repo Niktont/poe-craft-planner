@@ -81,10 +81,12 @@ void QueryParser::parseFilterGroup(ParsedQuery& result,
         auto& filter = group_filters.emplace_back();
         filter.translated_name = it->second;
 
-        if (auto option_v = filter_o["option"]; !option_v.isUndefined())
+        if (auto option_v = filter_o["option"]; !option_v.isUndefined()) {
             if (auto option_it = filter_options.find(option_v.toString());
                 option_it != filter_options.end())
                 filter.translated_option = option_it->second;
+        } else if (auto input_v = filter_o["input"]; !input_v.isUndefined())
+            filter.translated_option = input_v.toString();
 
         if (auto min_v = filter_o["min"]; !min_v.isUndefined())
             filter.min = min_v.toDouble();

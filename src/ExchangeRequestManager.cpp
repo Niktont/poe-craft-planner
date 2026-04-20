@@ -71,7 +71,7 @@ bool ExchangeRequestManager::parseLeagues(const QJsonObject& obj,
         return false;
 
     for (auto league_v : leagues_a) {
-        auto league_o = league_v.toObject();
+        const auto league_o{league_v.toObject()};
         auto name = league_o["name"].toString();
         auto url = league_o["url"].toString();
         if (name.isEmpty() || url.isEmpty())
@@ -90,7 +90,7 @@ bool ExchangeRequestManager::parseOverviewItems(const QJsonObject& overview,
     const auto items_a = overview["items"].toArray();
     auto& currency_cache = cache.cache;
     for (auto item_v : items_a) {
-        auto item_o{item_v.toObject()};
+        const auto item_o{item_v.toObject()};
         auto id = item_o["id"].toString();
         auto name = item_o["name"].toString();
         auto details_id = item_o["detailsId"].toString();
@@ -125,7 +125,7 @@ bool ExchangeRequestManager::parseOverviewCosts(const QJsonObject& overview,
     auto game = cache.game;
     auto& cost_cache = cache.cost_cache[Settings::currentLeague(game)];
     for (auto line_v : lines_a) {
-        auto line_o{line_v.toObject()};
+        const auto line_o{line_v.toObject()};
         auto id = line_o["id"].toString();
         auto popular_rate = line_o["maxVolumeRate"].toDouble();
         auto popular_id = line_o["maxVolumeCurrency"].toString();
@@ -154,14 +154,14 @@ bool ExchangeRequestManager::parseCore(const QJsonObject& core, ExchangeRequestC
         return true;
 
     for (auto item_v : items_a) {
-        auto item_o{item_v.toObject()};
+        const auto item_o{item_v.toObject()};
         auto id = item_o["id"].toString();
         if (id.isEmpty())
             return false;
         ids.push_back(id);
     }
 
-    auto rates_o = core["rates"].toObject();
+    const auto rates_o{core["rates"].toObject()};
     std::vector<std::pair<double, QString>> rates;
     QString primary_id;
     for (auto& id : std::as_const(ids)) {

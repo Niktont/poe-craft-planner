@@ -1,5 +1,4 @@
 #include "TradeRequestManager.h"
-
 #include "ExchangeRequestCache.h"
 #include "TradeRequestCache.h"
 #include "TradeRequestKey.h"
@@ -41,7 +40,7 @@ QNetworkReply* TradeRequestManager::postSearchRequest(Game game,
 
 QNetworkReply* TradeRequestManager::fetchItems(Game game,
                                                const TradeRequestKey& key,
-                                               const std::span<QString>& items) const
+                                               std::span<const QString> items) const
 {
     QNetworkRequest request;
 
@@ -93,11 +92,11 @@ bool TradeRequestManager::parseFetchReply(const QJsonObject& reply,
     const auto result_a = reply["result"].toArray();
     std::unordered_map<QString, std::pair<double, int>> prices;
     for (auto item_v : result_a) {
-        auto item_o = item_v.toObject();
-        auto listing_o = item_o["listing"].toObject();
+        const auto item_o{item_v.toObject()};
+        const auto listing_o{item_o["listing"].toObject()};
         fee += listing_o["fee"].toDouble();
 
-        auto price_o = listing_o["price"].toObject();
+        const auto price_o{listing_o["price"].toObject()};
         auto currency = price_o["currency"].toString();
         if (currency.isEmpty())
             continue;

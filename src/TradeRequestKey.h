@@ -38,7 +38,7 @@ public:
 
     QString toUrl(Game game) const;
     QString toSearchUrl(Game game) const;
-    QUrl toFetchUrl(Game game, const std::span<QString>& items) const;
+    QUrl toFetchUrl(Game game, std::span<const QString> items) const;
 
     bool isValid() const { return !request_id.isEmpty() && domain < Domain::Unknown; }
 

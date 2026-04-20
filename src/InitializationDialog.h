@@ -2,7 +2,6 @@
 #define INITIALIZATIONDIALOG_H
 
 #include "Game.h"
-#include <queue>
 #include <QDialog>
 
 class QLabel;
@@ -13,7 +12,7 @@ class QComboBox;
 class QTimer;
 
 namespace planner {
-
+class ExchangeRequester;
 class MainWindow;
 
 class InitializationDialog : public QDialog
@@ -34,9 +33,6 @@ private slots:
 
     void updateCacheData();
 
-    void requestData();
-    void parseOverviewData(planner::Game game, QString type, QNetworkReply* reply);
-
     void finishInitialization();
 
 private:
@@ -55,13 +51,14 @@ private:
     QStringList league_urls_poe1;
     QStringList league_urls_poe2;
 
-    std::queue<QString> currency_types_poe1;
-    std::queue<QString> currency_types_poe2;
+    ExchangeRequester* requester;
 
     bool request_finished_poe1{false};
     bool request_finished_poe2{false};
     bool is_data_needed_poe1{false};
     bool is_data_needed_poe2{false};
+
+    void requestData();
 };
 
 } // namespace planner

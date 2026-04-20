@@ -95,8 +95,8 @@ MainWindow::MainWindow(QObject& object_parent, QWidget* parent)
             main_widget,
             &MainWidget::updateCost);
     AppState::state.shopping_dialog = new ShoppingDialog{};
-    AppState::state.plan_search_dialog = new PlanSearchDialog{this};
-    connect(AppState::state.plan_search_dialog->view,
+    plan_search_dialog = new PlanSearchDialog{this};
+    connect(plan_search_dialog->view,
             &PlanSearchView::planClicked,
             main_widget,
             &MainWidget::openPlanLink);
@@ -241,8 +241,7 @@ void MainWindow::closeEvent(QCloseEvent* event)
                       AppState::state.shopping_dialog->saveGeometry());
     searches_dialog->saveState(settings);
     snapshots_dialog->saveState(settings);
-    settings.setValue(Settings::windows_plan_search_dialog_size,
-                      AppState::state.plan_search_dialog->size());
+    settings.setValue(Settings::windows_plan_search_dialog_size, plan_search_dialog->size());
 
     settings.setValue(Settings::windows_main_snapshot_poe1,
                       AppState::state.snapshots_poe1->current
@@ -457,7 +456,7 @@ void MainWindow::setupActions()
     plan_search_action = new QAction{tr("Find Plan")};
     plan_search_action->setShortcut(Qt::ControlModifier | Qt::Key_F);
     connect(plan_search_action, &QAction::triggered, this, [this] {
-        AppState::state.plan_search_dialog->openGame(mainWidget()->game());
+        plan_search_dialog->openGame(mainWidget()->game());
     });
 
 #ifndef PLANNER_NO_BROWSER

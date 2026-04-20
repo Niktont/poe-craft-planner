@@ -19,7 +19,6 @@ class CustomCalculation;
 
 class UpdateCostDialog;
 class ShoppingDialog;
-class PlanSearchDialog;
 #ifndef PLANNER_NO_BROWSER
 class WebViewDialog;
 #endif
@@ -48,7 +47,6 @@ public:
 
     UpdateCostDialog* update_cost_dialog{};
     ShoppingDialog* shopping_dialog{};
-    PlanSearchDialog* plan_search_dialog{};
 #ifndef PLANNER_NO_BROWSER
     WebViewDialog* web_view_dialog;
 #endif

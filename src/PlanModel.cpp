@@ -477,13 +477,12 @@ QJsonDocument PlanModel::exportItem(const QModelIndex& index,
     export_o["game"] = gameStr(game);
 
     auto trade_cache = AppState::tradeCache(game);
-    trade_cache->include_requests_for_export = without_requests
-                                                   ? false
-                                                   : Settings::get<settings::export_with_requests>();
+    trade_cache->include_requests_for_export = !without_requests
+                                               && Settings::get<settings::export_with_requests>();
 
     QJsonObject item_o;
     std::vector<QUuid> dependencies;
-    if (without_deps ? false : Settings::get<settings::export_with_dependencies>())
+    if (!without_deps && Settings::get<settings::export_with_dependencies>())
         item_o = item->exportJson(*AppState::exchangeCache(game), *trade_cache, &dependencies);
     else
         item_o = item->exportJson(*AppState::exchangeCache(game), *trade_cache, nullptr);

@@ -28,7 +28,7 @@ public:
 
     QNetworkReply* fetchItems(Game game,
                               const TradeRequestKey& key,
-                              const std::span<QString>& items) const;
+                              std::span<const QString> items) const;
 
     std::pair<int, std::vector<QString>> parseSearchReply(QNetworkReply* reply,
                                                           const QJsonObject& reply_o,

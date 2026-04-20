@@ -2,8 +2,6 @@
 #define UPDATECOSTDIALOG_H
 
 #include "Game.h"
-#include "HashFunctions.h"
-#include <boost/unordered_set.hpp>
 #include <QDialog>
 #include <QListView>
 
@@ -20,6 +18,8 @@ class Step;
 class StepItem;
 class TradeRequestKey;
 class TradeRequestCache;
+class ExchangeRequester;
+class TradeRequester;
 
 class UpdateCostDialog : public QDialog
 {
@@ -36,10 +36,6 @@ signals:
 public slots:
     void cancelUpdate();
 
-private slots:
-    void requestTradeSearch();
-    void requestExchangeCost();
-
 private:
     QLabel* progress_label;
     QPushButton* cancel_button;
@@ -50,23 +46,10 @@ private:
 
     std::vector<QUuid> dependencies;
 
-    void parseTradeSearch(Game game, const TradeRequestKey& request, QNetworkReply* reply);
-    void parseFetchSearch(Game game,
-                          const TradeRequestKey& request,
-                          int total,
-                          QNetworkReply* reply);
-    void parseExchangeCostData(Game game, QNetworkReply* reply);
+    TradeRequester* trade_requester;
+    ExchangeRequester* exchange_requester;
 
-    std::set<TradeRequestKey> trade_requests;
-    boost::unordered_set<QString> exchange_requests;
-
-    boost::unordered_set<QString> empty_search_results;
-
-    bool is_active_trade{false};
-    bool is_active_exchange{false};
-
-    bool trade_finished{false};
-    bool exchange_finished{false};
+    std::unordered_set<QString> empty_search_results;
 
     void startUpdate(bool send_requests);
 
@@ -77,11 +60,11 @@ private:
                    QDateTime now,
                    const ExchangeRequestCache& exchange_cache,
                    const TradeRequestCache& trade_cache);
-    void clearRequests();
     void requestFailed();
     void parseFailed();
 
     void updateProgress();
+
     void calculateCost();
     bool calculateStepCost(const Plan& step_plan, Step& step);
     bool calculateStepCustomCost(bool is_resource_cost, const Plan& step_plan, Step& step);

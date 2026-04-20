@@ -18,6 +18,7 @@ class PlanTreeView;
 class SettingsDialog;
 class SearchesDialog;
 class SnapshotsDialog;
+class PlanSearchDialog;
 class SnapshotModel;
 class Snapshot;
 
@@ -47,6 +48,7 @@ public:
     SearchesDialog* searches_dialog;
     SnapshotsDialog* snapshots_dialog;
     SettingsDialog* settings_dialog;
+    PlanSearchDialog* plan_search_dialog;
     QDialog* about_dialog;
 
     void restoreSession();
