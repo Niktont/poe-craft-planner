@@ -39,7 +39,7 @@ void PlanSearchView::setGame(Game game_)
 
 void PlanSearchView::filterName(const QString& filter_str)
 {
-    if (0 < filter_str.size() && filter_str.size() < 3)
+    if (0 < filter_str.size() && filter_str.size() < 2)
         return;
 
     search_model->proxy_model->setFilterFixedString(filter_str);

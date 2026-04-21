@@ -334,8 +334,9 @@ void StepWidget::setNameFromEdit()
 
 void StepWidget::setDescriptionChanged()
 {
+    assert(plan);
     if (!is_description_changed) {
-        plan_widget.setPlanChanged();
+        plan->setChanged();
         is_description_changed = true;
     }
 }

@@ -96,7 +96,7 @@ void TradeRequestView::saveState(QSettings& settings) const
 
 void TradeRequestView::filterName(const QString& filter_str)
 {
-    if (0 < filter_str.size() && filter_str.size() < 3)
+    if (0 < filter_str.size() && filter_str.size() < 2)
         return;
 
     cache->proxy_model->setFilterFixedString(filter_str);

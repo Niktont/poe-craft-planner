@@ -124,6 +124,8 @@ signals:
     void descriptionsNeeded(planner::Game game, const planner::Plan* target_plan) const;
     void currentNeedsReselecting(planner::Game game) const;
 
+    void planSaved(planner::Game game, const planner::Plan* plan);
+
 private:
     std::unique_ptr<PlanItem> root;
 

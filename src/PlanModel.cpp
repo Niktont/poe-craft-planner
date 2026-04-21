@@ -603,10 +603,14 @@ void PlanModel::savePlan(const PlanItem& item)
         saveFolders(save_query);
 
         db.commit();
+
+        if (is_changed)
+            emit planSaved(game, item.plan());
     } else if (is_changed) {
         auto save_query = Database::savePlan(game);
         savePlanItem(item, save_query);
         changed_plans.erase(&item);
+        emit planSaved(game, item.plan());
     }
 }
 
@@ -615,6 +619,7 @@ void PlanModel::saveAllPlans()
     if (changed_plans.empty())
         return;
 
+    auto single_plan = changed_plans.size() == 1 ? changed_plans.begin()->first : nullptr;
     auto db = QSqlDatabase::database();
     db.transaction();
 
@@ -626,6 +631,11 @@ void PlanModel::saveAllPlans()
     saveFolders(save_query);
 
     db.commit();
+
+    if (single_plan)
+        emit planSaved(game, single_plan->plan());
+    else
+        emit planSaved(game, nullptr);
 }
 
 void PlanModel::restorePlan(const QModelIndex& index)

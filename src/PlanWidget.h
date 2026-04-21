@@ -33,7 +33,6 @@ public:
     Game game() const;
     Plan* plan() const { return plan_; }
 
-    void setPlanChanged();
     void updateStepNames(size_t renamed_step);
 
     void moveStep(size_t step_pos, bool up);
@@ -74,6 +73,7 @@ private slots:
     void checkDeletingItems(const QModelIndex& parent, int first, int last);
 
     void updatePlanName(const planner::Plan& renamed_plan);
+    void resetDescriptionChange(planner::Game game, const planner::Plan* plan);
 
     void updateTradeRequests(const QModelIndex& top_left, const QModelIndex& bottom_right);
     void updateTradeName(int row, const planner::TradeRequestCache& cache);
