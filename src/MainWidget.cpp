@@ -94,9 +94,9 @@ void MainWidget::openPlanWindow(const QUuid& plan_id, Game game)
         }
     }
 
-    auto model = AppState::planModel(game);
-    auto plan_it = model->plans.find(plan_id);
-    if (plan_it == model->plans.end())
+    auto& plans = AppState::planModel(game)->plans;
+    auto plan_it = plans.find(plan_id);
+    if (plan_it == plans.end())
         return;
 
     auto [window_it, added] = plan_windows.try_emplace(plan_id);
@@ -108,7 +108,7 @@ void MainWidget::openPlanWindow(const QUuid& plan_id, Game game)
         flags |= Qt::WindowStaysOnTopHint;
     window_it->second = new PlanWidget{false, nullptr, flags};
     window_it->second->connectSignals();
-    window_it->second->setPlan(model, &plan_it->second);
+    window_it->second->setPlan(&plan_it->second);
 
     auto mouse_pos = QCursor::pos();
     mouse_pos.rx() -= 5;
@@ -268,12 +268,12 @@ void MainWidget::goForward()
     AppState::state.mw->planView(plan_model->game)->selectPlan(plan_it->second);
 }
 
-void MainWidget::selectPlan(PlanModel& model, Plan& selected_plan)
+void MainWidget::selectPlan(Plan& selected_plan)
 {
     if (game() != selected_plan.game)
         AppState::state.mw->raiseDock(selected_plan.game);
 
-    setPlan(model, selected_plan);
+    setMainPlan(selected_plan);
 }
 
 void MainWidget::reselectCurrent(Game game)
@@ -289,15 +289,14 @@ void MainWidget::checkDeletingPlans(const QModelIndex& parent, int first, int la
 
     bool current_is_deleting = plan_widget->checkDeletingPlans(*parent_item, first, last);
     if (current_is_deleting) {
-        PlanModel* plan_model{};
         PlanModel::Plans::iterator it;
         auto isValid = [&](const std::pair<QUuid, Game>& p) {
             if (plan_windows.contains(p.first))
                 return false;
 
-            plan_model = AppState::planModel(p.second);
-            it = model->plans.find(p.first);
-            return it != model->plans.end()
+            auto& plans = AppState::planModel(p.second)->plans;
+            it = plans.find(p.first);
+            return it != plans.end()
                    && !parent_item->isDescendantDeleting(*it->second.item(), first, last);
         };
 
@@ -311,7 +310,7 @@ void MainWidget::checkDeletingPlans(const QModelIndex& parent, int first, int la
             history_it = navigation_history.erase(navigation_history.begin(), history_it);
 
             if (history_it == navigation_history.end()) {
-                plan_widget->setPlan(model, nullptr);
+                plan_widget->setPlan(nullptr);
                 updateBack();
                 updateForward();
                 return;
@@ -319,7 +318,7 @@ void MainWidget::checkDeletingPlans(const QModelIndex& parent, int first, int la
         } else
             history_it = std::prev(history_it);
 
-        setPlan(*plan_model, it->second, false);
+        setMainPlan(it->second, false);
         updateBack();
         updateForward();
         reselectCurrent(plan()->game);
@@ -327,7 +326,7 @@ void MainWidget::checkDeletingPlans(const QModelIndex& parent, int first, int la
         reselectCurrent(plan()->game);
 }
 
-void MainWidget::setPlan(const PlanModel& model, Plan& new_plan, bool update_history)
+void MainWidget::setMainPlan(Plan& new_plan, bool update_history)
 {
     if (plan() == &new_plan)
         return;
@@ -336,7 +335,7 @@ void MainWidget::setPlan(const PlanModel& model, Plan& new_plan, bool update_his
         return;
 
     auto prev_game = game();
-    plan_widget->setPlan(&model, &new_plan);
+    plan_widget->setPlan(&new_plan);
 
     if (prev_game != plan()->game)
         emit gameChanged(plan()->game);

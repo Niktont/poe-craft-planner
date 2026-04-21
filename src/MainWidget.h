@@ -53,13 +53,11 @@ public slots:
     void goForward();
 
 private slots:
-    void selectPlan(planner::PlanModel& model, planner::Plan& selected_plan);
+    void selectPlan(planner::Plan& selected_plan);
 
     void reselectCurrent(planner::Game game);
 
-    void setPlan(const planner::PlanModel& model,
-                 planner::Plan& new_plan,
-                 bool update_history = true);
+    void setMainPlan(planner::Plan& new_plan, bool update_history = true);
     void eraseWindow(planner::PlanWidget& window);
 
 private:

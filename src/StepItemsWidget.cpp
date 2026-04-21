@@ -14,9 +14,18 @@
 
 namespace planner {
 
-ExpressionEdit::ExpressionEdit(QWidget* parent)
+ExpressionEdit::ExpressionEdit(std::optional<int> min_width,
+                               std::optional<int> max_width,
+                               QWidget* parent)
     : QLineEdit{parent}
+    , min_width{min_width}
+    , max_width{max_width}
 {
+    if (min_width)
+        setFixedWidth(*min_width);
+    else if (max_width && maximumWidth() > *max_width)
+        setMaximumWidth(*max_width);
+
     edit_action = addAction(tr("Edit"), {Qt::Key_F2}, this, &ExpressionEdit::editRequested);
 
     connect(this, &QLineEdit::textChanged, this, &ExpressionEdit::adjustSize);
@@ -68,9 +77,7 @@ StepItemsWidget::StepItemsWidget(StepItemModel& model, PlanWidget& plan_widget, 
     connect(method_combo, &QComboBox::activated, this, &StepItemsWidget::setMethod);
     title_layout->addWidget(method_combo);
 
-    display_edit = new ExpressionEdit{this};
-    display_edit->min_width = 100;
-    display_edit->max_width = 400;
+    display_edit = new ExpressionEdit{100, 400, this};
     display_edit->hide();
 
     connect(display_edit, &ExpressionEdit::editRequested, this, &StepItemsWidget::openCustomEdit);

@@ -18,10 +18,9 @@ class ExpressionEdit : public QLineEdit
 {
     Q_OBJECT
 public:
-    ExpressionEdit(QWidget* parent = nullptr);
-
-    std::optional<int> min_width;
-    std::optional<int> max_width;
+    ExpressionEdit(std::optional<int> min_width = {},
+                   std::optional<int> max_width = {},
+                   QWidget* parent = nullptr);
 
 signals:
     void editRequested();
@@ -34,6 +33,9 @@ private slots:
 
 private:
     QAction* edit_action;
+
+    std::optional<int> min_width;
+    std::optional<int> max_width;
 };
 
 class StepItemsWidget : public QWidget

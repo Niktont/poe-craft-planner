@@ -7,20 +7,13 @@
 #include "PlanWidget.h"
 #include "Settings.h"
 #include "StepCopyState.h"
-#include "StepItemDelegate.h"
 #include "StepItemModel.h"
 #include "StepItemView.h"
 #include "StepItemsWidget.h"
-#include <QAbstractTextDocumentLayout>
 #include <QCheckBox>
-#include <QHeaderView>
-#include <QLabel>
 #include <QLineEdit>
 #include <QMenu>
 #include <QMessageBox>
-#include <QTableView>
-#include <QTextBrowser>
-#include <QTextEdit>
 #include <QToolBar>
 #include <QVBoxLayout>
 
@@ -39,10 +32,8 @@ StepWidget::StepWidget(PlanWidget& plan_widget, QWidget* parent)
     layout->addLayout(title_layout);
 
     name_edit = new QLineEdit{this};
-    name_edit->setMaxLength(30);
     title_layout->addWidget(name_edit);
-    auto name_fm = name_edit->fontMetrics();
-    name_edit->setFixedWidth(name_fm.averageCharWidth() * (name_edit->maxLength() + 3));
+    name_edit->setFixedWidth(280);
     connect(name_edit, &QLineEdit::editingFinished, this, &StepWidget::setNameFromEdit);
 
     cost_widget = new CostWidget{this};
@@ -166,15 +157,13 @@ void StepWidget::setStep(Plan* plan_, size_t step_pos_)
     if (!plan)
         return;
 
+    resources_widget->view->hideNotUsedItems();
+    results_widget->view->hideNotUsedItems();
+    if (!resources_widget->view->syncColumns())
+        resources_widget->view->syncSize();
+
     hideEmptyResources();
     hideEmptyResults();
-
-    // resources_widget->view->verticalHeader()->reset();
-    // results_widget->view->verticalHeader()->reset();
-
-    hideNotUsedItems();
-
-    resources_widget->view->syncColumns();
 
     auto& step = currentStep();
     setName(step.name);
@@ -207,18 +196,20 @@ void StepWidget::setName(QString name)
     name_edit->setText(name);
 }
 
-void StepWidget::updateCost(bool current_updated)
+bool StepWidget::updateCost(bool current_updated)
 {
     if (!plan)
-        return;
+        return false;
 
+    bool size_changed = false;
     if (current_updated) {
         displayCost();
-        hideNotUsedItems();
+        size_changed = hideNotUsedItems();
     }
 
     resources_model->updateCosts();
     results_model->updateCosts();
+    return size_changed;
 }
 
 void StepWidget::clearStep(const QUuid& deleted_step)
@@ -249,38 +240,55 @@ void StepWidget::setDescription()
 
 void StepWidget::hideDescription()
 {
-    description->setHidden(Settings::get<Settings::windows_main_hide_descriptions>());
+    bool hide = Settings::get<Settings::windows_main_hide_descriptions>();
+    if (hide != description->isHidden())
+        description->setHidden(hide);
 }
 
-void StepWidget::hideEmptyResources()
+bool StepWidget::hideEmptyResources()
 {
     if (!plan)
-        return;
+        return false;
 
-    if (currentStep().resources.empty())
-        resources_widget->setHidden(Settings::get<Settings::windows_main_hide_empty_resources>());
-    else
-        resources_widget->setHidden(false);
+    bool hide = currentStep().resources.empty()
+                && Settings::get<Settings::windows_main_hide_empty_resources>();
+    if (hide != resources_widget->isHidden()) {
+        resources_widget->setHidden(hide);
+        return true;
+    }
+    return false;
 }
 
-void StepWidget::hideEmptyResults()
+bool StepWidget::hideEmptyResults()
 {
     if (!plan)
-        return;
+        return false;
 
-    if (currentStep().results.empty())
-        results_widget->setHidden(Settings::get<Settings::windows_main_hide_empty_results>());
-    else
-        results_widget->setHidden(false);
+    bool hide = currentStep().results.empty()
+                && Settings::get<Settings::windows_main_hide_empty_results>();
+    if (hide != results_widget->isHidden()) {
+        results_widget->setHidden(hide);
+        return true;
+    }
+    return false;
 }
 
-void StepWidget::hideNotUsedItems()
+bool StepWidget::hideNotUsedItems()
 {
     if (!plan)
-        return;
+        return false;
 
-    resources_widget->view->hideNotUsedItems();
-    results_widget->view->hideNotUsedItems();
+    bool resources_changed = resources_widget->view->hideNotUsedItems();
+    bool results_changed = results_widget->view->hideNotUsedItems();
+    bool size_changed = resources_changed || results_changed;
+
+    if (size_changed && !resources_widget->view->syncColumns()) {
+        if (resources_changed)
+            resources_widget->view->setFixedSize(resources_widget->view->sizeHint());
+        if (results_changed)
+            results_widget->view->setFixedSize(results_widget->view->sizeHint());
+    }
+    return size_changed;
 }
 
 void StepWidget::hideTitleCurrencyName()

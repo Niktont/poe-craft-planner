@@ -29,7 +29,7 @@ public:
     size_t stepPos() const { return step_pos; }
     void updatePos(size_t new_pos);
 
-    void updateCost(bool current_updated);
+    bool updateCost(bool current_updated);
     void clearStep(const QUuid& deleted_step);
     void updateStepName(const QUuid& changed_step);
     void updatePlanName(const QUuid& changed_plan);
@@ -43,9 +43,9 @@ public:
 
     void setDescription();
     void hideDescription();
-    void hideEmptyResources();
-    void hideEmptyResults();
-    void hideNotUsedItems();
+    bool hideEmptyResources();
+    bool hideEmptyResults();
+    bool hideNotUsedItems();
     void hideTitleCurrencyName();
 
     void updateMoveActions();

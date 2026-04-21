@@ -16,6 +16,7 @@
 
 using namespace Qt::StringLiterals;
 
+static constexpr int min_row_width = 20;
 static constexpr int min_name_width = 120;
 
 namespace planner {
@@ -203,16 +204,17 @@ void StepItemView::mousePressEvent(QMouseEvent* event)
 
 QSize StepItemView::sizeHint() const
 {
-    return {horizontalHeader()->length() /* + verticalHeader()->sizeHint().width()*/ + lineWidth() * 2,
-            horizontalHeader()->height() + verticalHeader()->length() + 15 + lineWidth() * 2};
+    return {
+        horizontalHeader()->length() /* + verticalHeader()->sizeHint().width()*/ + frameWidth() * 2,
+        horizontalHeader()->height() + verticalHeader()->length() + 15 + frameWidth() * 2};
 }
 
-void StepItemView::hideNotUsedItems()
+bool StepItemView::hideNotUsedItems()
 {
     auto step = stepModel()->step();
     auto& items = stepModel()->is_resource_model ? step->resources : step->results;
     if (items.empty())
-        return;
+        return false;
 
     bool rows_changed = false;
     if (Settings::get<Settings::windows_main_hide_not_used_items>()) {
@@ -222,7 +224,7 @@ void StepItemView::hideNotUsedItems()
                 rows_changed = true;
             }
         }
-    } else {
+    } else if (verticalHeader()->hiddenSectionCount() > 0) {
         for (size_t i = 0; i < items.size(); ++i) {
             if (items[i].not_used) {
                 setRowHidden(i, false);
@@ -231,8 +233,7 @@ void StepItemView::hideNotUsedItems()
         }
     }
 
-    if (rows_changed)
-        setFixedSize(sizeHint());
+    return rows_changed;
 }
 
 void StepItemView::resizeColumns(const QModelIndex& top_left,
@@ -245,24 +246,23 @@ void StepItemView::resizeColumns(const QModelIndex& top_left,
     if (col_left <= StepItemColumn::Name && StepItemColumn::Name <= col_right) {
         auto col = static_cast<int>(StepItemColumn::Name);
         if (other_view)
-            syncColumn(col, min_name_width);
-        else
+            resized = syncColumn(col, min_name_width);
+        else {
             resizeColumnToContents(col);
-        resized = true;
+            resized = true;
+        }
     }
     if (col_left <= StepItemColumn::CostCurrency && StepItemColumn::CostCurrency <= col_right) {
         auto col = static_cast<int>(StepItemColumn::CostCurrency);
         if (other_view)
-            syncColumn(col, min_name_width);
-        else
+            resized |= syncColumn(col, min_name_width);
+        else {
             resizeColumnToContents(col);
-        resized = true;
+            resized = true;
+        }
     }
-    if (resized) {
-        setFixedSize(sizeHint());
-        if (other_view)
-            other_view->setFixedSize(other_view->sizeHint());
-    }
+    if (resized)
+        syncSize();
 }
 
 void StepItemView::indexClicked(const QModelIndex& idx)
@@ -321,24 +321,46 @@ void StepItemView::deleteSearch()
         stepModel()->deleteSearch(current);
 }
 
-void StepItemView::syncColumns()
+void StepItemView::syncOnRowCountChange()
 {
-    syncColumn(static_cast<int>(StepItemColumn::Row), 20);
-    syncColumn(static_cast<int>(StepItemColumn::Name), min_name_width);
-    syncColumn(static_cast<int>(StepItemColumn::CostCurrency), min_name_width);
+    if (!syncColumns())
+        setFixedSize(sizeHint());
+}
+
+bool StepItemView::syncColumn(int col, int min_width)
+{
+    auto size_hint = sizeHintForColumn(col);
+    auto other_size_hint = other_view ? other_view->sizeHintForColumn(col) : 0;
+    auto width = std::max({size_hint, other_size_hint, min_width});
+
+    auto old_width = columnWidth(col);
+    bool resized = old_width != width;
+    if (resized)
+        setColumnWidth(col, width);
+
+    if (other_view) {
+        auto other_old_width = other_view->columnWidth(col);
+        if ((resized |= other_old_width != width))
+            other_view->setColumnWidth(col, width);
+    }
+    return resized;
+}
+
+void StepItemView::syncSize()
+{
     setFixedSize(sizeHint());
     if (other_view)
         other_view->setFixedSize(other_view->sizeHint());
 }
 
-void StepItemView::syncColumn(int col, int min_width)
+bool StepItemView::syncColumns()
 {
-    auto size_hint = sizeHintForColumn(col);
-    auto other_size_hint = other_view ? other_view->sizeHintForColumn(col) : 0;
-    auto width = std::max({size_hint, other_size_hint, min_width});
-    setColumnWidth(col, width);
-    if (other_view)
-        other_view->setColumnWidth(col, width);
+    bool resized = syncColumn(static_cast<int>(StepItemColumn::Row), min_row_width);
+    resized |= syncColumn(static_cast<int>(StepItemColumn::Name), min_name_width);
+    resized |= syncColumn(static_cast<int>(StepItemColumn::CostCurrency), min_name_width);
+    if (resized)
+        syncSize();
+    return resized;
 }
 
 StepItemModel* StepItemView::stepModel() const
@@ -367,7 +389,7 @@ void StepItemView::setupColumns()
     auto header = horizontalHeader();
     header->setMinimumSectionSize(20);
     header->setSectionResizeMode(QHeaderView::Fixed);
-    header->resizeSection(static_cast<int>(StepItemColumn::Row), 20);
+    header->resizeSection(static_cast<int>(StepItemColumn::Row), min_row_width);
     header->resizeSection(static_cast<int>(StepItemColumn::Type), 20);
 
     auto num_6_width = widthForItemText(option, u"10000.0"_s);
@@ -403,8 +425,8 @@ void StepItemView::setupColumns()
     verticalHeader()->setDefaultSectionSize(fontMetrics().height());
     verticalHeader()->hide();
 
-    connect(stepModel(), &StepItemModel::rowsInserted, this, &StepItemView::syncColumns);
-    connect(stepModel(), &StepItemModel::rowsRemoved, this, &StepItemView::syncColumns);
+    connect(stepModel(), &StepItemModel::rowsInserted, this, &StepItemView::syncOnRowCountChange);
+    connect(stepModel(), &StepItemModel::rowsRemoved, this, &StepItemView::syncOnRowCountChange);
     connect(stepModel(), &StepItemModel::dataChanged, this, &StepItemView::resizeColumns);
 }
 

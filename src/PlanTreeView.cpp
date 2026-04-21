@@ -24,6 +24,7 @@ PlanTreeView::PlanTreeView(QWidget* parent)
     setSelectionBehavior(QAbstractItemView::SelectRows);
     setSelectionMode(QAbstractItemView::SingleSelection);
 
+    header()->setStretchLastSection(false);
     header()->setSectionResizeMode(QHeaderView::ResizeToContents);
 
     add_plan_action = addAction(tr("New Plan"), this, [this] {
@@ -97,7 +98,7 @@ void PlanTreeView::selectPlan(Plan& plan)
     if (idx.internalId() != currentIndex().internalId())
         setCurrentIndex(idx);
     else
-        emit planSelected(*planModel(), plan);
+        emit planSelected(plan);
 }
 
 void PlanTreeView::setModel(QAbstractItemModel* model)
@@ -175,7 +176,7 @@ void PlanTreeView::selectPlanOnClick(const QModelIndex& idx)
     if (item->isFolder())
         return;
 
-    emit planSelected(*planModel(), *item->plan());
+    emit planSelected(*item->plan());
 }
 
 void PlanTreeView::selectPlanOnCurrentChange(const QModelIndex& idx)
@@ -188,7 +189,7 @@ void PlanTreeView::selectPlanOnCurrentChange(const QModelIndex& idx)
     if (item->isFolder())
         return;
 
-    emit planSelected(*planModel(), *item->plan());
+    emit planSelected(*item->plan());
 }
 
 void PlanTreeView::restoreItem()

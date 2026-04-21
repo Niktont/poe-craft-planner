@@ -11,7 +11,6 @@ class QAction;
 class QCheckBox;
 
 namespace planner {
-class PlanModel;
 class Plan;
 class PlanItem;
 class StepWidget;
@@ -107,7 +106,6 @@ private:
     ShoppingSetupDialog* shopping_setup{};
     RequestEditDialog* request_edit{};
 
-    const PlanModel* current_model{};
     Plan* plan_{};
 
     const bool is_main;
@@ -115,17 +113,30 @@ private:
 
     void setStepDescriptions();
 
-    void setPlan(const planner::PlanModel* model, planner::Plan* plan, bool is_update = false);
+    void setPlan(planner::Plan* plan, bool is_update = false);
     void clear();
 
     bool checkDeletingPlans(const PlanItem& parent_item, int first, int last);
 
     void emplaceStepWidget(size_t i);
+    void reuseStepWidget(size_t i);
 
     void displayFinalStep();
     void updateDisplayedCost();
     void displayCost();
     void updateCosts(bool current_updated);
+
+    struct ScrollState
+    {
+        QWidget* step_widget{};
+        QWidget* focus_widget{};
+        int y_diff;
+    };
+    ScrollState scrollState();
+    void restoreScrollState(const ScrollState& state);
+
+    template<auto fun, typename... Args>
+    void applyResizeFunction(Args&&... args);
 };
 } // namespace planner
 #endif // PLANWIDGET_H

@@ -17,10 +17,10 @@ public:
 
     QSize sizeHint() const override;
 
-    void hideNotUsedItems();
+    bool hideNotUsedItems();
 
-public slots:
-    void syncColumns();
+    void syncSize();
+    bool syncColumns();
 
 protected:
     void contextMenuEvent(QContextMenuEvent* event) override;
@@ -35,6 +35,8 @@ private slots:
     void indexClicked(const QModelIndex& idx);
     void openSearch();
     void deleteSearch();
+
+    void syncOnRowCountChange();
 
 private:
     StepItemModel* stepModel() const;
@@ -62,7 +64,8 @@ private:
 
     PlanWidget& plan_widget;
 
-    void syncColumn(int col, int min_width);
+    bool syncColumn(int col, int min_width);
+
     int widthForItemText(QStyleOptionViewItem& option, const QString& text) const;
     void setupColumns();
 };

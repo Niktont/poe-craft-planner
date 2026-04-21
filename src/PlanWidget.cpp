@@ -9,6 +9,7 @@
 #include "PlanModel.h"
 #include "PlanTitleWidget.h"
 #include "RequestEditDialog.h"
+#include "Settings.h"
 #include "SettingsDialog.h"
 #include "ShoppingDialog.h"
 #include "ShoppingSetupDialog.h"
@@ -24,8 +25,8 @@
 #include <QLabel>
 #include <QMenu>
 #include <QScrollArea>
-#include <QTextEdit>
-#include <QTreeView>
+#include <QScrollBar>
+#include <QTimer>
 #include <QVBoxLayout>
 
 namespace planner {
@@ -33,6 +34,7 @@ PlanWidget::PlanWidget(bool is_main, QWidget* parent, Qt::WindowFlags flags)
     : QWidget{parent, flags}
     , is_main{is_main}
 {
+    setFocusPolicy(Qt::ClickFocus);
     setAttribute(Qt::WA_StyledBackground);
     if (is_main)
         setEnabled(false);
@@ -197,13 +199,11 @@ void PlanWidget::addStep()
     plan_->steps.emplace_back();
     plan_->setChanged();
 
-    if (pos >= step_widgets.size()) {
-        emplaceStepWidget(pos);
-    } else {
-        auto step_widget = step_widgets[pos];
-        step_widget->show();
-        step_widget->setStep(plan_, pos);
-    }
+    reuseStepWidget(pos);
+    QTimer::singleShot(0, this, [this, pos] {
+        steps_scroll->ensureWidgetVisible(step_widgets[pos], 0);
+    });
+
     if (plan_->finalStepId().isNull())
         updateDisplayedCost();
 }
@@ -212,9 +212,18 @@ void PlanWidget::emplaceStepWidget(size_t i)
 {
     auto step_widget = *step_widgets.emplace(step_widgets.begin() + i,
                                              new StepWidget{*this, steps_widget});
-    step_widget->hideDescription();
     static_cast<QVBoxLayout*>(steps_widget->layout())->insertWidget(i, step_widget);
     step_widget->setStep(plan_, i);
+    step_widget->hideDescription();
+}
+
+void PlanWidget::reuseStepWidget(size_t i)
+{
+    if (i < step_widgets.size()) {
+        step_widgets[i]->setStep(plan_, i);
+        step_widgets[i]->show();
+    } else
+        emplaceStepWidget(i);
 }
 
 void PlanWidget::displayCost()
@@ -222,10 +231,71 @@ void PlanWidget::displayCost()
     title_widget->cost_widget->setCost(plan_->game, plan_->costStep());
 }
 
+PlanWidget::ScrollState PlanWidget::scrollState()
+{
+    ScrollState result;
+    result.focus_widget = steps_widget->focusWidget();
+    if (plan_->steps.size() < 2)
+        return result;
+
+    result.y_diff = steps_scroll->verticalScrollBar()->value();
+
+    result.step_widget = result.focus_widget;
+    while (result.step_widget && !qobject_cast<StepWidget*>(result.step_widget))
+        result.step_widget = result.step_widget->parentWidget();
+
+    if (!result.step_widget) {
+        auto middle_y = std::min(steps_widget->height(),
+                                 steps_scroll->verticalScrollBar()->value()
+                                     + steps_scroll->height() / 2);
+        result.step_widget = steps_widget->childAt(0, middle_y);
+        if (!result.step_widget)
+            result.step_widget = step_widgets[plan_->steps.size() - 1];
+    }
+    result.y_diff -= result.step_widget->y();
+
+    return result;
+}
+
+void PlanWidget::restoreScrollState(const ScrollState& state)
+{
+    if (state.step_widget) {
+        QTimer::singleShot(0, this, [this, w = state.step_widget, yd = state.y_diff] {
+            steps_scroll->verticalScrollBar()->setValue(yd + w->y());
+        });
+    }
+}
+
+template<auto fun, typename... Args>
+void PlanWidget::applyResizeFunction(Args&&... args)
+{
+    auto state = scrollState();
+
+    for (size_t i = 0; i < plan_->steps.size(); ++i)
+        step_widgets[i]->hide();
+
+    bool size_changed = false;
+    for (size_t i = 0; i < plan_->steps.size(); ++i) {
+        size_changed |= (step_widgets[i]->*fun)(std::forward<Args>(args)...);
+        step_widgets[i]->show();
+    }
+
+    if (size_changed)
+        steps_widget->adjustSize();
+
+    restoreScrollState(state);
+    if (state.focus_widget)
+        state.focus_widget->setFocus();
+}
+
 void PlanWidget::updateCosts(bool current_updated)
 {
-    for (size_t i = 0; i < plan_->steps.size(); ++i)
-        step_widgets[i]->updateCost(current_updated);
+    if (current_updated && Settings::get<settings::windows_main_hide_not_used_items>())
+        applyResizeFunction<&StepWidget::updateCost>(true);
+    else {
+        for (size_t i = 0; i < plan_->steps.size(); ++i)
+            step_widgets[i]->updateCost(current_updated);
+    }
 }
 
 void PlanWidget::clear()
@@ -237,7 +307,6 @@ void PlanWidget::clear()
 
     setEnabled(false);
     plan_ = nullptr;
-    current_model = nullptr;
 
     title_widget->hide();
 
@@ -335,11 +404,11 @@ void PlanWidget::duplicateStep(size_t step_pos)
 {
     if (!plan_ || step_pos >= plan_->steps.size())
         return;
-
-    for (size_t i = step_pos + 1; i < plan_->steps.size(); ++i)
+    auto copy_pos = step_pos + 1;
+    for (size_t i = copy_pos; i < plan_->steps.size(); ++i)
         step_widgets[i]->updatePos(step_widgets[i]->stepPos() + 1);
 
-    auto step_it = plan_->steps.emplace(plan_->steps.begin() + step_pos + 1, plan_->steps[step_pos]);
+    auto step_it = plan_->steps.emplace(plan_->steps.begin() + copy_pos, plan_->steps[step_pos]);
     step_it->name += tr(" - Copy");
     plan_->setChanged();
 
@@ -348,13 +417,17 @@ void PlanWidget::duplicateStep(size_t step_pos)
     if (plan_->steps.size() < step_widgets.size()) {
         auto widget = step_widgets.back();
         step_widgets.pop_back();
-        step_widgets.insert(step_widgets.begin() + step_pos + 1, widget);
+        step_widgets.insert(step_widgets.begin() + copy_pos, widget);
         steps_widget->layout()->removeWidget(widget);
-        static_cast<QVBoxLayout*>(steps_widget->layout())->insertWidget(step_pos + 1, widget);
+        static_cast<QVBoxLayout*>(steps_widget->layout())->insertWidget(copy_pos, widget);
+        widget->setStep(plan_, copy_pos);
         widget->show();
-        widget->setStep(plan_, step_pos + 1);
     } else
-        emplaceStepWidget(step_pos + 1);
+        emplaceStepWidget(copy_pos);
+
+    QTimer::singleShot(0, this, [this, copy_pos] {
+        steps_scroll->ensureWidgetVisible(step_widgets[copy_pos], 0);
+    });
 }
 
 void PlanWidget::setFinalStep(size_t step_pos, bool checked)
@@ -384,7 +457,7 @@ void PlanWidget::scrollToStep(const QUuid& step_id)
         return;
 
     auto pos = std::distance(plan_->steps.cbegin(), it);
-    steps_scroll->ensureWidgetVisible(step_widgets[pos]);
+    steps_scroll->ensureWidgetVisible(step_widgets[pos], 0);
 }
 
 void PlanWidget::pasteStep(size_t step_pos)
@@ -392,8 +465,9 @@ void PlanWidget::pasteStep(size_t step_pos)
     if (!plan_ || !StepCopyState::haveCopy(plan_->game))
         return;
 
-    auto source_plan_it = current_model->plans.find(StepCopyState::state.plan_id);
-    if (source_plan_it == current_model->plans.end())
+    auto& plans = AppState::planModel(plan_->game)->plans;
+    auto source_plan_it = plans.find(StepCopyState::state.plan_id);
+    if (source_plan_it == plans.end())
         return;
     auto& source_plan = source_plan_it->second;
 
@@ -457,8 +531,8 @@ void PlanWidget::pasteStep(size_t step_pos)
             step_widgets.insert(step_widgets.begin() + i, widget);
             steps_widget->layout()->removeWidget(widget);
             static_cast<QVBoxLayout*>(steps_widget->layout())->insertWidget(i, widget);
-            widget->show();
             widget->setStep(plan_, i);
+            widget->show();
         }
     } else {
         for (size_t i = step_pos; i < step_pos + copy_size; ++i)
@@ -520,6 +594,8 @@ void PlanWidget::moveStep(size_t step_pos, bool up)
     if (!plan_ || step_pos >= plan_->steps.size())
         return;
 
+    auto widget_to_move = step_widgets[step_pos];
+
     size_t bottom_pos;
     if (up) {
         if (step_pos == 0)
@@ -551,10 +627,16 @@ void PlanWidget::moveStep(size_t step_pos, bool up)
     auto bottom_it_w = step_widgets.begin() + bottom_pos;
     std::iter_swap(it_w, bottom_it_w);
 
+    auto prev_y = widget_to_move->y();
     static_cast<QVBoxLayout*>(steps_widget->layout())->insertWidget(step_pos, bottom_widget);
     bool is_final_changed = plan_->finalStepId().isNull() && (bottom_it + 1) == plan_->steps.end();
     if (is_final_changed)
         updateDisplayedCost();
+
+    QTimer::singleShot(0, this, [this, widget_to_move, prev_y] {
+        steps_scroll->verticalScrollBar()->setValue(steps_scroll->verticalScrollBar()->value()
+                                                    + widget_to_move->y() - prev_y);
+    });
 }
 
 void PlanWidget::updateStepNames(size_t renamed_step)
@@ -680,8 +762,29 @@ void PlanWidget::openShoppingDialog()
 
 void PlanWidget::hideDescriptions()
 {
-    for (auto step : step_widgets)
-        step->hideDescription();
+    if (!plan_) {
+        for (auto step : step_widgets)
+            step->hideDescription();
+        return;
+    }
+
+    auto state = scrollState();
+
+    for (size_t i = 0; i < plan_->steps.size(); ++i)
+        step_widgets[i]->hide();
+
+    size_t i = 0;
+    for (; i < plan_->steps.size(); ++i) {
+        step_widgets[i]->hideDescription();
+        step_widgets[i]->show();
+    }
+    for (; i < step_widgets.size(); ++i)
+        step_widgets[i]->hideDescription();
+
+    steps_widget->adjustSize();
+    restoreScrollState(state);
+    if (state.focus_widget)
+        state.focus_widget->setFocus();
 }
 
 void PlanWidget::hideEmptyResources()
@@ -689,8 +792,7 @@ void PlanWidget::hideEmptyResources()
     if (!plan_)
         return;
 
-    for (size_t i = 0; i < plan_->steps.size(); ++i)
-        step_widgets[i]->hideEmptyResources();
+    applyResizeFunction<&StepWidget::hideEmptyResources>();
 }
 
 void PlanWidget::hideEmptyResults()
@@ -698,8 +800,7 @@ void PlanWidget::hideEmptyResults()
     if (!plan_)
         return;
 
-    for (size_t i = 0; i < plan_->steps.size(); ++i)
-        step_widgets[i]->hideEmptyResults();
+    applyResizeFunction<&StepWidget::hideEmptyResults>();
 }
 
 void PlanWidget::hideNotUsedItems()
@@ -707,8 +808,7 @@ void PlanWidget::hideNotUsedItems()
     if (!plan_)
         return;
 
-    for (size_t i = 0; i < plan_->steps.size(); ++i)
-        step_widgets[i]->hideNotUsedItems();
+    applyResizeFunction<&StepWidget::hideNotUsedItems>();
 }
 
 void PlanWidget::hideTitleCurrencyName()
@@ -758,16 +858,7 @@ void PlanWidget::setPlanOnUpdate(Plan& updated_plan)
     if (&updated_plan != plan_)
         return;
 
-    setPlan(current_model, &updated_plan, true);
-}
-
-void PlanWidget::checkDeletingItems(const QModelIndex& parent, int first, int last)
-{
-    auto model = static_cast<PlanModel*>(sender());
-    auto parent_item = model->internalPtr(parent);
-
-    if (checkDeletingPlans(*parent_item, first, last))
-        setPlan(model, nullptr);
+    setPlan(&updated_plan, true);
 }
 
 bool PlanWidget::checkDeletingPlans(const PlanItem& parent_item, int first, int last)
@@ -776,7 +867,16 @@ bool PlanWidget::checkDeletingPlans(const PlanItem& parent_item, int first, int 
            && parent_item.isDescendantDeleting(*plan_->item(), first, last);
 }
 
-void PlanWidget::setPlan(const PlanModel* model, Plan* plan, bool is_update)
+void PlanWidget::checkDeletingItems(const QModelIndex& parent, int first, int last)
+{
+    auto model = static_cast<PlanModel*>(sender());
+    auto parent_item = model->internalPtr(parent);
+
+    if (checkDeletingPlans(*parent_item, first, last))
+        setPlan(nullptr);
+}
+
+void PlanWidget::setPlan(Plan* plan, bool is_update)
 {
     if (shopping_setup && shopping_setup->isVisible())
         shopping_setup->reject();
@@ -790,11 +890,15 @@ void PlanWidget::setPlan(const PlanModel* model, Plan* plan, bool is_update)
         return;
     }
 
-    if (!is_update && plan_)
+    ScrollState state;
+    size_t step_count{};
+    if (is_update) {
+        state = scrollState();
+        step_count = plan_->steps.size();
+    } else if (plan_)
         setStepDescriptions();
 
     plan_ = plan;
-    current_model = model;
 
     setEnabled(true);
 
@@ -802,17 +906,18 @@ void PlanWidget::setPlan(const PlanModel* model, Plan* plan, bool is_update)
     if (!is_main)
         setWindowTitle(plan_->name + " - " APP_NAME);
 
-    size_t i = 0;
-    size_t steps_size = plan_->steps.size();
-    for (; i < step_widgets.size(); ++i) {
-        if (i < steps_size) {
-            step_widgets[i]->show();
-            step_widgets[i]->setStep(plan_, i);
-        } else
-            step_widgets[i]->hide();
+    for (auto w : step_widgets)
+        w->hide();
+
+    for (size_t i = 0; i < plan_->steps.size(); ++i)
+        reuseStepWidget(i);
+
+    steps_widget->adjustSize();
+    if (is_update && step_count == plan_->steps.size()) {
+        restoreScrollState(state);
+        if (state.focus_widget)
+            state.focus_widget->setFocus();
     }
-    for (; i < steps_size; ++i)
-        emplaceStepWidget(i);
 
     displayCost();
     displayFinalStep();

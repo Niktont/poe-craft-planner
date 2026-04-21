@@ -24,7 +24,7 @@ public:
     void setModel(QAbstractItemModel* model) override;
 
 signals:
-    void planSelected(planner::PlanModel& model, planner::Plan& plan);
+    void planSelected(planner::Plan& plan);
     void planWindowRequested(const QUuid& plan_id, planner::Game game);
 
 protected:
