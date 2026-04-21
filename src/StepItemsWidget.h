@@ -11,6 +11,7 @@ namespace planner {
 class StepItemView;
 class StepItemDelegate;
 class Plan;
+class Step;
 class PlanWidget;
 class StepItemModel;
 
@@ -70,6 +71,9 @@ private:
     StepItemDelegate* delegate;
 
     PlanWidget& plan_widget;
+
+    Step& step();
+    const Step& step() const { return const_cast<StepItemsWidget*>(this)->step(); }
 };
 
 } // namespace planner

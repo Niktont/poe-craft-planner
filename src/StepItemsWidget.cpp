@@ -27,6 +27,7 @@ ExpressionEdit::ExpressionEdit(std::optional<int> min_width,
         setMaximumWidth(*max_width);
 
     edit_action = addAction(tr("Edit"), {Qt::Key_F2}, this, &ExpressionEdit::editRequested);
+    edit_action->setShortcutContext(Qt::WidgetShortcut);
 
     connect(this, &QLineEdit::textChanged, this, &ExpressionEdit::adjustSize);
 }
@@ -53,6 +54,12 @@ void ExpressionEdit::adjustSize(const QString& new_text)
             setToolTip({});
     }
     setFixedWidth(width);
+}
+
+Step& StepItemsWidget::step()
+{
+    assert(plan);
+    return plan->steps[step_pos];
 }
 
 StepItemsWidget::StepItemsWidget(StepItemModel& model, PlanWidget& plan_widget, QWidget* parent)
@@ -86,8 +93,8 @@ StepItemsWidget::StepItemsWidget(StepItemModel& model, PlanWidget& plan_widget, 
             display_edit->clear();
             return;
         }
-        auto& custom = is_resources_widget ? plan->steps[step_pos].custom_resource_data
-                                           : plan->steps[step_pos].custom_result_data;
+        auto& custom = is_resources_widget ? step().custom_resource_data
+                                           : step().custom_result_data;
         if (auto text = display_edit->text().trimmed(); custom.text != text) {
             custom.text = text;
             custom.tree.reset();
@@ -111,8 +118,8 @@ void StepItemsWidget::openCustomEdit()
         return;
 
     auto& dialog = plan_widget.customEdit();
-    auto& custom_text = is_resources_widget ? plan->steps[step_pos].custom_resource_data.text
-                                            : plan->steps[step_pos].custom_result_data.text;
+    auto& custom_text = is_resources_widget ? step().custom_resource_data.text
+                                            : step().custom_result_data.text;
     dialog.openCustomEdit(custom_text);
     connect(
         &dialog,
@@ -122,8 +129,8 @@ void StepItemsWidget::openCustomEdit()
             if (!plan || result != QDialog::Accepted)
                 return;
 
-            auto& custom = is_resources_widget ? plan->steps[step_pos].custom_resource_data
-                                               : plan->steps[step_pos].custom_result_data;
+            auto& custom = is_resources_widget ? step().custom_resource_data
+                                               : step().custom_result_data;
             auto& dialog = plan_widget.customEdit();
             if (custom.text != dialog.custom_text) {
                 custom.text = dialog.custom_text;
@@ -141,8 +148,8 @@ void StepItemsWidget::openCustomEdit()
 
 void StepItemsWidget::updateCustomText()
 {
-    auto& text = is_resources_widget ? plan->steps[step_pos].custom_resource_data.text
-                                     : plan->steps[step_pos].custom_result_data.text;
+    auto& text = is_resources_widget ? step().custom_resource_data.text
+                                     : step().custom_result_data.text;
     display_edit->setText(text);
 }
 
@@ -159,13 +166,12 @@ void StepItemsWidget::setStep(Plan* plan_, size_t step_pos_)
     if (!plan)
         return;
 
-    auto& step = plan->steps[step_pos];
     if (is_resources_widget) {
-        method_combo->setCurrentIndex(static_cast<int>(step.resource_calc));
-        display_edit->setVisible(step.resource_calc == ResourceCalcMethod::Custom);
+        method_combo->setCurrentIndex(static_cast<int>(step().resource_calc));
+        display_edit->setVisible(step().resource_calc == ResourceCalcMethod::Custom);
     } else {
-        method_combo->setCurrentIndex(static_cast<int>(step.result_calc));
-        display_edit->setVisible(step.result_calc == ResultCalcMethod::Custom);
+        method_combo->setCurrentIndex(static_cast<int>(step().result_calc));
+        display_edit->setVisible(step().result_calc == ResultCalcMethod::Custom);
     }
     updateCustomText();
 }
@@ -177,15 +183,15 @@ void StepItemsWidget::setMethod(int index)
 
     if (is_resources_widget) {
         auto method = static_cast<ResourceCalcMethod>(index);
-        if (method != plan->steps[step_pos].resource_calc) {
-            plan->steps[step_pos].resource_calc = method;
+        if (method != step().resource_calc) {
+            step().resource_calc = method;
             plan->setChanged();
             display_edit->setVisible(method == ResourceCalcMethod::Custom);
         }
     } else {
         auto method = static_cast<ResultCalcMethod>(index);
-        if (method != plan->steps[step_pos].result_calc) {
-            plan->steps[step_pos].result_calc = method;
+        if (method != step().result_calc) {
+            step().result_calc = method;
             plan->setChanged();
             display_edit->setVisible(method == ResultCalcMethod::Custom);
         }
