@@ -475,47 +475,54 @@ void PlanWidget::pasteStep(size_t step_pos)
     if (source_step_it == source_plan.steps.cend())
         return;
 
-    std::set<Plan::Steps::const_iterator> steps_to_copy;
-    auto add_step_item = [&](const auto& add_step, const StepItem& item) {
-        if (auto step_item = item.step()) {
-            auto it = source_plan.findStepIt(step_item->step_id);
-            if (it == source_plan.steps.cend())
-                return;
-            add_step(add_step, it);
-        }
-    };
-    auto add_step = [&](const auto& self, Plan::Steps::const_iterator step_it) {
-        if (!steps_to_copy.emplace(step_it).second)
-            return;
-
-        for (auto& item : step_it->resources)
-            add_step_item(self, item);
-        for (auto& item : step_it->results)
-            add_step_item(self, item);
-    };
-    add_step(add_step, source_step_it);
-
     step_pos = std::min(step_pos, plan_->steps.size());
-    auto copy_size = steps_to_copy.size();
-    for (size_t i = step_pos; i < plan_->steps.size(); ++i)
-        step_widgets[i]->updatePos(step_widgets[i]->stepPos() + copy_size);
-
-    std::vector<Step> copied_steps;
-    copied_steps.reserve(copy_size);
-    boost::container::flat_map<QUuid, QUuid> changed_ids;
-    for (auto& it : steps_to_copy) {
-        auto id_it = changed_ids.try_emplace(it->id).first;
-        id_it->second = copied_steps.emplace_back(*it).id;
-    }
-    for (auto& step : copied_steps) {
-        step.updateIds(changed_ids);
-        step.name = step.name + tr(" - Copy");
-    }
-
     bool is_last_changed = step_pos == plan_->steps.size();
-    auto move_begin = std::move_iterator(copied_steps.begin());
-    auto move_end = std::move_iterator(copied_steps.end());
-    plan_->steps.insert(plan_->steps.begin() + step_pos, move_begin, move_end);
+
+    size_t copy_size;
+    if (&source_plan_it->second != plan_) {
+        std::set<Plan::Steps::const_iterator> steps_to_copy;
+        auto add_step_item = [&](const auto& add_step, const StepItem& item) {
+            if (auto step_item = item.step()) {
+                auto it = source_plan.findStepIt(step_item->step_id);
+                if (it == source_plan.steps.cend())
+                    return;
+                add_step(add_step, it);
+            }
+        };
+        auto add_step = [&](const auto& self, Plan::Steps::const_iterator step_it) {
+            if (!steps_to_copy.emplace(step_it).second)
+                return;
+
+            for (auto& item : step_it->resources)
+                add_step_item(self, item);
+            for (auto& item : step_it->results)
+                add_step_item(self, item);
+        };
+        add_step(add_step, source_step_it);
+
+        copy_size = steps_to_copy.size();
+        for (size_t i = step_pos; i < plan_->steps.size(); ++i)
+            step_widgets[i]->updatePos(step_widgets[i]->stepPos() + copy_size);
+
+        std::vector<Step> copied_steps;
+        copied_steps.reserve(copy_size);
+        boost::container::flat_map<QUuid, QUuid> changed_ids;
+        for (auto& it : steps_to_copy) {
+            auto id_it = changed_ids.try_emplace(it->id).first;
+            id_it->second = copied_steps.emplace_back(*it).id;
+        }
+        for (auto& step : copied_steps) {
+            step.updateIds(changed_ids);
+            step.name = step.name + tr(" - Copy");
+        }
+        auto move_begin = std::move_iterator(copied_steps.begin());
+        auto move_end = std::move_iterator(copied_steps.end());
+        plan_->steps.insert(plan_->steps.begin() + step_pos, move_begin, move_end);
+    } else {
+        copy_size = 1;
+        auto it = plan_->steps.insert(plan_->steps.begin() + step_pos, *source_step_it);
+        it->name = it->name + tr(" - Copy");
+    }
     plan_->setChanged();
 
     if (step_pos > 0) {
