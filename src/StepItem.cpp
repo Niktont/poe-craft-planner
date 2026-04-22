@@ -1,7 +1,5 @@
 #include "StepItem.h"
 #include "ExchangeRequestCache.h"
-#include "Plan.h"
-#include "PlanModel.h"
 #include "StepItemModel.h"
 #include "TradeRequestCache.h"
 
@@ -19,62 +17,6 @@ const QStringList& StepItem::typeList()
         StepItemModel::tr("Plan"),
     };
     return list;
-}
-
-std::optional<ItemCost> StepItem::calculateCost(const Plan& step_plan,
-                                                const ExchangeRequestCache& exchange_cache,
-                                                const TradeRequestCache& trade_cache,
-                                                const PlanModel& plan_model) const
-{
-    if (amount <= 0.0)
-        return {};
-
-    ItemCost result;
-    if (auto exchange = this->exchange()) {
-        result.cost_in_primary = exchange_cache.convertToPrimary(exchange->currency);
-        if (result.cost_in_primary.value == 0.0)
-            return {};
-
-        auto data_it = exchange_cache.currencyData(exchange->currency);
-        if (data_it != exchange_cache.cache.end())
-            result.gold = data_it->second.gold_fee;
-
-        result.time = exchange_cache.time(*exchange);
-    } else if (auto trade = this->trade()) {
-        if (auto costData = trade_cache.costData(trade->request_key)) {
-            result.cost_in_primary = exchange_cache.convertToPrimary(costData->cost.currency);
-            result.cost_in_primary.value *= costData->cost.value;
-            result.gold = costData->gold_fee;
-            result.time = trade_cache.time(*trade);
-        } else
-            return {};
-    } else if (auto custom = this->custom()) {
-        result.cost_in_primary = exchange_cache.convertToPrimary(custom->cost.currency);
-        result.cost_in_primary.value *= custom->cost.value;
-        result.gold = custom->gold;
-        result.time = custom->time;
-    } else if (auto step = this->step()) {
-        if (auto plan_step = step_plan.findStep(step->step_id); plan_step)
-            result = plan_step->cost();
-        else
-            return {};
-    } else if (auto plan = this->plan()) {
-        if (auto it = plan_model.plans.find(plan->plan_id); it != plan_model.plans.end()) {
-            if (auto cost_step = it->second.costStep())
-                result = cost_step->cost();
-            else
-                return {};
-        } else
-            return {};
-    }
-
-    if (!result.isValid() && result.gold == 0.0 && result.time.count() == 0.0)
-        return {};
-
-    result.cost_in_primary.value *= amount;
-    result.gold *= amount;
-    result.time *= amount;
-    return result;
 }
 
 StepItem::StepItem(const QJsonObject& item_o, const ExchangeRequestCache& cache)

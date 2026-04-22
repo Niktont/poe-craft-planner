@@ -17,7 +17,7 @@ public:
 
     bool isValid() const
     {
-        return cost_in_primary.value != 0.0 && cost_in_primary.currency.isValid();
+        return !qFuzzyIsNull(cost_in_primary.value) && cost_in_primary.currency.isValid();
     }
     QJsonObject toJson() const;
     static ItemCost fromJson(const QJsonObject& cost_o, const ExchangeRequestCache& cache);

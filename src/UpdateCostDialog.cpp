@@ -148,22 +148,23 @@ void UpdateCostDialog::startUpdate(bool send_requests)
     }
 
     bool trade_finished = trade_requester->requests.empty();
+    bool exchange_finished = exchange_requester->requests.empty();
+    if (trade_finished && exchange_finished) {
+        calculateCost();
+        return;
+    }
+
     if (!trade_finished) {
         checkCurrency({"chaos"}, now, *exchange_cache);
         trade_requester->startRequests();
     }
 
-    bool exchange_finished = exchange_requester->requests.empty();
     if (!exchange_finished)
         exchange_requester->startRequests();
 
-    if (trade_finished && exchange_finished)
-        calculateCost();
-    else {
-        cancel_button->setText(tr("Cancel"));
-        progress_label->setText(tr("Requesting data..."));
-        show();
-    }
+    cancel_button->setText(tr("Cancel"));
+    progress_label->setText(tr("Requesting data..."));
+    show();
 }
 
 void UpdateCostDialog::checkCurrency(const Currency& currency,
@@ -232,7 +233,12 @@ void UpdateCostDialog::calculateCost()
     if (!isUpdateActive())
         return;
 
+    auto trade_cache = AppState::tradeCache(game_);
+    auto exchange_cache = AppState::exchangeCache(game_);
     auto plan_model = AppState::planModel(game_);
+
+    auto& cost_visitor = AppState::state.custom_calc->visitor.cost_visitor;
+    cost_visitor.setModels(*exchange_cache, *trade_cache, *plan_model);
 
     std::vector<std::pair<Plan*, bool>> plans;
     for (auto& id : std::views::reverse(dependencies)) {
@@ -292,13 +298,9 @@ void UpdateCostDialog::calculateCost()
 
 bool UpdateCostDialog::calculateStepCost(const Plan& step_plan, Step& step)
 {
-    auto trade_cache = AppState::tradeCache(step_plan.game);
-    auto exchange_cache = AppState::exchangeCache(step_plan.game);
-    auto plan_model = AppState::planModel(step_plan.game);
-
-    auto& custom_visitor = AppState::state.custom_calc->visitor;
-    custom_visitor.setPlan(step_plan);
-    custom_visitor.setModels(*exchange_cache, *trade_cache, *plan_model);
+    auto& cost_visitor = AppState::state.custom_calc->visitor.cost_visitor;
+    cost_visitor.setPlan(step_plan);
+    cost_visitor.setIsResource(true);
 
     if (step.resource_calc == ResourceCalcMethod::Custom) {
         if (!calculateStepCustomCost(true, step_plan, step))
@@ -306,11 +308,7 @@ bool UpdateCostDialog::calculateStepCost(const Plan& step_plan, Step& step)
     } else {
         std::vector<std::optional<ItemCost>> resources_cost;
         for (auto& item : step.resources) {
-            item.not_used = !resources_cost
-                                 .emplace_back(item.calculateCost(step_plan,
-                                                                  *exchange_cache,
-                                                                  *trade_cache,
-                                                                  *plan_model))
+            item.not_used = !resources_cost.emplace_back(cost_visitor.calculateCost(item))
                                  .has_value();
         }
 
@@ -339,24 +337,13 @@ bool UpdateCostDialog::calculateStepCost(const Plan& step_plan, Step& step)
         }
     }
 
+    cost_visitor.setIsResource(false);
     std::vector<std::pair<std::optional<ItemCost>, bool>> results_cost;
-    auto calcResult = [&](const StepItem& item) -> std::optional<ItemCost>& {
+    auto calcResult = [&](StepItem& item) {
         auto& cost = results_cost
-                         .emplace_back(item.calculateCost(step_plan,
-                                                          *exchange_cache,
-                                                          *trade_cache,
-                                                          *plan_model),
-                                       item.is_success_result)
+                         .emplace_back(cost_visitor.calculateCost(item), item.is_success_result)
                          .first;
-        if (cost && item.type() != StepItemType::Step && item.type() != StepItemType::Plan) {
-            if (!cost->isValid())
-                cost.reset();
-            else {
-                cost->gold = 0.0;
-                cost->time = {};
-            }
-        }
-        return cost;
+        item.not_used = !cost.has_value();
     };
 
     if (step.result_calc == ResultCalcMethod::Custom) {
@@ -368,15 +355,11 @@ bool UpdateCostDialog::calculateStepCost(const Plan& step_plan, Step& step)
                 results_cost.emplace_back(std::optional<ItemCost>{}, true);
                 continue;
             }
-            auto& cost = calcResult(item);
-            if (item.not_used)
-                item.not_used = !cost.has_value();
+            calcResult(item);
         }
     } else {
-        for (auto& item : step.results) {
-            auto& cost = calcResult(item);
-            item.not_used = !cost.has_value();
-        }
+        for (auto& item : step.results)
+            calcResult(item);
 
         auto hasSuccess = [](auto& p) { return p.first.has_value() && p.second; };
         auto resultValue = [](auto& p) { return *p.first; };
@@ -420,7 +403,7 @@ bool UpdateCostDialog::calculateStepCustomCost(bool is_resource_cost,
     auto& items = is_resource_cost ? step.resources : step.results;
     auto& custom_data = is_resource_cost ? step.custom_resource_data : step.custom_result_data;
 
-    AppState::state.custom_calc->visitor.setItems(items);
+    AppState::state.custom_calc->visitor.setItems(items, is_resource_cost);
 
     auto result = AppState::state.custom_calc->calculate(custom_data);
     if (!result) {

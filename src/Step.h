@@ -10,6 +10,8 @@
 #include <QUuid>
 
 namespace planner {
+class PlanModel;
+
 enum class ResourceCalcMethod {
     Sum,
     Min,

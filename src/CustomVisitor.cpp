@@ -1,7 +1,87 @@
 #include "CustomVisitor.h"
+#include "Plan.h"
+#include "PlanModel.h"
+#include "Step.h"
 #include "StepItem.h"
+#include "TradeRequestCache.h"
 
 namespace planner {
+
+ItemCostVisitor::result_type ItemCostVisitor::operator()(const ExchangeItemData& data) const
+{
+    ItemCost cost;
+    cost.cost_in_primary = exchange_cache->convertToPrimary(data.currency);
+    if (cost.cost_in_primary.value == 0.0)
+        return {};
+
+    if (is_resource) {
+        auto data_it = exchange_cache->currencyData(data.currency);
+        if (data_it != exchange_cache->cache.end())
+            cost.gold = data_it->second.gold_fee;
+
+        cost.time = exchange_cache->time(data);
+    }
+    return cost;
+}
+
+ItemCostVisitor::result_type ItemCostVisitor::operator()(const TradeItemData& data) const
+{
+    auto cost_data = trade_cache->costData(data.request_key);
+    if (!cost_data)
+        return {};
+
+    ItemCost cost;
+    cost.cost_in_primary = exchange_cache->convertToPrimary(cost_data->cost.currency);
+    cost.cost_in_primary.value *= cost_data->cost.value;
+    if (is_resource) {
+        cost.gold = cost_data->gold_fee;
+        cost.time = trade_cache->time(data);
+    }
+    return cost;
+}
+
+ItemCostVisitor::result_type ItemCostVisitor::operator()(const CustomItemData& data) const
+{
+    ItemCost cost;
+    cost.cost_in_primary = exchange_cache->convertToPrimary(data.cost.currency);
+    cost.cost_in_primary.value *= data.cost.value;
+    if (is_resource) {
+        cost.gold = data.gold;
+        cost.time = data.time;
+    }
+    return cost;
+}
+
+ItemCostVisitor::result_type ItemCostVisitor::operator()(const StepItemData& data) const
+{
+    if (auto plan_step = plan->findStep(data.step_id))
+        return plan_step->cost();
+    return {};
+}
+
+ItemCostVisitor::result_type ItemCostVisitor::operator()(const PlanItemData& data) const
+{
+    if (auto it = model->plans.find(data.plan_id); it != model->plans.end()) {
+        if (auto cost_step = it->second.costStep())
+            return cost_step->cost();
+    }
+    return {};
+}
+
+ItemCostVisitor::result_type ItemCostVisitor::calculateCost(const StepItem& item) const
+{
+    if (item.amount <= 0.0)
+        return {};
+
+    auto cost = std::visit(*this, item.data);
+    if (!cost || (!cost->isValid() && cost->gold == 0.0 && cost->time.count() == 0.0))
+        return {};
+
+    cost->cost_in_primary.value *= item.amount;
+    cost->gold *= item.amount;
+    cost->time *= item.amount;
+    return cost;
+}
 
 using result_type = CustomVisitor::result_type;
 result_type CustomVisitor::operator()(const custom_tree::Item& item)
@@ -11,7 +91,7 @@ result_type CustomVisitor::operator()(const custom_tree::Item& item)
     if (i >= items->size())
         return result;
 
-    result.cost = (*items)[i].calculateCost(*plan, *exchange_cache, *trade_cache, *model);
+    result.cost = cost_visitor.calculateCost((*items)[i]);
     if (result.cost)
         result.used_items.insert(i);
 

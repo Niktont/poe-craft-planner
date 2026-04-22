@@ -3,17 +3,14 @@
 
 #include "CustomItemData.h"
 #include "ExchangeItemData.h"
-#include "ItemCost.h"
 #include "PlanItemData.h"
 #include "StepItemData.h"
 #include "TradeItemData.h"
 #include <variant>
 
 namespace planner {
-class Plan;
 class ExchangeRequestCache;
 class TradeRequestCache;
-class PlanModel;
 
 enum class StepItemType {
     Exchange,
@@ -59,11 +56,6 @@ public:
 
     PlanItemData* plan() { return std::get_if<PlanItemData>(&data); }
     const PlanItemData* plan() const { return std::get_if<PlanItemData>(&data); }
-
-    std::optional<ItemCost> calculateCost(const Plan& step_plan,
-                                          const ExchangeRequestCache& exchange_cache,
-                                          const TradeRequestCache& trade_cache,
-                                          const PlanModel& plan_model) const;
 };
 
 } // namespace planner
