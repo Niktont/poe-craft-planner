@@ -139,15 +139,6 @@ void PlanWidget::connectSignals()
             this,
             &PlanWidget::setDescriptions);
 
-    connect(AppState::state.plan_model_poe1,
-            &PlanModel::planSaved,
-            this,
-            &PlanWidget::resetDescriptionChange);
-    connect(AppState::state.plan_model_poe2,
-            &PlanModel::planSaved,
-            this,
-            &PlanWidget::resetDescriptionChange);
-
     connect(AppState::state.trade_cache_poe1,
             &TradeRequestCache::rowsAboutToBeRemoved,
             this,
@@ -675,15 +666,6 @@ void PlanWidget::updatePlanName(const Plan& renamed_plan)
 
     for (size_t i = 0; i < plan_->steps.size(); ++i)
         step_widgets[i]->updatePlanName(renamed_plan.id());
-}
-
-void PlanWidget::resetDescriptionChange(Game game, const Plan* plan)
-{
-    if (!plan_ || plan_->game != game || (plan && plan_ != plan))
-        return;
-
-    for (size_t i = 0; i < plan_->steps.size(); ++i)
-        step_widgets[i]->resetDescriptionChange();
 }
 
 void PlanWidget::updateTradeRequests(const QModelIndex& top_left, const QModelIndex& bottom_right)

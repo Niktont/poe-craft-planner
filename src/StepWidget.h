@@ -42,7 +42,6 @@ public:
     void setFinal(bool checked);
 
     void setDescription();
-    void resetDescriptionChange() { is_description_changed = false; }
 
     void hideDescription();
     bool hideEmptyResources();

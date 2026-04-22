@@ -236,6 +236,7 @@ void StepWidget::setDescription()
         return;
 
     currentStep().description = description->edit->toPlainText();
+    is_description_changed = false;
 }
 
 void StepWidget::hideDescription()
