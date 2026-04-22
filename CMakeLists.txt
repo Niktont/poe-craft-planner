@@ -15,6 +15,12 @@ endif()
 
 find_package(Boost REQUIRED)
 
+include(CheckIPOSupported)
+check_ipo_supported(RESULT result OUTPUT output)
+if(result)
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
+endif()
+
 qt_standard_project_setup()
 
 add_subdirectory(DataUpdater EXCLUDE_FROM_ALL)

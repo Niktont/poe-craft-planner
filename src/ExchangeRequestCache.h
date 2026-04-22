@@ -55,6 +55,8 @@ public:
 
     bool saveCache() const;
     void updateLeagues(const QStringList& new_leagues, const QStringList& urls);
+    void initIcons();
+
     bool saveCostCache() const;
 
     const ExchangeCostData* costData() const;
@@ -93,6 +95,7 @@ public:
     Qt::ItemFlags flags(const QModelIndex& index) const override;
 
     static const QString div_card_icon_id;
+    const QString& divCardType() const { return div_card_type; }
 
 signals:
     void defaultTimeChanged(const planner::Currency& currency);

@@ -218,6 +218,15 @@ void ExchangeRequestCache::updateLeagues(const QStringList& new_leagues, const Q
     saveCostCache();
 }
 
+void ExchangeRequestCache::initIcons()
+{
+    for (auto& [id, exchange_data] : cache) {
+        if (exchange_data.type != div_card_type && exchange_data.icon.isNull())
+            exchange_data.icon = QIcon{iconFileName(game, id)};
+    }
+    div_card_icon = QIcon{iconFileName(div_card_icon_id)};
+}
+
 bool ExchangeRequestCache::saveCostCache() const
 {
     auto db = QSqlDatabase::database();

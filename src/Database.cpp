@@ -264,9 +264,10 @@ bool Database::exchangeCacheFromQuery(const QSqlQuery& query, ExchangeRequestCac
     auto default_time = query.value(++i);
     if (!default_time.isNull())
         exchange_data.second.default_time = ItemTime(default_time.toDouble());
-
-    exchange_data.second.icon = QIcon{
-        ExchangeRequestCache::iconFileName(cache.game, exchange_data.first)};
+    if (exchange_data.second.type != cache.divCardType()) {
+        exchange_data.second.icon = QIcon{
+            ExchangeRequestCache::iconFileName(cache.game, exchange_data.first)};
+    }
 
     cache.shareCurrencyType(exchange_data.second.type);
     cache.cache.emplace_hint(cache.cache.end(), std::move(exchange_data));

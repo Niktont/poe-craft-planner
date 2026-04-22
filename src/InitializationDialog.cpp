@@ -82,6 +82,7 @@ InitializationDialog::InitializationDialog(MainWindow& mw)
     continue_button->setDefault(true);
     continue_button->setAutoDefault(true);
 
+    progress_label->setText(tr("Initializing database..."));
     QTimer::singleShot(0, this, &InitializationDialog::initDatabase);
 }
 
@@ -96,9 +97,6 @@ void InitializationDialog::closeEvent(QCloseEvent* event)
 
 void InitializationDialog::initDatabase()
 {
-    progress_label->setText(tr("Initializing database..."));
-    qApp->processEvents();
-
     bool result = Database::initConnection();
     result = result && Database::initAddConnection();
 
@@ -124,7 +122,7 @@ void InitializationDialog::initDatabase()
     }
 
     progress_label->setText(tr("Reading data..."));
-    QTimer::singleShot(1, this, &InitializationDialog::readDatabase);
+    QTimer::singleShot(0, this, &InitializationDialog::readDatabase);
 }
 
 void InitializationDialog::readDatabase()
@@ -173,11 +171,6 @@ void InitializationDialog::requestLeagues()
 
 void InitializationDialog::parseLeagues(Game game, QNetworkReply* reply)
 {
-    if (game == Game::Poe1)
-        request_finished_poe1 = true;
-    else
-        request_finished_poe2 = true;
-
     QRestReply rest(reply);
     if (!rest.isSuccess()) {
         progress_label->setText(tr("Failed to request leagues."));
@@ -192,24 +185,24 @@ void InitializationDialog::parseLeagues(Game game, QNetworkReply* reply)
         return;
     }
 
+    if (game == Game::Poe1) {
+        request_finished_poe1 = true;
+        league_urls_poe1 = std::move(urls);
+    } else {
+        request_finished_poe2 = true;
+        league_urls_poe2 = std::move(urls);
+    }
+
     auto& leagues = game == Game::Poe1 ? leagues_poe1 : leagues_poe2;
-    auto& league_urls = game == Game::Poe1 ? league_urls_poe1 : league_urls_poe2;
     leagues = std::move(names);
-    league_urls = std::move(urls);
 
     auto cache = AppState::exchangeCache(game);
-    bool is_leagues_changed{false};
-    for (auto& league : std::as_const(leagues)) {
-        if (!cache->cost_cache.contains(league)) {
-            is_leagues_changed = true;
-            break;
-        }
-    }
-    if (!is_leagues_changed) {
-        auto currentLeague = Settings::currentLeague(game);
-        if (!leagues.contains(currentLeague))
-            is_leagues_changed = true;
-    }
+    bool is_leagues_changed = (std::ranges::find_if(leagues,
+                                                    [&](const auto& l) {
+                                                        return !cache->cost_cache.contains(l);
+                                                    })
+                               != leagues.end())
+                              || !leagues.contains(Settings::currentLeague(game));
 
     auto combo = game == Game::Poe1 ? league_combo_poe1 : league_combo_poe2;
     if (is_leagues_changed) {
@@ -327,19 +320,13 @@ void InitializationDialog::finishInitialization()
         AppState::state.exchange_cache_poe1->saveCache();
         AppState::state.exchange_cache_poe1->saveCostCache();
         Settings::set<Settings::poe1_init_needed>(false);
-        for (auto& [id, exchange_data] : AppState::state.exchange_cache_poe1->cache) {
-            if (exchange_data.icon.isNull())
-                exchange_data.icon = QIcon{ExchangeRequestCache::iconFileName(Game::Poe1, id)};
-        }
+        AppState::state.exchange_cache_poe1->initIcons();
     }
     if (is_data_needed_poe2) {
         AppState::state.exchange_cache_poe2->saveCache();
         AppState::state.exchange_cache_poe2->saveCostCache();
         Settings::set<Settings::poe2_init_needed>(false);
-        for (auto& [id, exchange_data] : AppState::state.exchange_cache_poe2->cache) {
-            if (exchange_data.icon.isNull())
-                exchange_data.icon = QIcon{ExchangeRequestCache::iconFileName(Game::Poe2, id)};
-        }
+        AppState::state.exchange_cache_poe2->initIcons();
     }
 
     accept();
