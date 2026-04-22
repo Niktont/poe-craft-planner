@@ -91,7 +91,7 @@ void QueryParser::parseFilterGroup(ParsedQuery& result,
         if (auto min_v = filter_o["min"]; !min_v.isUndefined())
             filter.min = min_v.toDouble();
         if (auto max_v = filter_o["max"]; !max_v.isUndefined() && !max_v.isNull())
-            filter.min = max_v.toDouble();
+            filter.max = max_v.toDouble();
     }
 }
 
@@ -146,7 +146,7 @@ void QueryParser::parseStat(std::vector<ParsedQuery::Stat>& group_stats,
     if (auto min_v = value_o["min"]; !min_v.isUndefined())
         stat.min = min_v.toDouble();
     if (auto max_v = value_o["max"]; !max_v.isUndefined())
-        stat.min = max_v.toDouble();
+        stat.max = max_v.toDouble();
 }
 
 QString ParsedQuery::toString(const QueryParser& parser) const
