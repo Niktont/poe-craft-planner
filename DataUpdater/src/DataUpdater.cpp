@@ -155,6 +155,21 @@ void DataUpdater::nextLang()
     }
 }
 
+std::optional<QJsonDocument> DataUpdater::readJson(QRestReply& reply)
+{
+    if (!reply.isSuccess()) {
+        qWarning() << QString{"Request failed for " % languages[lang]};
+        nextLang();
+        return {};
+    }
+    auto json = reply.readJson();
+    if (!json) {
+        qWarning() << QString{"No json for " % languages[lang]};
+        nextLang();
+    }
+    return json;
+}
+
 const QString DataUpdater::user_agent{
     u"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
     " (KHTML, like Gecko) PoeCraftPlanner/"_s
@@ -195,15 +210,9 @@ void DataUpdater::getData()
 
 void DataUpdater::parseStaticData(QRestReply& reply)
 {
-    if (!reply.isSuccess()) {
-        qWarning() << QString{"Request failed for " % languages[lang]};
-        nextLang();
-    }
-    auto json = reply.readJson();
-    if (!json) {
-        qWarning() << QString{"No json for " % languages[lang]};
-        nextLang();
-    }
+    auto json = readJson(reply);
+    if (!json)
+        return;
 
     auto db = QSqlDatabase::database();
     db.transaction();
@@ -248,15 +257,9 @@ void DataUpdater::parseStaticData(QRestReply& reply)
 
 void DataUpdater::parseFiltersData(QRestReply& reply)
 {
-    if (!reply.isSuccess()) {
-        qWarning() << QString{"Request failed for " % languages[lang]};
-        nextLang();
-    }
-    auto json = reply.readJson();
-    if (!json) {
-        qWarning() << QString{"No json for " % languages[lang]};
-        nextLang();
-    }
+    auto json = readJson(reply);
+    if (!json)
+        return;
 
     auto db = QSqlDatabase::database();
     db.transaction();
@@ -317,15 +320,9 @@ void DataUpdater::parseFiltersData(QRestReply& reply)
 
 void DataUpdater::parseStatsData(QRestReply& reply)
 {
-    if (!reply.isSuccess()) {
-        qWarning() << QString{"Request failed for " % languages[lang]};
-        nextLang();
-    }
-    auto json = reply.readJson();
-    if (!json) {
-        qWarning() << QString{"No json for " % languages[lang]};
-        nextLang();
-    }
+    auto json = readJson(reply);
+    if (!json)
+        return;
 
     auto db = QSqlDatabase::database();
     db.transaction();

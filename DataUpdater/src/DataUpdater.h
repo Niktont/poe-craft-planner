@@ -1,6 +1,7 @@
 #ifndef DATAUPDATER_H
 #define DATAUPDATER_H
 
+#include <QJsonDocument>
 #include <QObject>
 #include <QSqlQuery>
 
@@ -48,6 +49,8 @@ public:
     static QSqlQuery insertStatType(Game game, QStringView lang);
 
     static const QString user_agent;
+
+    std::optional<QJsonDocument> readJson(QRestReply& reply);
     void nextLang();
 
 public slots:
