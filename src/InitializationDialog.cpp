@@ -112,7 +112,10 @@ void InitializationDialog::initDatabase()
     result = result && Database::createSnapshotTable(Game::Poe1);
     result = result && Database::createSnapshotTable(Game::Poe2);
 
-    result = result && Database::updateInfo(Database::db_version_key, Database::db_version);
+    auto db_version = Database::selectInfo(Database::db_version_key).toInt();
+    if (db_version != Database::db_version) {
+        result = result && Database::updateInfo(Database::db_version_key, Database::db_version);
+    }
 
     if (!result) {
         progress_label->setText(tr("Database initialization failed."));
