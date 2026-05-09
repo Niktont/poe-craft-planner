@@ -1,5 +1,6 @@
 #include "StepItemModel.h"
 #include "AppState.h"
+#include "ArithmeticCalculation.h"
 #include "ExchangeRequestCache.h"
 #include "Plan.h"
 #include "PlanModel.h"
@@ -227,7 +228,7 @@ QVariant StepItemModel::data(const QModelIndex& index, int role) const
         case Qt::DisplayRole:
             return QString::number(item.amount);
         case Qt::EditRole:
-            return item.amount;
+            return QString::number(item.amount, 'f', QLocale::FloatingPointShortest);
         case Qt::TextAlignmentRole:
             return QVariant{Qt::AlignRight | Qt::AlignVCenter};
         }
@@ -310,18 +311,13 @@ bool StepItemModel::setData(const QModelIndex& index, const QVariant& value, int
 
     switch (col) {
     case StepItemColumn::Amount: {
-        if (!value.canConvert<double>())
+        auto val = AppState::state.arithmetic_calc->calculate(value.toString());
+        if (!val || *val < 0.0 || *val == item.amount)
             return false;
-        auto val = value.toDouble();
-        if (val < 0.0)
-            return false;
-        if (val != item.amount) {
-            item.amount = val;
-            plan_->setChanged();
-            emit dataChanged(index, index, {Qt::DisplayRole});
-            return true;
-        }
-        return false;
+        item.amount = *val;
+        plan_->setChanged();
+        emit dataChanged(index, index, {Qt::DisplayRole});
+        return true;
     }
     default:
         break;
@@ -728,19 +724,19 @@ bool StepItemModel::setExchangeItemData(ExchangeItemData& exchange,
     case StepItemColumn::Time: {
         auto str = value.toString();
         if (str.isEmpty()) {
+            if (!exchange.time)
+                return false;
             exchange.time.reset();
             emit dataChanged(idx, idx, {Qt::DisplayRole});
             return true;
         }
-        if (auto val = str.toDouble(); val >= 0.0) {
-            auto currentTime = exchange_cache->time(exchange);
-            if (currentTime.count() != val) {
-                exchange.time = ItemTime{val};
-                emit dataChanged(idx, idx, {Qt::DisplayRole});
-                return true;
-            }
-        }
-        return false;
+
+        auto val = AppState::state.arithmetic_calc->calculate(str);
+        if (!val || *val < 0.0 || *val == exchange_cache->time(exchange).count())
+            return false;
+        exchange.time = ItemTime{*val};
+        emit dataChanged(idx, idx, {Qt::DisplayRole});
+        return true;
     }
     default:
         return false;
@@ -880,19 +876,19 @@ bool StepItemModel::setTradeItemData(TradeItemData& trade,
     case StepItemColumn::Time: {
         auto str = value.toString();
         if (str.isEmpty()) {
+            if (!trade.time)
+                return false;
             trade.time.reset();
             emit dataChanged(idx, idx, {Qt::DisplayRole});
             return true;
         }
-        if (auto val = str.toDouble(); val >= 0.0) {
-            auto currentTime = trade_cache->time(trade);
-            if (currentTime.count() != val) {
-                trade.time = ItemTime{val};
-                emit dataChanged(idx, idx, {Qt::DisplayRole});
-                return true;
-            }
-        }
-        return false;
+
+        auto val = AppState::state.arithmetic_calc->calculate(str);
+        if (!val || *val < 0.0 || *val == trade_cache->time(trade).count())
+            return false;
+        trade.time = ItemTime{*val};
+        emit dataChanged(idx, idx, {Qt::DisplayRole});
+        return true;
     }
     default:
         return false;
@@ -961,7 +957,7 @@ QVariant StepItemModel::customItemData(double amount,
         case Qt::DisplayRole:
             return formatTime(custom.time);
         case Qt::EditRole:
-            return custom.time.count();
+            return QString::number(custom.time.count());
         }
         return {};
     default:
@@ -1007,13 +1003,14 @@ bool StepItemModel::setCustomItemData(CustomItemData& custom,
             return true;
         }
         return false;
-    case StepItemColumn::Time:
-        if (auto val = value.toDouble(); val >= 0.0) {
-            custom.time = ItemTime{val};
-            emit dataChanged(idx, idx, {Qt::DisplayRole});
-            return true;
-        }
-        return false;
+    case StepItemColumn::Time: {
+        auto val = AppState::state.arithmetic_calc->calculate(value.toString());
+        if (!val || *val < 0.0 || *val == custom.time.count())
+            return false;
+        custom.time = ItemTime{*val};
+        emit dataChanged(idx, idx, {Qt::DisplayRole});
+        return true;
+    }
     default:
         return false;
     }

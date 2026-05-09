@@ -109,6 +109,10 @@ qt_add_executable(${PROJECT_NAME}
     src/MainWidget.h src/MainWidget.cpp
     src/ExchangeRequester.h src/ExchangeRequester.cpp
     src/TradeRequester.h src/TradeRequester.cpp
+    src/ArithmeticExpression.h
+    src/ArithmeticVisitor.h src/ArithmeticVisitor.cpp
+    src/ArithmeticParser.h src/ArithmeticParser.cpp
+    src/ArithmeticCalculation.h src/ArithmeticCalculation.cpp
 )
 
 if(MSVC)

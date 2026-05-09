@@ -9,7 +9,6 @@
 #include <QAbstractProxyModel>
 #include <QComboBox>
 #include <QCompleter>
-#include <QDoubleSpinBox>
 #include <QHelpEvent>
 #include <QLineEdit>
 #include <QListView>
@@ -40,17 +39,12 @@ QWidget* StepItemDelegate::createEditor(QWidget* parent,
 
     switch (col) {
     case StepItemColumn::Row:
+    case StepItemColumn::Amount:
     case StepItemColumn::Cost:
     case StepItemColumn::Gold:
     case StepItemColumn::Time:
     case StepItemColumn::Success:
         return QStyledItemDelegate::createEditor(parent, option, index);
-    case StepItemColumn::Amount: {
-        auto spin_box = qobject_cast<QDoubleSpinBox*>(
-            QStyledItemDelegate::createEditor(parent, option, index));
-        spin_box->setDecimals(5);
-        return spin_box;
-    }
     case StepItemColumn::Type: {
         auto combo = new QComboBox{parent};
         combo->addItems(StepItem::typeList());

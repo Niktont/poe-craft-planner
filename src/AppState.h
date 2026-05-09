@@ -16,6 +16,7 @@ class TradeRequestCache;
 class SnapshotModel;
 
 class CustomCalculation;
+class ArithmeticCalculation;
 
 class UpdateCostDialog;
 class ShoppingDialog;
@@ -44,6 +45,7 @@ public:
     SnapshotModel* snapshots_poe2{};
 
     std::unique_ptr<CustomCalculation> custom_calc{};
+    std::unique_ptr<ArithmeticCalculation> arithmetic_calc{};
 
     UpdateCostDialog* update_cost_dialog{};
     ShoppingDialog* shopping_dialog{};

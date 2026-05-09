@@ -1,6 +1,7 @@
 #include "MainWindow.h"
 
 #include "AppState.h"
+#include "ArithmeticCalculation.h"
 #include "CustomCalculation.h"
 #include "ExchangeRequestCache.h"
 #include "ExchangeRequestManager.h"
@@ -90,6 +91,7 @@ MainWindow::MainWindow(QObject& object_parent, QWidget* parent)
     snapshots_dialog = new SnapshotsDialog{this};
     AppState::state.update_cost_dialog = new UpdateCostDialog{this};
     AppState::state.custom_calc = std::make_unique<CustomCalculation>();
+    AppState::state.arithmetic_calc = std::make_unique<ArithmeticCalculation>();
     connect(AppState::state.update_cost_dialog,
             &UpdateCostDialog::costUpdated,
             main_widget,
