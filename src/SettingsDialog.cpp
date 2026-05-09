@@ -244,8 +244,8 @@ void SettingsDialog::resetRequests()
     exchange_delay->setValue(Settings::exchangeRequestDelay().count());
     exchange_default_time->setValue(Settings::get<step_items_default_exchange_time>());
 
-    reload_data_poe1->setChecked(Settings::initNeeded(Game::Poe1));
-    reload_data_poe2->setChecked(Settings::initNeeded(Game::Poe2));
+    reload_data_poe1->setChecked(Settings::get<poe1_init_needed>());
+    reload_data_poe2->setChecked(Settings::get<poe2_init_needed>());
 
     is_changed[Requests] = false;
 }

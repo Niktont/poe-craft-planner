@@ -50,8 +50,6 @@ InitializationDialog::InitializationDialog(MainWindow& mw)
     offline_button = new QPushButton{tr("Offline mode"), this};
     offline_button->setEnabled(false);
     connect(offline_button, &QPushButton::clicked, this, [this] {
-        is_data_needed_poe1 = false;
-        is_data_needed_poe2 = false;
         Settings::offline_mode = true;
         finishInitialization();
     });
@@ -219,9 +217,9 @@ void InitializationDialog::parseLeagues(Game game, QNetworkReply* reply)
 
     is_leagues_changed = league_combo_poe1->isEnabled() || league_combo_poe2->isEnabled();
 
-    is_data_needed_poe1 = Settings::initNeeded(Game::Poe1)
+    is_data_needed_poe1 = Settings::get<settings::poe1_init_needed>()
                           || AppState::state.exchange_cache_poe1->cache.empty();
-    is_data_needed_poe2 = Settings::initNeeded(Game::Poe2)
+    is_data_needed_poe2 = Settings::get<settings::poe2_init_needed>()
                           || AppState::state.exchange_cache_poe2->cache.empty();
     bool is_data_needed = is_data_needed_poe1 || is_data_needed_poe2;
 
@@ -297,12 +295,20 @@ void InitializationDialog::requestData()
         else {
             QTimer::singleShot(3000, this, &InitializationDialog::finishInitialization);
 
-            auto div_card_link_poe1 = u"/image/Art/2DItems/Divination/InventoryIcon.png"_s;
-            auto div_card_file_poe1 = AppState::state.exchange_cache_poe1->iconFileName(
-                AppState::state.exchange_cache_poe1->div_card_icon_id);
-            if (!QFile::exists(div_card_file_poe1))
-                AppState::state.exchange_manager->downloadIcon(div_card_link_poe1,
-                                                               div_card_file_poe1);
+            if (is_data_needed_poe1) {
+                auto div_card_link_poe1 = u"/image/Art/2DItems/Divination/InventoryIcon.png"_s;
+                auto div_card_file_poe1 = AppState::state.exchange_cache_poe1->iconFileName(
+                    AppState::state.exchange_cache_poe1->div_card_icon_id);
+                if (!QFile::exists(div_card_file_poe1))
+                    AppState::state.exchange_manager->downloadIcon(div_card_link_poe1,
+                                                                   div_card_file_poe1);
+
+                Settings::set<Settings::poe1_init_needed>(false);
+            }
+
+            if (is_data_needed_poe2) {
+                Settings::set<Settings::poe2_init_needed>(false);
+            }
         }
     });
 
@@ -319,13 +325,11 @@ void InitializationDialog::finishInitialization()
     if (is_data_needed_poe1) {
         AppState::state.exchange_cache_poe1->saveCache();
         AppState::state.exchange_cache_poe1->saveCostCache();
-        Settings::set<Settings::poe1_init_needed>(false);
         AppState::state.exchange_cache_poe1->initIcons();
     }
     if (is_data_needed_poe2) {
         AppState::state.exchange_cache_poe2->saveCache();
         AppState::state.exchange_cache_poe2->saveCostCache();
-        Settings::set<Settings::poe2_init_needed>(false);
         AppState::state.exchange_cache_poe2->initIcons();
     }
 

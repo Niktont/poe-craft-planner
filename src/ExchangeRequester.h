@@ -2,10 +2,20 @@
 #define EXCHANGEREQUESTER_H
 
 #include "Game.h"
-#include <unordered_map>
+#include <unordered_set>
 #include <QObject>
 
 class QNetworkReply;
+
+template<>
+struct std::hash<std::pair<QString, planner::Game>>
+{
+    std::size_t operator()(const std::pair<QString, planner::Game>& key,
+                           size_t seed = 0) const noexcept
+    {
+        return qHashMulti(seed, key.first, key.second);
+    }
+};
 
 namespace planner {
 
@@ -15,7 +25,7 @@ class ExchangeRequester : public QObject
 public:
     explicit ExchangeRequester(QObject* parent = nullptr);
 
-    std::unordered_map<QString, Game> requests;
+    std::unordered_set<std::pair<QString, Game>> requests;
 
     void startRequests(bool parse_items = false);
     void cancelRequests();

@@ -47,9 +47,9 @@ void ExchangeRequester::requestOverview()
 
     auto node = requests.extract(requests.begin());
 
-    reply = AppState::state.exchange_manager->getOverview(node.mapped(), node.key());
+    reply = AppState::state.exchange_manager->getOverview(node.value().second, node.value().first);
     connection = connect(reply, &QNetworkReply::finished, this, [this, node = std::move(node)] {
-        parseOverview(node.mapped(), node.key());
+        parseOverview(node.value().second, node.value().first);
     });
 }
 

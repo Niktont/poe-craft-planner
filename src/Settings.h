@@ -71,11 +71,6 @@ public:
         return game == Game::Poe1 ? get<poe1_league>() : get<poe2_league>();
     }
 
-    static bool initNeeded(Game game)
-    {
-        return game == Game::Poe1 ? get<poe1_init_needed>() : get<poe2_init_needed>();
-    }
-
     static ItemTime defaultTradeTime() { return ItemTime{get<step_items_default_trade_time>()}; }
     static ItemTime defaultExchangeTime()
     {
