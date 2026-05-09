@@ -5,7 +5,7 @@ This product isn't affiliated with or endorsed by Grinding Gear Games in any way
 
 ## Main Features
 
-- Save details about crafting/farming proccess, including steps and items needed, in a [plan](https://github.com/Niktont/poe-craft-planner/wiki/Plan), it can also be shared with others.
+- Save details about crafting/farming process, including steps and items needed, in a [plan](https://github.com/Niktont/poe-craft-planner/wiki/Plan), it can also be shared with others.
 - [Check prices](https://github.com/Niktont/poe-craft-planner/wiki/Price-Checking) of all items in the plan and see its total cost.
 - Use [shopping mode](https://github.com/Niktont/poe-craft-planner/wiki/Shopping-Mode) to see amount of currencies and items needed for the plan, you can also use hotkeys to paste currencies name and amount in a currency exchange and open search links for items.
 
