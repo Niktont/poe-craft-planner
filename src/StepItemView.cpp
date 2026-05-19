@@ -47,39 +47,34 @@ StepItemView::StepItemView(StepItemModel& model, PlanWidget& plan_widget, QWidge
     connect(this, &QTableView::clicked, this, &StepItemView::indexClicked);
 
     add_exchange_action = addAction(tr("Add Exchange Item"), this, [this] {
-        auto current = context_index ? *context_index : selectionModel()->currentIndex();
-        auto idx = stepModel()->insertItem(current, StepItemType::Exchange);
+        auto target = is_context_idx_valid ? selectionModel()->currentIndex() : QModelIndex{};
+        auto idx = stepModel()->insertItem(target, StepItemType::Exchange);
         if (idx.isValid())
             setCurrentIndex(idx);
-        context_index.reset();
     });
     add_trade_action = addAction(tr("Add Trade Item"), this, [this] {
-        auto current = context_index ? *context_index : selectionModel()->currentIndex();
-        auto idx = stepModel()->insertItem(current, StepItemType::Trade);
+        auto target = is_context_idx_valid ? selectionModel()->currentIndex() : QModelIndex{};
+        auto idx = stepModel()->insertItem(target, StepItemType::Trade);
         if (idx.isValid())
             setCurrentIndex(idx);
-        context_index.reset();
     });
     add_custom_action = addAction(tr("Add Custom Item"), this, [this] {
-        auto current = context_index ? *context_index : selectionModel()->currentIndex();
-        auto idx = stepModel()->insertItem(current, StepItemType::Custom);
+        auto target = is_context_idx_valid ? selectionModel()->currentIndex() : QModelIndex{};
+        auto idx = stepModel()->insertItem(target, StepItemType::Custom);
         if (idx.isValid())
             setCurrentIndex(idx);
-        context_index.reset();
     });
     add_step_action = addAction(tr("Add Step Item"), this, [this] {
-        auto current = context_index ? *context_index : selectionModel()->currentIndex();
-        auto idx = stepModel()->insertItem(current, StepItemType::Step);
+        auto target = is_context_idx_valid ? selectionModel()->currentIndex() : QModelIndex{};
+        auto idx = stepModel()->insertItem(target, StepItemType::Step);
         if (idx.isValid())
             setCurrentIndex(idx);
-        context_index.reset();
     });
     add_plan_action = addAction(tr("Add Plan Item"), this, [this] {
-        auto current = context_index ? *context_index : selectionModel()->currentIndex();
-        auto idx = stepModel()->insertItem(current, StepItemType::Plan);
+        auto target = is_context_idx_valid ? selectionModel()->currentIndex() : QModelIndex{};
+        auto idx = stepModel()->insertItem(target, StepItemType::Plan);
         if (idx.isValid())
             setCurrentIndex(idx);
-        context_index.reset();
     });
 
     duplicate_action = addAction(tr("Duplicate"), {Qt::ControlModifier | Qt::Key_D}, this, [this] {
@@ -93,11 +88,10 @@ StepItemView::StepItemView(StepItemModel& model, PlanWidget& plan_widget, QWidge
         stepModel()->copyItem(selectionModel()->currentIndex());
     });
     paste_action = addAction(tr("Paste"), this, [this] {
-        auto current = context_index ? *context_index : selectionModel()->currentIndex();
-        auto idx = stepModel()->pasteItem(current);
+        auto target = is_context_idx_valid ? selectionModel()->currentIndex() : QModelIndex{};
+        auto idx = stepModel()->pasteItem(target);
         if (idx.isValid())
             setCurrentIndex(idx);
-        context_index.reset();
     });
 
     copy_link_action = addAction(tr("Copy Link"), this, [this] {
@@ -134,15 +128,17 @@ void StepItemView::contextMenuEvent(QContextMenuEvent* event)
     menu->setAttribute(Qt::WA_DeleteOnClose);
 
     bool have_item_copy = StepItemCopyState::haveCopy(stepModel()->game());
-    context_index = indexAt(event->pos());
-    if (context_index->isValid()) {
+
+    auto context_index = indexAt(event->pos());
+    is_context_idx_valid = context_index.isValid();
+    if (is_context_idx_valid) {
         menu->addAction(duplicate_action);
         menu->addAction(copy_action);
         if (have_item_copy)
             menu->addAction(paste_action);
 
         menu->addSeparator();
-        auto item = stepModel()->stepItem(*context_index);
+        auto item = stepModel()->stepItem(context_index);
         if (item) {
             switch (item->type()) {
             case StepItemType::Trade:
@@ -151,12 +147,12 @@ void StepItemView::contextMenuEvent(QContextMenuEvent* event)
                     menu->addAction(copy_regex_action);
                 menu->addAction(edit_search_action);
                 menu->addAction(delete_search_action);
-                if (context_index->column() == static_cast<int>(StepItemColumn::Time))
+                if (context_index.column() == static_cast<int>(StepItemColumn::Time))
                     menu->addAction(default_time_action);
                 menu->addSeparator();
                 break;
             case StepItemType::Exchange:
-                if (context_index->column() == static_cast<int>(StepItemColumn::Time)) {
+                if (context_index.column() == static_cast<int>(StepItemColumn::Time)) {
                     menu->addAction(default_time_action);
                     menu->addSeparator();
                 }

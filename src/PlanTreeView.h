@@ -57,7 +57,7 @@ private:
     QAction* export_clipboard_action;
     QAction* export_file_action;
 
-    std::optional<QModelIndex> context_index;
+    bool is_context_idx_valid{};
 };
 
 } // namespace planner

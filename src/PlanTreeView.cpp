@@ -28,14 +28,12 @@ PlanTreeView::PlanTreeView(QWidget* parent)
     header()->setSectionResizeMode(QHeaderView::ResizeToContents);
 
     add_plan_action = addAction(tr("New Plan"), this, [this] {
-        auto current = context_index ? *context_index : selectionModel()->currentIndex();
-        setCurrentIndex(planModel()->insertPlan(current));
-        context_index.reset();
+        auto target = is_context_idx_valid ? selectionModel()->currentIndex() : QModelIndex{};
+        setCurrentIndex(planModel()->insertPlan(target));
     });
     add_folder_action = addAction(tr("New Folder"), this, [this] {
-        auto current = context_index ? *context_index : selectionModel()->currentIndex();
-        setCurrentIndex(planModel()->insertFolder(current));
-        context_index.reset();
+        auto target = is_context_idx_valid ? selectionModel()->currentIndex() : QModelIndex{};
+        setCurrentIndex(planModel()->insertFolder(target));
     });
     duplicate_action = addAction(tr("Duplicate"), {Qt::ControlModifier | Qt::Key_D}, this, [this] {
         auto copy_index = planModel()->duplicateItem(selectionModel()->currentIndex());
@@ -49,18 +47,16 @@ PlanTreeView::PlanTreeView(QWidget* parent)
     });
 
     paste_action = addAction(tr("Paste"), this, [this] {
-        auto current = context_index ? *context_index : selectionModel()->currentIndex();
-        auto copy_index = planModel()->pasteItem(current);
+        auto target = is_context_idx_valid ? selectionModel()->currentIndex() : QModelIndex{};
+        auto copy_index = planModel()->pasteItem(target);
         if (copy_index.isValid())
             setCurrentIndex(copy_index);
-        context_index.reset();
     });
 
     update_action = addAction(tr("Update Costs"), this, [this] {
-        auto current = context_index ? *context_index : selectionModel()->currentIndex();
+        auto target = is_context_idx_valid ? selectionModel()->currentIndex() : QModelIndex{};
         bool send_requests = !QGuiApplication::keyboardModifiers().testFlag(Qt::ShiftModifier);
-        planModel()->updateCosts(current, send_requests);
-        context_index.reset();
+        planModel()->updateCosts(target, send_requests);
     });
 
     save_action = addAction(tr("Save"), this, [this] {
@@ -119,8 +115,9 @@ void PlanTreeView::contextMenuEvent(QContextMenuEvent* event)
     menu->addAction(add_plan_action);
     menu->addAction(add_folder_action);
 
-    context_index = indexAt(event->pos());
-    if (context_index->isValid()) {
+    auto context_index = indexAt(event->pos());
+    is_context_idx_valid = context_index.isValid();
+    if (is_context_idx_valid) {
         menu->addAction(duplicate_action);
         menu->addAction(copy_action);
         if (planModel()->haveCopy())
@@ -129,11 +126,11 @@ void PlanTreeView::contextMenuEvent(QContextMenuEvent* event)
         menu->addSeparator();
         menu->addAction(update_action);
 
-        auto item = planModel()->internalPtr(*context_index);
+        auto item = planModel()->internalPtr(context_index);
         if (!item->isFolder() && item->plan()->is_changed) {
             menu->addSeparator();
             menu->addAction(save_action);
-            if (planModel()->canRestorePlan(*context_index))
+            if (planModel()->canRestorePlan(context_index))
                 menu->addAction(restore_action);
         }
         menu->addSeparator();

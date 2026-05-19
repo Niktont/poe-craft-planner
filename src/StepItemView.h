@@ -60,7 +60,7 @@ private:
     QAction* delete_action;
 
     bool context_menu_shown{};
-    std::optional<QModelIndex> context_index;
+    bool is_context_idx_valid{};
 
     PlanWidget& plan_widget;
 
