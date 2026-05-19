@@ -6,6 +6,7 @@
 #include <QJsonObject>
 #include <QNetworkReply>
 #include <QRestAccessManager>
+#include <QRestReply>
 
 namespace planner {
 
@@ -57,19 +58,28 @@ QNetworkReply* TradeRequestManager::fetchItems(Game game,
     return manager->get(request);
 }
 
-std::pair<int, std::vector<QString>> TradeRequestManager::parseSearchReply(
-    QNetworkReply* reply, const QJsonObject& reply_o, size_t request_count)
+TradeRequestManager::SearchResult TradeRequestManager::parseSearchReply(QNetworkReply& reply,
+                                                                        size_t request_count)
 {
-    std::pair<int, std::vector<QString>> result;
-    const auto result_a = reply_o["result"].toArray();
+    trade_search_finished_time = QDateTime::currentDateTimeUtc();
+    trade_search_delay = findDelay(reply, request_count).value_or(std::chrono::milliseconds{2500});
 
+    QRestReply rest{&reply};
+    if (!rest.isSuccess())
+        return RequestFailed;
+
+    auto json = rest.readJson();
+    if (!json)
+        return ParseFailed;
+    const QJsonObject reply_o = json->object();
+
+    const auto result_a = reply_o["result"].toArray();
+    std::pair<int, std::vector<QString>> result;
     result.second.reserve(result_a.size());
+
     for (auto item_v : result_a)
         result.second.push_back(item_v.toString());
     result.first = reply_o["total"].toInt();
-
-    trade_search_delay = findDelay(reply, request_count);
-    trade_search_finished_time = QDateTime::currentDateTimeUtc();
 
     return result;
 }
@@ -82,15 +92,25 @@ std::chrono::milliseconds TradeRequestManager::searchDelay() const
     return trade_search_delay - (now - trade_search_finished_time);
 }
 
-bool TradeRequestManager::parseFetchReply(const QJsonObject& reply,
-                                          const TradeRequestKey& request,
-                                          int total,
-                                          const ExchangeRequestCache& exchange_cache,
-                                          TradeRequestCache& trade_cache)
+TradeRequestManager::FetchResult TradeRequestManager::parseFetchReply(
+    QNetworkReply& reply,
+    const TradeRequestKey& request,
+    int total,
+    const ExchangeRequestCache& exchange_cache,
+    TradeRequestCache& trade_cache)
 {
-    double fee{};
-    const auto result_a = reply["result"].toArray();
+    QRestReply rest{&reply};
+    if (!rest.isSuccess())
+        return RequestFailed;
+
+    auto json = rest.readJson();
+    if (!json)
+        return ParseFailed;
+    const auto reply_o = json->object();
+
+    const auto result_a = reply_o["result"].toArray();
     std::unordered_map<QString, std::pair<double, int>> prices;
+    double fee{};
     for (auto item_v : result_a) {
         const auto item_o{item_v.toObject()};
         const auto listing_o{item_o["listing"].toObject()};
@@ -105,7 +125,8 @@ bool TradeRequestManager::parseFetchReply(const QJsonObject& reply,
         it->second.second += 1;
     }
     if (prices.empty())
-        return false;
+        return ParseFailed;
+
     fee /= result_a.size();
 
     auto common_it = std::ranges::max_element(prices, [](const auto& l, const auto& r) {
@@ -118,28 +139,36 @@ bool TradeRequestManager::parseFetchReply(const QJsonObject& reply,
     exchange_cache.prepareCurrency(cost.currency);
     trade_cache.updateCost(request, {QDateTime::currentDateTimeUtc(), cost, fee, total});
 
-    return true;
+    return boost::outcome_v2::success();
 }
 
-std::chrono::milliseconds TradeRequestManager::findDelay(QNetworkReply* reply, size_t request_count)
+std::optional<std::chrono::milliseconds> TradeRequestManager::findDelay(QNetworkReply& reply,
+                                                                        size_t request_count)
 {
     static constexpr QByteArrayView rule_names_header{"x-rate-limit-rules"};
     static constexpr QByteArrayView base{"x-rate-limit-"};
 
-    auto headers = reply->headers();
-    const auto rule_names = headers.combinedValue(rule_names_header).split(',');
+    const auto headers = reply.headers();
+    const auto rule_names = headers.combinedValue(rule_names_header);
+    if (rule_names.isEmpty())
+        return {};
+
     QList<QByteArray> rules;
     QList<QByteArray> states;
-    for (auto rule : rule_names) {
+    for (auto& rule : rule_names.split(',')) {
         rules.append(headers.combinedValue(base % rule).split(','));
         states.append(headers.combinedValue(base % rule % "-state").split(','));
     }
+    if (rules.size() != states.size())
+        return {};
 
     bool limit_exceeded = false;
     std::vector<std::pair<size_t, double>> delays;
     for (qsizetype i = 0; i < rules.size(); ++i) {
-        auto rule_parts = rules[i].split(':');
-        auto state_parts = states[i].split(':');
+        const auto rule_parts = rules[i].split(':');
+        const auto state_parts = states[i].split(':');
+        if (rule_parts.size() != 3 || state_parts.size() != 3)
+            return {};
 
         int max_hits = rule_parts[0].toInt();
         double test_period = rule_parts[1].toInt();
@@ -148,12 +177,12 @@ std::chrono::milliseconds TradeRequestManager::findDelay(QNetworkReply* reply, s
         if (hits_left > 0)
             delays.emplace_back(hits_left, test_period / hits_left);
         else {
-            delays.emplace_back(hits_left, state_parts[2].toDouble());
+            delays.emplace_back(0, state_parts[2].toDouble());
             limit_exceeded = true;
         }
     }
     if (delays.empty())
-        return std::chrono::milliseconds{2500};
+        return {};
 
     double delay;
     auto delay_less = [](const auto& l, const auto& r) { return l.second < r.second; };

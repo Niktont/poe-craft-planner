@@ -2,6 +2,7 @@
 #define TRADEREQUESTMANAGER_H
 
 #include "Game.h"
+#include <boost/outcome.hpp>
 #include <QDateTime>
 #include <QObject>
 
@@ -29,19 +30,22 @@ public:
     QNetworkReply* fetchItems(Game game,
                               const TradeRequestKey& key,
                               std::span<const QString> items) const;
-
-    std::pair<int, std::vector<QString>> parseSearchReply(QNetworkReply* reply,
-                                                          const QJsonObject& reply_o,
-                                                          size_t request_count);
+    enum ReplyError {
+        RequestFailed,
+        ParseFailed,
+    };
+    using SearchResult = boost::outcome_v2::result<std::pair<int, std::vector<QString>>, ReplyError>;
+    SearchResult parseSearchReply(QNetworkReply& reply, size_t request_count);
 
     std::chrono::milliseconds searchDelay() const;
     std::chrono::milliseconds currentSearchDelay() const { return trade_search_delay; }
 
-    static bool parseFetchReply(const QJsonObject& reply,
-                                const TradeRequestKey& request,
-                                int total,
-                                const ExchangeRequestCache& exchange_cache,
-                                TradeRequestCache& trade_cache);
+    using FetchResult = boost::outcome_v2::result<void, ReplyError>;
+    static FetchResult parseFetchReply(QNetworkReply& reply,
+                                       const TradeRequestKey& request,
+                                       int total,
+                                       const ExchangeRequestCache& exchange_cache,
+                                       TradeRequestCache& trade_cache);
 
 private:
     QRestAccessManager* manager;
@@ -50,7 +54,8 @@ private:
     QDateTime trade_search_finished_time;
     std::chrono::milliseconds trade_search_delay{2000};
 
-    static std::chrono::milliseconds findDelay(QNetworkReply* reply, size_t request_count);
+    static std::optional<std::chrono::milliseconds> findDelay(QNetworkReply& reply,
+                                                              size_t request_count);
 };
 
 } // namespace planner

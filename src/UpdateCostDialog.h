@@ -48,6 +48,7 @@ private:
 
     TradeRequester* trade_requester;
     ExchangeRequester* exchange_requester;
+    size_t request_count{};
 
     std::unordered_set<QString> empty_search_results;
 

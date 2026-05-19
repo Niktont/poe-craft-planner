@@ -67,24 +67,22 @@ void TradeRequester::requestSearch()
 
 void TradeRequester::parseSearch(Game game, const TradeRequestKey& request)
 {
-    QRestReply rest{reply};
+    auto result = AppState::state.trade_manager->parseSearchReply(*reply, requests.size());
     reply = nullptr;
-    if (!rest.isSuccess()) {
-        emit requestFailed();
+    if (result.has_error()) {
+        switch (result.assume_error()) {
+        case TradeRequestManager::RequestFailed:
+            emit requestFailed();
+            break;
+        case TradeRequestManager::ParseFailed:
+            emit parseFailed();
+            break;
+        }
         requestWithDelay();
         return;
     }
 
-    auto json = rest.readJson();
-    if (!json) {
-        emit parseFailed();
-        requestWithDelay();
-        return;
-    }
-
-    auto [total, items] = AppState::state.trade_manager->parseSearchReply(rest.networkReply(),
-                                                                          json->object(),
-                                                                          requests.size());
+    auto& [total, items] = result.assume_value();
     if (items.empty()) {
         AppState::tradeCache(game)->updateCost(request, {QDateTime::currentDateTimeUtc(), {}});
         emit noResultsFound(game, request);
@@ -103,27 +101,21 @@ void TradeRequester::parseSearch(Game game, const TradeRequestKey& request)
 
 void TradeRequester::parseFetch(Game game, const TradeRequestKey& request, int total)
 {
-    QRestReply rest{reply};
+    auto result = TradeRequestManager::parseFetchReply(*reply,
+                                                       request,
+                                                       total,
+                                                       *AppState::exchangeCache(game),
+                                                       *AppState::tradeCache(game));
     reply = nullptr;
-    if (!rest.isSuccess()) {
-        emit requestFailed();
-        requestWithDelay();
-        return;
-    }
-
-    auto json = rest.readJson();
-    if (!json) {
-        emit parseFailed();
-        requestWithDelay();
-        return;
-    }
-
-    if (!TradeRequestManager::parseFetchReply(json->object(),
-                                              request,
-                                              total,
-                                              *AppState::exchangeCache(game),
-                                              *AppState::tradeCache(game))) {
-        emit parseFailed();
+    if (result.has_error()) {
+        switch (result.assume_error()) {
+        case TradeRequestManager::RequestFailed:
+            emit requestFailed();
+            break;
+        case TradeRequestManager::ParseFailed:
+            emit parseFailed();
+            break;
+        }
         requestWithDelay();
         return;
     }

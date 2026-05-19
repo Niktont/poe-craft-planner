@@ -147,20 +147,23 @@ void UpdateCostDialog::startUpdate(bool send_requests)
         }
     }
 
-    bool trade_finished = trade_requester->requests.empty();
-    bool exchange_finished = exchange_requester->requests.empty();
-    if (trade_finished && exchange_finished) {
+    auto trade_count = trade_requester->requests.size();
+    auto exchange_count = exchange_requester->requests.size();
+    if (trade_count == 0 && exchange_count == 0) {
         calculateCost();
         return;
     }
 
-    if (!trade_finished) {
+    if (trade_count) {
         checkCurrency({"chaos"}, now, *exchange_cache);
+        exchange_count = exchange_requester->requests.size();
         trade_requester->startRequests();
     }
 
-    if (!exchange_finished)
+    if (exchange_count)
         exchange_requester->startRequests();
+
+    request_count = trade_count + exchange_count;
 
     cancel_button->setText(tr("Cancel"));
     progress_label->setText(tr("Requesting data..."));
@@ -210,12 +213,16 @@ void UpdateCostDialog::parseFailed()
 
 void UpdateCostDialog::updateProgress()
 {
-    auto trade_count = std::ssize(trade_requester->requests);
-    auto exchange_count = std::ssize(exchange_requester->requests);
-    if (trade_count == 0 && exchange_count == 0) {
+    if (!isUpdateActive())
+        return;
+
+    if (--request_count == 0) {
         QTimer::singleShot(0, this, &UpdateCostDialog::calculateCost);
         return;
     }
+
+    auto trade_count = std::ssize(trade_requester->requests);
+    auto exchange_count = std::ssize(exchange_requester->requests);
 
     auto trade_requests_estimation = AppState::state.trade_manager->currentSearchDelay()
                                      * trade_count;
