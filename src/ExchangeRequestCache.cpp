@@ -218,11 +218,20 @@ void ExchangeRequestCache::updateLeagues(const QStringList& new_leagues, const Q
     saveCostCache();
 }
 
-void ExchangeRequestCache::initIcons()
+void ExchangeRequestCache::initExchangeData()
 {
+    auto lang = Settings::get<Settings::language_exchange_items>();
     for (auto& [id, exchange_data] : cache) {
         if (exchange_data.type != div_card_type && exchange_data.icon.isNull())
             exchange_data.icon = QIcon{iconFileName(game, id)};
+
+        if (exchange_data.translated_name.isNull()) {
+            auto select = Database::selectCurrencyData(game, lang, id);
+            if (select.exec() && select.next()) {
+                exchange_data.gold_fee = select.value(0).toDouble();
+                exchange_data.translated_name = select.value(1).toString();
+            }
+        }
     }
     div_card_icon = QIcon{iconFileName(div_card_icon_id)};
 }

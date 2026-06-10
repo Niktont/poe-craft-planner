@@ -328,12 +328,12 @@ void InitializationDialog::finishInitialization()
     if (is_data_needed_poe1) {
         AppState::state.exchange_cache_poe1->saveCache();
         AppState::state.exchange_cache_poe1->saveCostCache();
-        AppState::state.exchange_cache_poe1->initIcons();
+        AppState::state.exchange_cache_poe1->initExchangeData();
     }
     if (is_data_needed_poe2) {
         AppState::state.exchange_cache_poe2->saveCache();
         AppState::state.exchange_cache_poe2->saveCostCache();
-        AppState::state.exchange_cache_poe2->initIcons();
+        AppState::state.exchange_cache_poe2->initExchangeData();
     }
 
     accept();

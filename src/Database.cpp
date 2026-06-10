@@ -72,6 +72,15 @@ QSqlQuery Database::selectCurrencyData(Game game, QStringView lang)
     return query;
 }
 
+QSqlQuery Database::selectCurrencyData(Game game, QStringView lang, const QString& id)
+{
+    QSqlQuery query{QSqlDatabase::database(additional_db)};
+    query.prepare("SELECT fee, " % lang % " FROM " % currency_data.forGame(game) % " WHERE id = ?;");
+    query.addBindValue(id);
+
+    return query;
+}
+
 QSqlQuery selectQueryTexts(QStringView table, QStringView lang)
 {
     QSqlQuery query{QSqlDatabase::database(additional_db)};

@@ -24,6 +24,7 @@ public:
 
     static QSqlQuery selectCurrencyType(Game game);
     static QSqlQuery selectCurrencyData(Game game, QStringView lang);
+    static QSqlQuery selectCurrencyData(Game game, QStringView lang, const QString& id);
     static QSqlQuery selectFilters(Game game, QStringView lang);
     static QSqlQuery selectFilterOptions(Game game, QStringView lang);
     static QSqlQuery selectStatTypes(Game game, QStringView lang);

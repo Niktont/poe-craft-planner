@@ -55,7 +55,7 @@ public:
 
     bool saveCache() const;
     void updateLeagues(const QStringList& new_leagues, const QStringList& urls);
-    void initIcons();
+    void initExchangeData();
 
     bool saveCostCache() const;
 
